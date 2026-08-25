@@ -1,0 +1,65 @@
+name: solvexo_pos
+description: "Solvexo POS — standalone point-of-sale app for sellers."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+# A fully independent app: no dependency on book_store_app. Every repository,
+# model, component, theme file, and asset it needs lives inside this package
+# (copied from the main app, then trimmed to what POS actually uses).
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  get: ^4.7.3
+  intl: ^0.20.2
+  mobile_scanner: ^7.2.0
+  share_plus: ^12.0.2
+  shimmer: ^3.0.0
+  flutter_svg: ^2.2.3
+  image_picker: ^1.2.1
+  responsive_sizer: ^3.3.1
+  shared_preferences: ^2.5.4
+  google_sign_in: ^7.2.0
+  firebase_core: ^3.6.0
+  permission_handler: ^12.0.1
+  cached_network_image: ^3.4.1
+  http_parser: ^4.1.2
+  file_picker: ^10.3.7
+  audioplayers: ^6.6.0
+
+  # Pinned to the exact version the main app's pubspec.lock resolves to —
+  # newer dio releases have added DioExceptionType cases not handled by
+  # dio_exception_handler.dart's switch, which fails the compiler's
+  # exhaustiveness check even though flutter analyze doesn't catch it.
+  dio: 5.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/app_fonts/
+    - assets/sounds/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/app_fonts/inter/Inter_Regular.ttf
+          weight: 400
+        - asset: assets/app_fonts/inter/Inter_Medium.ttf
+          weight: 500
+        - asset: assets/app_fonts/inter/Inter_SemiBold.ttf
+          weight: 600
+        - asset: assets/app_fonts/inter/Inter_Bold.ttf
+          weight: 700
