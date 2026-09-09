@@ -37,7 +37,7 @@ class PosSearchBar extends StatelessWidget {
             onTap: () => Get.bottomSheet(
               PosBarcodeSheet(c: c),
               isScrollControlled: true,
-              backgroundColor: Colors.transparent,
+              backgroundColor: AppColors.transparent,
             ),
             child: SvgIcon(
               assetName: AppIcons.barcodeIcon,

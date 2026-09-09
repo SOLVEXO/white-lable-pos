@@ -92,13 +92,13 @@ class PosOpenRegisterView extends StatelessWidget {
                   decimal: true,
                 ),
                 fillColor: kPinSurface,
-                prefixIcon: const Padding(
-                  padding: EdgeInsets.only(left: 14, right: 8),
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 14, right: 8),
                   child: CustomText(
                     text: '\$',
                     fontSize: AppFontSize.medium,
                     fontWeight: FontWeight.bold,
-                    color: kPinOrange,
+                    color: AppColors.primaryColor,
                   ),
                 ),
               ),
@@ -156,10 +156,10 @@ class _InfoCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: kPinOrange.withOpacity(0.12),
+              color: AppColors.primaryColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: kPinOrange, size: 20),
+            child: Icon(icon, color: AppColors.primaryColor, size: 20),
           ),
           const SizedBox(width: 14),
           Column(

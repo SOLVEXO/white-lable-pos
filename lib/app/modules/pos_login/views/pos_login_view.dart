@@ -1,7 +1,6 @@
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/components/svg_icon.dart';
-import 'package:solvexo_pos/app/data/services/branding_service.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_icons.dart';
 import 'package:solvexo_pos/core/theme/base_shadows.dart';
@@ -54,7 +53,8 @@ class PosLoginView extends StatelessWidget {
                   child: _LoginCard(controller: controller),
                 ),
                 CustomText(
-                  text: 'New store owners: signing up with Google creates your account automatically.',
+                  text:
+                      'New store owners: signing up with Google creates your account automatically.',
                   fontSize: AppFontSize.extraSmall,
                   color: AppColors.lightGrey,
                   textAlign: TextAlign.center,
@@ -95,8 +95,16 @@ class _Hero extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Positioned(top: -30, right: -30, child: _Blob(size: 140, opacity: 0.10)),
-          Positioned(bottom: -20, left: -40, child: _Blob(size: 120, opacity: 0.08)),
+          Positioned(
+            top: -30,
+            right: -30,
+            child: _Blob(size: 140, opacity: 0.10),
+          ),
+          Positioned(
+            bottom: -20,
+            left: -40,
+            child: _Blob(size: 120, opacity: 0.08),
+          ),
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -109,12 +117,16 @@ class _Hero extends StatelessWidget {
                   boxShadow: BaseShadows.md,
                 ),
                 alignment: Alignment.center,
-                child: SvgIcon(assetName: AppIcons.posIcon, size: 32, color: AppColors.primaryColor),
+                child: SvgIcon(
+                  assetName: AppIcons.posIcon,
+                  size: 35,
+                  color: AppColors.primaryColor,
+                ),
               ),
               SizedBox(height: BaseSpacing.md),
               CustomText(
-                text: '${Get.find<BrandingService>().config.value.appName} POS',
-                fontSize: AppFontSize.veryLarge3,
+                text: 'POS',
+                fontSize: AppFontSize.veryLarge,
                 fontWeight: FontWeight.w700,
                 color: AppColors.white,
                 textAlign: TextAlign.center,
@@ -144,7 +156,10 @@ class _Blob extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: AppColors.white.withOpacity(opacity), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: AppColors.white.withOpacity(opacity),
+        shape: BoxShape.circle,
+      ),
     );
   }
 }
@@ -174,10 +189,14 @@ class _LoginCard extends StatelessWidget {
           SizedBox(height: BaseSpacing.xs),
           CustomTextField(
             controller: controller.emailController,
-            hintText: 'you@example.com',
+            hintText: 'Enter Email',
             fillColor: AppColors.lightGrey3,
             keyboardType: TextInputType.emailAddress,
-            prefixIcon: SvgIcon(assetName: AppIcons.emailIcon, size: 18, color: AppColors.grey),
+            prefixIcon: SvgIcon(
+              assetName: AppIcons.emailIcon,
+              size: 18,
+              color: AppColors.grey,
+            ),
           ),
           SizedBox(height: BaseSpacing.md),
           CustomText(
@@ -193,7 +212,11 @@ class _LoginCard extends StatelessWidget {
               fillColor: AppColors.lightGrey3,
               obscureText: controller.obscurePassword.value,
               onFieldSubmitted: (_) => controller.loginWithEmail(),
-              prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.grey),
+              prefixIcon: Icon(
+                Icons.lock_outline_rounded,
+                size: 22,
+                color: AppColors.grey,
+              ),
               suffixIcon: IconButton(
                 icon: Icon(
                   controller.obscurePassword.value
@@ -208,7 +231,9 @@ class _LoginCard extends StatelessWidget {
           SizedBox(height: BaseSpacing.lg),
           Obx(
             () => PrimaryButton(
-              label: controller.isEmailLoading.value ? 'Logging in...' : 'Log in',
+              label: controller.isEmailLoading.value
+                  ? 'Logging in...'
+                  : 'Log in',
               isLoading: controller.isEmailLoading.value,
               onPressed: controller.isBusy ? null : controller.loginWithEmail,
             ),
@@ -251,7 +276,11 @@ class _OrDivider extends StatelessWidget {
 }
 
 class _GoogleButton extends StatelessWidget {
-  const _GoogleButton({required this.onTap, required this.isLoading, this.disabled = false});
+  const _GoogleButton({
+    required this.onTap,
+    required this.isLoading,
+    this.disabled = false,
+  });
   final VoidCallback onTap;
   final bool isLoading;
   final bool disabled;
@@ -280,7 +309,9 @@ class _GoogleButton extends StatelessWidget {
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.4,
-                        valueColor: AlwaysStoppedAnimation(AppColors.primaryColor),
+                        valueColor: AlwaysStoppedAnimation(
+                          AppColors.primaryColor,
+                        ),
                       ),
                     ),
                   ]

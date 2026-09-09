@@ -30,13 +30,39 @@ class PosSaleDetailView extends StatelessWidget {
           Obx(() {
             final sale = c.sale.value;
             if (sale == null) return const SizedBox.shrink();
-            return GestureDetector(
-              onTap: c.shareReceipt,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Icon(Icons.share_outlined, color: AppColors.primaryColor, size: 20),
+            return Row(mainAxisSize: MainAxisSize.min, children: [
+              GestureDetector(
+                onTap: c.isPrinting.value ? null : c.printReceipt,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: c.isPrinting.value
+                      ? SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor),
+                        )
+                      : Icon(Icons.print_outlined, color: AppColors.primaryColor, size: 20),
+                ),
               ),
-            );
+              GestureDetector(
+                onTap: c.isExportingPdf.value ? null : c.shareReceiptPdf,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: c.isExportingPdf.value
+                      ? SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor),
+                        )
+                      : Icon(Icons.picture_as_pdf_outlined, color: AppColors.primaryColor, size: 20),
+                ),
+              ),
+              GestureDetector(
+                onTap: c.shareReceipt,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Icon(Icons.share_outlined, color: AppColors.primaryColor, size: 20),
+                ),
+              ),
+            ]);
           }),
         ],
       ),
@@ -56,11 +82,11 @@ class PosSaleDetailView extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppDimen.allPadding),
             children: [
-              _HeaderCard(sale: sale),
+              _HeaderCard(sale: sale, currencySymbol: c.currencySymbol.value),
               const SizedBox(height: 16),
               _ItemsCard(sale: sale, c: c),
               const SizedBox(height: 16),
-              _TotalsCard(sale: sale),
+              _TotalsCard(sale: sale, currencySymbol: c.currencySymbol.value),
               const SizedBox(height: 20),
               _ActionsSection(sale: sale, c: c),
             ],
@@ -73,7 +99,8 @@ class PosSaleDetailView extends StatelessWidget {
 
 class _HeaderCard extends StatelessWidget {
   final PosSaleModel sale;
-  const _HeaderCard({required this.sale});
+  final String currencySymbol;
+  const _HeaderCard({required this.sale, required this.currencySymbol});
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +152,7 @@ class _HeaderCard extends StatelessWidget {
         if (sale.refundedAmount > 0) ...[
           const SizedBox(height: 8),
           CustomText(
-            text: 'Refunded: \$${sale.refundedAmount.toStringAsFixed(2)}',
+            text: 'Refunded: $currencySymbol${sale.refundedAmount.toStringAsFixed(2)}',
             fontSize: AppFontSize.tiny,
             fontWeight: FontWeight.w600,
             color: AppColors.red,
@@ -143,7 +170,9 @@ class _ItemsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canPartialRefund = sale.canRefund;
+    // Refund is only offered to managers, matching the backend's real,
+    // signed-token-verified enforcement — see PosRole's doc comment.
+    final canPartialRefund = sale.canRefund && c.isManager.value;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -166,7 +195,7 @@ class _ItemsCard extends StatelessWidget {
                   color: AppColors.black2,
                 ),
                 CustomText(
-                  text: '\$${item.price.toStringAsFixed(2)} × ${item.qty}'
+                  text: '${c.currencySymbol.value}${item.price.toStringAsFixed(2)} × ${item.qty}'
                       '${item.refundedQty > 0 ? ' (${item.refundedQty} refunded)' : ''}',
                   fontSize: AppFontSize.tiny,
                   color: AppColors.iosGrey,
@@ -174,7 +203,7 @@ class _ItemsCard extends StatelessWidget {
               ]),
             ),
             CustomText(
-              text: '\$${item.lineTotal.toStringAsFixed(2)}',
+              text: '${c.currencySymbol.value}${item.lineTotal.toStringAsFixed(2)}',
               fontSize: AppFontSize.verySmall,
               fontWeight: FontWeight.bold,
               color: AppColors.black2,
@@ -218,7 +247,8 @@ class _RefundStepper extends StatelessWidget {
 
 class _TotalsCard extends StatelessWidget {
   final PosSaleModel sale;
-  const _TotalsCard({required this.sale});
+  final String currencySymbol;
+  const _TotalsCard({required this.sale, required this.currencySymbol});
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +276,7 @@ class _TotalsCard extends StatelessWidget {
         CustomText(text: label, fontSize: AppFontSize.verySmall, fontWeight: bold ? FontWeight.bold : FontWeight.w400, color: AppColors.black2),
         const Spacer(),
         CustomText(
-          text: '${amount < 0 ? '-' : ''}\$${amount.abs().toStringAsFixed(2)}',
+          text: '${amount < 0 ? '-' : ''}$currencySymbol${amount.abs().toStringAsFixed(2)}',
           fontSize: bold ? AppFontSize.small2 : AppFontSize.verySmall,
           fontWeight: bold ? FontWeight.bold : FontWeight.w600,
           color: color ?? AppColors.black2,
@@ -268,6 +298,10 @@ class _ActionsSection extends StatelessWidget {
         return Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor));
       }
       final hasSelection = c.refundSelection.isNotEmpty;
+      // Refund/void are only offered to managers, matching the backend's
+      // real, signed-token-verified enforcement — see PosRole's doc
+      // comment. A cashier sees why instead of a dead-end or a 403.
+      final needsManagerNote = (sale.canRefund || sale.canVoid) && !c.isManager.value;
       return Column(children: [
         if (sale.canDiscard)
           _ActionButton(
@@ -275,22 +309,33 @@ class _ActionsSection extends StatelessWidget {
             color: AppColors.red,
             onTap: () => _confirm(context, 'Discard Sale', 'Permanently delete this held sale?', c.discard),
           ),
-        if (sale.canRefund) ...[
+        if (needsManagerNote)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: CustomText(
+              text: 'Only managers can process refunds or voids for this sale — ask a manager to do this from their own login.',
+              fontSize: AppFontSize.tiny,
+              color: AppColors.iosGrey,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        if (sale.canRefund && c.isManager.value) ...[
           if (hasSelection)
             _ActionButton(
-              label: 'Refund Selected (\$${c.selectedRefundAmount.toStringAsFixed(2)})',
+              label: 'Refund Selected (${c.currencySymbol.value}${c.selectedRefundAmount.toStringAsFixed(2)})',
               color: AppColors.red,
               onTap: () => _confirm(context, 'Partial Refund',
-                  'Refund \$${c.selectedRefundAmount.toStringAsFixed(2)} for the selected items?', c.refundPartial),
+                  'Refund ${c.currencySymbol.value}${c.selectedRefundAmount.toStringAsFixed(2)} for the selected items?', c.refundPartial),
             ),
           _ActionButton(
             label: 'Refund Full Sale',
             color: AppColors.red,
             outline: hasSelection,
-            onTap: () => _confirm(context, 'Full Refund', 'Refund the entire sale (\$${sale.total.toStringAsFixed(2)})?', c.refundFull),
+            onTap: () => _confirm(context, 'Full Refund',
+                'Refund the entire sale (${c.currencySymbol.value}${sale.total.toStringAsFixed(2)})?', c.refundFull),
           ),
         ],
-        if (sale.canVoid)
+        if (sale.canVoid && c.isManager.value)
           _ActionButton(
             label: 'Void Sale',
             color: AppColors.iosGrey,
@@ -332,9 +377,9 @@ class _ActionButton extends StatelessWidget {
         width: double.infinity,
         height: 48,
         borderRadius: 12,
-        color: outline ? Colors.transparent : color.withOpacity(0.1),
+        color: outline ? AppColors.transparent : color.withOpacity(0.1),
         textColor: color,
-        borderColor: outline ? color.withOpacity(0.4) : Colors.transparent,
+        borderColor: outline ? color.withOpacity(0.4) : AppColors.transparent,
         onPressed: onTap,
       ),
     );

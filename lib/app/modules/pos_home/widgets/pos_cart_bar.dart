@@ -17,7 +17,7 @@ class PosCartBar extends StatelessWidget {
     Get.bottomSheet(
       PosCartSheet(c: c),
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.transparent,
       enterBottomSheetDuration: const Duration(milliseconds: 280),
       exitBottomSheetDuration: const Duration(milliseconds: 220),
     );
@@ -97,7 +97,7 @@ class PosCartBar extends StatelessWidget {
                       fontSize: AppFontSize.tiny,
                     ),
                     CustomText(
-                      text: '\$${c.total.toStringAsFixed(2)}',
+                      text: '${c.currencySymbol.value}${c.total.toStringAsFixed(2)}',
                       color: AppColors.white,
                       fontSize: AppFontSize.small,
                       fontWeight: FontWeight.bold,

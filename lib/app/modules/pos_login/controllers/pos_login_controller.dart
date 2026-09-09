@@ -15,7 +15,10 @@ import 'package:solvexo_pos/app/routes/app_pages.dart';
 /// Either path then routes to [Routes.sellerStores], which sends a seller
 /// with no store yet into [Routes.sellerOnboarding] to create one.
 class PosLoginController extends GetxController {
-  final AuthRepository _authRepository = AuthRepository();
+  PosLoginController({AuthRepository? authRepository})
+      : _authRepository = authRepository ?? AuthRepository();
+
+  final AuthRepository _authRepository;
   final SocialAuthService _socialAuth = SocialAuthService();
 
   final emailController = TextEditingController();

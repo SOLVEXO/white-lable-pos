@@ -18,17 +18,47 @@ class PosSessionHistoryView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const CustomAppBarTwo(
+      appBar: CustomAppBarTwo(
         title: 'Shift History',
         color: AppColors.black2,
+        actions: [
+          Obx(() => GestureDetector(
+            onTap: c.toggleCurrentRegisterOnly,
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: c.currentRegisterOnly.value
+                    ? AppColors.primaryColor.withOpacity(0.1)
+                    : AppColors.background,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: c.currentRegisterOnly.value ? AppColors.primaryColor : AppColors.lightGrey2,
+                ),
+              ),
+              child: CustomText(
+                text: c.currentRegisterOnly.value ? 'This register' : 'All registers',
+                fontSize: AppFontSize.tiny,
+                fontWeight: FontWeight.w600,
+                color: c.currentRegisterOnly.value ? AppColors.primaryColor : AppColors.black2,
+              ),
+            ),
+          )),
+        ],
       ),
       body: Obx(() {
         if (c.isLoading.value) {
           return const PosSessionHistoryShimmer();
         }
         if (c.sessions.isEmpty) {
-          return const Center(
-            child: CustomText(text: 'No past shifts yet.', fontSize: AppFontSize.small2, color: AppColors.iosGrey),
+          return Center(
+            child: CustomText(
+              text: c.currentRegisterOnly.value
+                  ? 'No past shifts yet on this register.'
+                  : 'No past shifts yet.',
+              fontSize: AppFontSize.small2,
+              color: AppColors.iosGrey,
+            ),
           );
         }
         return RefreshIndicator(

@@ -61,7 +61,7 @@ class PosBottomNav extends StatelessWidget {
                           borderRadius: BorderRadius.circular(5),
                           color: isActive
                               ? AppColors.primaryColor
-                              : Colors.transparent,
+                              : AppColors.transparent,
                         ),
                       ),
                     ],

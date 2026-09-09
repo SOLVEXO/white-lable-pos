@@ -23,6 +23,7 @@ class SocialLoginModel {
       'socialId': socialId,
       'userName': userName,
       'email': email,
+      'role': 'seller',
       if (image != null) 'image': image,
       if (fcmToken != null) 'fcmToken': fcmToken,
       if (token != null) 'token': token,

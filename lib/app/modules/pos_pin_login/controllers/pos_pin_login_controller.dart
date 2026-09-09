@@ -8,8 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class PosPinLoginController extends GetxController {
-  final _posRepo = PosRepository();
-  final _sellerRepo = SellerRepository();
+  PosPinLoginController({PosRepository? posRepository, SellerRepository? sellerRepository})
+      : _posRepo = posRepository ?? PosRepository(),
+        _sellerRepo = sellerRepository ?? SellerRepository();
+
+  final PosRepository _posRepo;
+  final SellerRepository _sellerRepo;
 
   // ── State ─────────────────────────────────────────────────────────────────────
   final RxBool isLoading = false.obs;
@@ -113,20 +117,51 @@ class PosPinLoginController extends GetxController {
         name: employee.name,
         role: employee.role,
       );
+      if (result.employeeToken != null) {
+        await AppPreferences.setPosEmployeeToken(result.employeeToken!);
+      }
 
       final activeSession = result.activeSession;
+      final pickedRegisterId = selectedRegister.value!['id']!;
 
       if (activeSession != null && activeSession.isOpen) {
-        // Session already open → skip Open Register, go straight to POS
+        if (activeSession.registerId != pickedRegisterId) {
+          // The backend's "active session" lookup for this employee isn't
+          // register-scoped — don't silently resume onto a register the
+          // cashier didn't pick. Name the register it's actually open on.
+          final openRegisterName = registers
+                  .firstWhereOrNull((r) => r['id'] == activeSession.registerId)?['name'] ??
+              'another register';
+          CustomAppSnackbar.warning(
+            'You already have an open session on "$openRegisterName". '
+            'Switch to that register to resume, or ask a manager to close it first.',
+          );
+          clearPin();
+          return;
+        }
+        // Session already open on the register the cashier picked → skip
+        // Open Register, go straight to POS.
         await _persistSession(activeSession);
         Get.offAllNamed(Routes.posHome);
       } else {
-        // No open session → go to Open Register screen
+        // No active session for this employee — double-check the *picked*
+        // register itself isn't already open (e.g. another employee opened
+        // it moments ago), since pinLogin's activeSession isn't
+        // register-scoped and could miss that race.
+        final registerSession = await _posRepo.getActiveSession(
+          storeId: storeId.value,
+          registerId: pickedRegisterId,
+        );
+        if (registerSession != null && registerSession.isOpen) {
+          await _persistSession(registerSession);
+          Get.offAllNamed(Routes.posHome);
+          return;
+        }
         Get.offNamed(
           Routes.posOpenRegister,
           arguments: {
             'employee': employee,
-            'registerId': selectedRegister.value!['id']!,
+            'registerId': pickedRegisterId,
             'registerName': selectedRegister.value!['name']!,
             'storeId': storeId.value,
           },

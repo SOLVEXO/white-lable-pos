@@ -23,26 +23,25 @@ class PosAccessMiddleware extends GetMiddleware {
 
   @override
   GetPage? onPageCalled(GetPage? page) {
-    _check();
-    return page;
-  }
-
-  Future<void> _check() async {
-    final token = await AppPreferences.getAccessTokenAsync();
+    // Synchronous — checked against AppPreferences' in-memory cache (warmed
+    // at boot in main.dart) rather than awaiting SharedPreferences, so a
+    // redirect happens before this page is ever returned/rendered instead of
+    // one frame after (see AppPreferences.warmCache doc comment).
+    final token = AppPreferences.cachedToken;
     if (token == null || token.isEmpty) {
-      await AppPreferences.clearTokens();
+      AppPreferences.clearTokens();
       Get.offAllNamed(Routes.posLogin);
-      return;
+      return page;
     }
 
-    final role = await AppPreferences.getUserRole();
-    if (role != 'seller') {
+    if (AppPreferences.cachedRole != 'seller') {
       Get.offAllNamed(Routes.posLogin);
-      return;
+      return page;
     }
 
-    if (requireActiveSession && !await AppPreferences.hasPosSession()) {
+    if (requireActiveSession && !AppPreferences.cachedHasPosSession) {
       Get.offAllNamed(Routes.posPinLogin);
     }
+    return page;
   }
 }

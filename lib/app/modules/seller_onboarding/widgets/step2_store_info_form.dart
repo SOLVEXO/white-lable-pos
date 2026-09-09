@@ -66,8 +66,6 @@ class Step2StoreInfoForm extends StatelessWidget {
                   fillColor: AppColors.textfldFillColor,
                 ),
                 const SizedBox(height: 16),
-                _CategoryField(controller: controller),
-                const SizedBox(height: 16),
                 _CurrencyField(controller: controller),
                 const SizedBox(height: 16),
                 const _FieldLabel(label: 'Store Description', optional: true),
@@ -176,57 +174,6 @@ class _LogoUpload extends StatelessWidget {
   }
 }
 
-class _CategoryField extends StatelessWidget {
-  final SellerOnboardingController controller;
-  const _CategoryField({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _FieldLabel(label: 'Store Category'),
-        const SizedBox(height: 6),
-        Obx(
-          () => GestureDetector(
-            onTap: controller.pickCategory,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.textfldFillColor,
-                borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-                border: Border.all(color: AppColors.lightGrey, width: 0.3),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: CustomText(
-                      text: controller.storeCategory.value.isEmpty
-                          ? 'Select your main category...'
-                          : controller.storeCategory.value,
-                      fontSize: AppFontSize.verySmall,
-                      color: controller.storeCategory.value.isEmpty
-                          ? AppColors.grey
-                          : AppColors.black,
-                    ),
-                  ),
-                  controller.isLoadingCategories.value
-                      ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor),
-                        )
-                      : const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.grey),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _CurrencyField extends StatelessWidget {
   final SellerOnboardingController controller;
   const _CurrencyField({required this.controller});
@@ -261,7 +208,13 @@ class _CurrencyField extends StatelessWidget {
                           : AppColors.black,
                     ),
                   ),
-                  const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.grey),
+                  controller.isLoadingCurrencies.value
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor),
+                        )
+                      : const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.grey),
                 ],
               ),
             ),

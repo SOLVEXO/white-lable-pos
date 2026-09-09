@@ -100,16 +100,33 @@ class _FilterHeader extends StatelessWidget {
         horizontal: AppDimen.allPadding,
         vertical: 10,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CustomText(
-            text: 'Transactions',
-            fontFamily: AppTextStyles.headingFontFamily,
-            fontSize: AppFontSize.medium,
-            fontWeight: FontWeight.bold,
-            color: AppColors.black2,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const CustomText(
+                text: 'Transactions',
+                fontFamily: AppTextStyles.headingFontFamily,
+                fontSize: AppFontSize.medium,
+                fontWeight: FontWeight.bold,
+                color: AppColors.black2,
+              ),
+              _buildFilterRow(context),
+            ],
           ),
+          const SizedBox(height: 8),
+          _DateFilterChip(controller: controller),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterRow(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
           Obx(
             () => GestureDetector(
               onTap: () => _showFilterSheet(context),
@@ -185,8 +202,7 @@ class _FilterHeader extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -298,5 +314,64 @@ class _FilterHeader extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _DateFilterChip extends StatelessWidget {
+  final PosOrdersController controller;
+  const _DateFilterChip({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() => GestureDetector(
+      onTap: () async {
+        final now = DateTime.now();
+        final picked = await showDateRangePicker(
+          context: context,
+          firstDate: now.subtract(const Duration(days: 365)),
+          lastDate: now,
+          initialDateRange: controller.fromDate.value != null && controller.toDate.value != null
+              ? DateTimeRange(start: controller.fromDate.value!, end: controller.toDate.value!)
+              : null,
+        );
+        if (picked != null) {
+          controller.setDateRange(picked.start, picked.end);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: controller.fromDate.value != null ? AppColors.primaryColor.withOpacity(0.1) : AppColors.background,
+          borderRadius: BorderRadius.circular(AppDimen.draggableBorderRadius),
+          border: Border.all(
+            color: controller.fromDate.value != null ? AppColors.primaryColor : AppColors.lightGrey2,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 14,
+              color: controller.fromDate.value != null ? AppColors.primaryColor : AppColors.iosGrey,
+            ),
+            const SizedBox(width: 6),
+            CustomText(
+              text: controller.dateFilter.value,
+              fontSize: AppFontSize.tiny,
+              fontWeight: FontWeight.w600,
+              color: controller.fromDate.value != null ? AppColors.primaryColor : AppColors.black2,
+            ),
+            if (controller.fromDate.value != null) ...[
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => controller.setDateRange(null, null),
+                child: Icon(Icons.close_rounded, size: 14, color: AppColors.primaryColor),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ));
   }
 }

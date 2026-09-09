@@ -22,6 +22,18 @@ class PosDailyReportView extends StatelessWidget {
         title: 'Daily Report',
         color: AppColors.black2,
         actions: [
+          Obx(() => GestureDetector(
+            onTap: c.isExporting.value ? null : c.exportCsv,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: c.isExporting.value
+                  ? SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor),
+                    )
+                  : Icon(Icons.ios_share_rounded, color: AppColors.primaryColor, size: 20),
+            ),
+          )),
           GestureDetector(
             onTap: c.onRefresh,
             child: Padding(

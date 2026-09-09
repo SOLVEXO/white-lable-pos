@@ -6,17 +6,25 @@ import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
+import 'dart:io';
+
+import 'package:solvexo_pos/app/data/local/pending_sale_local_store.dart';
+import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/network/api_constaints.dart';
 import 'package:solvexo_pos/app/network/base_client.dart';
 import 'package:solvexo_pos/app/network/dio_exception_handler.dart';
+import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/toast_util.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart' hide Response, FormData, MultipartFile;
 
 typedef PagedResult<T> = ({List<T> items, int total, int totalPages, bool hasMore});
 
 class PosRepository {
-  final BaseClient _client = BaseClient();
+  PosRepository({BaseClient? client}) : _client = client ?? BaseClient();
+
+  final BaseClient _client;
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -67,11 +75,20 @@ class PosRepository {
     return null;
   }
 
+  /// Header carrying the current employee's signed PIN-login token — sent
+  /// on every privileged action (refund, void, cash in/out, discounts) so
+  /// the backend can verify who's actually authorizing it. See
+  /// AppPreferences.setPosEmployeeToken's doc comment.
+  Future<Map<String, dynamic>> _employeeAuthHeaders() async {
+    final token = await AppPreferences.getPosEmployeeToken();
+    return token != null ? {'x-pos-employee-token': token} : {};
+  }
+
   // ── PIN login ────────────────────────────────────────────────────────────
 
   /// [message] carries the backend's error text on failure so the caller can
   /// show a tailored message (e.g. "Invalid PIN") without an auto-toast.
-  Future<({bool success, PosEmployeeModel? employee, PosSessionModel? activeSession, String? message})> pinLogin({
+  Future<({bool success, PosEmployeeModel? employee, PosSessionModel? activeSession, String? employeeToken, String? message})> pinLogin({
     required String storeId,
     required String email,
     required String pin,
@@ -84,21 +101,43 @@ class PosRepository {
       );
       final data = _data(res) as Map<String, dynamic>?;
       if (data == null) {
-        return (success: false, employee: null, activeSession: null, message: res.data['message'] as String?);
+        return (success: false, employee: null, activeSession: null, employeeToken: null, message: res.data['message'] as String?);
       }
       final employee = PosEmployeeModel.fromJson(data['employee'] as Map<String, dynamic>);
       final sessionJson = data['activeSession'];
       final activeSession = sessionJson is Map<String, dynamic>
           ? PosSessionModel.fromJson(sessionJson)
           : null;
-      return (success: true, employee: employee, activeSession: activeSession, message: null);
+      // Signed proof of this employee's identity/role — see AppPreferences
+      // .setPosEmployeeToken's doc comment. Sent as a header on every
+      // privileged action (refund/void/cash-adjustment/discount) so the
+      // backend can verify who's actually authorizing it, instead of
+      // trusting a client-supplied id string.
+      final employeeToken = data['employeeToken'] as String?;
+      return (success: true, employee: employee, activeSession: activeSession, employeeToken: employeeToken, message: null);
     } on DioException catch (e) {
       _logDioError('pinLogin', e);
       DioExceptionHandler.handleDioException(e, showToast: false);
-      return (success: false, employee: null, activeSession: null, message: _dioMessage(e));
+      return (success: false, employee: null, activeSession: null, employeeToken: null, message: _dioMessage(e));
     } catch (e) {
       debugPrint('❌ pinLogin: $e');
-      return (success: false, employee: null, activeSession: null, message: null);
+      return (success: false, employee: null, activeSession: null, employeeToken: null, message: null);
+    }
+  }
+
+  /// Best-effort — logs the event server-side, doesn't need to succeed for
+  /// the local logout (clearPosEmployee) to proceed. Called fire-and-forget
+  /// from wherever a PIN session ends (see PosSettingsController._closeShift).
+  Future<void> pinLogout(String storeId) async {
+    try {
+      await _client.post(
+        ApiConstants.posPinLogout,
+        data: {'storeId': storeId},
+        requiresAuth: true,
+        headers: await _employeeAuthHeaders(),
+      );
+    } catch (e) {
+      debugPrint('❌ pinLogout: $e');
     }
   }
 
@@ -601,6 +640,7 @@ class PosRepository {
         ApiConstants.posSessionCashAdjustment(sessionId),
         data: {'type': type, 'amount': amount, 'reason': reason, 'employeeId': employeeId},
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(),
       );
       final data = _data(res) as Map<String, dynamic>?;
       if (data != null) return data;
@@ -706,7 +746,20 @@ class PosRepository {
 
   // ── Sales ────────────────────────────────────────────────────────────────
 
-  Future<({bool success, PosSaleModel? sale, String? message})> createSale({
+  /// True for Dio failures that mean "couldn't reach the server at all"
+  /// (no signal, DNS failure, connection refused) as opposed to a real
+  /// response the server sent back (4xx/5xx) — only the former is safe to
+  /// silently queue and retry later, since the latter (e.g. a validation
+  /// error) would just fail again identically on retry.
+  bool _isConnectivityError(DioException e) {
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout) {
+      return true;
+    }
+    return e.type == DioExceptionType.unknown && e.error is SocketException;
+  }
+
+  Future<({bool success, PosSaleModel? sale, String? message, bool queued})> createSale({
     required String storeId,
     required String sessionId,
     required String registerId,
@@ -721,36 +774,74 @@ class PosRepository {
     required String status, // "completed" | "held"
     String? idempotencyKey,
   }) async {
+    final payload = {
+      'storeId': storeId,
+      'sessionId': sessionId,
+      'registerId': registerId,
+      'employeeId': employeeId,
+      'items': items,
+      if (discount != null) 'discount': discount,
+      if (tax != null) 'tax': tax,
+      'paymentMethod': paymentMethod,
+      'customerName': customerName,
+      if (customerId != null) 'customerId': customerId,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      'status': status,
+      if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
+    };
     try {
       final res = await _client.post(
         ApiConstants.posSales,
-        data: {
-          'storeId': storeId,
-          'sessionId': sessionId,
-          'registerId': registerId,
-          'employeeId': employeeId,
-          'items': items,
-          if (discount != null) 'discount': discount,
-          if (tax != null) 'tax': tax,
-          'paymentMethod': paymentMethod,
-          'customerName': customerName,
-          if (customerId != null) 'customerId': customerId,
-          if (notes != null && notes.isNotEmpty) 'notes': notes,
-          'status': status,
-          if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
-        },
+        data: payload,
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(),
       );
       final data = _data(res) as Map<String, dynamic>?;
-      if (data != null) return (success: true, sale: PosSaleModel.fromJson(data), message: null);
-      return (success: false, sale: null, message: res.data['message'] as String?);
+      if (data != null) {
+        return (success: true, sale: PosSaleModel.fromJson(data), message: null, queued: false);
+      }
+      return (success: false, sale: null, message: res.data['message'] as String?, queued: false);
     } on DioException catch (e) {
       _logDioError('createSale', e);
+      if (_isConnectivityError(e) && Get.isRegistered<PendingSaleSyncService>()) {
+        // No route to the server at all — save it locally instead of losing
+        // the sale, keyed by the same idempotencyKey the backend already
+        // dedupes on, so the eventual sync can't double-record it.
+        final queueId = idempotencyKey ?? '$employeeId-${DateTime.now().microsecondsSinceEpoch}';
+        await Get.find<PendingSaleSyncService>().enqueue(queueId, payload);
+        return (success: false, sale: null, message: null, queued: true);
+      }
       DioExceptionHandler.handleDioException(e, showToast: false);
-      return (success: false, sale: null, message: _dioMessage(e));
+      return (success: false, sale: null, message: _dioMessage(e), queued: false);
     } catch (e) {
       debugPrint('❌ createSale: $e');
-      return (success: false, sale: null, message: null);
+      return (success: false, sale: null, message: null, queued: false);
+    }
+  }
+
+  /// Resubmits a previously-queued sale payload as-is. Used only by
+  /// [PendingSaleSyncService] once connectivity returns — see
+  /// [PendingSaleLocalStore] for what's stored.
+  Future<({bool success, bool connectivityError, String? message})> submitRawSale(
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final res = await _client.post(
+        ApiConstants.posSales,
+        data: payload,
+        requiresAuth: true,
+        headers: await _employeeAuthHeaders(),
+      );
+      if (_ok(res)) return (success: true, connectivityError: false, message: null);
+      return (success: false, connectivityError: false, message: res.data['message'] as String?);
+    } on DioException catch (e) {
+      _logDioError('submitRawSale', e);
+      final connectivityError = _isConnectivityError(e);
+      if (!connectivityError) DioExceptionHandler.handleDioException(e, showToast: false);
+      return (success: false, connectivityError: connectivityError, message: _dioMessage(e));
+    } catch (e) {
+      debugPrint('❌ submitRawSale: $e');
+      return (success: false, connectivityError: false, message: null);
     }
   }
 
@@ -850,6 +941,7 @@ class PosRepository {
           if (notes != null) 'notes': notes,
         },
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(),
       );
       final data = _data(res) as Map<String, dynamic>?;
       if (data != null) return (success: true, sale: PosSaleModel.fromJson(data), message: null);
@@ -879,6 +971,7 @@ class PosRepository {
           if (tax != null) 'tax': tax,
         },
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(),
       );
       final data = _data(res) as Map<String, dynamic>?;
       if (data != null) return PosSaleModel.fromJson(data);
@@ -913,21 +1006,21 @@ class PosRepository {
   }
 
   /// Omit [items] for a full refund; pass line items (`saleItemId` + `qty`)
-  /// for a partial refund. [actingEmployeeId] should always be supplied when
-  /// available — the backend only enforces the manager-role rule if present.
+  /// for a partial refund. Authorization comes from the current employee's
+  /// signed token (see [_employeeAuthHeaders]) — the backend requires a
+  /// verified manager-role token, not a client-supplied id.
   Future<({bool success, double? refundedAmount, String? newStatus, String? message})> refundSale(
     String saleId, {
     List<Map<String, dynamic>>? items,
-    String? actingEmployeeId,
   }) async {
     try {
       final res = await _client.post(
         ApiConstants.posSaleRefund(saleId),
         data: {
           if (items != null && items.isNotEmpty) 'items': items,
-          if (actingEmployeeId != null) 'actingEmployeeId': actingEmployeeId,
         },
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(),
       );
       if (_ok(res)) {
         final data = res.data['data'] as Map<String, dynamic>?;
@@ -950,15 +1043,17 @@ class PosRepository {
     }
   }
 
-  Future<bool> voidSale(String saleId, {String? reason, String? actingEmployeeId}) async {
+  /// Authorization comes from the current employee's signed token — see
+  /// [refundSale]'s doc comment.
+  Future<bool> voidSale(String saleId, {String? reason}) async {
     try {
       final res = await _client.post(
         ApiConstants.posSaleVoid(saleId),
         data: {
           if (reason != null && reason.isNotEmpty) 'reason': reason,
-          if (actingEmployeeId != null) 'actingEmployeeId': actingEmployeeId,
         },
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(),
       );
       if (_ok(res)) return true;
       ToastUtil.showToast(res.data['message'] as String? ?? 'Failed to void sale');

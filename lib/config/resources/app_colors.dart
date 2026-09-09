@@ -174,4 +174,22 @@ class AppColors {
 
   // Material color equivalents
   static const Color materialAmber = Color(0xFFFFC107);
+
+  /// Lighter gradient stop paired with [primaryColor] (POS "open terminal" /
+  /// "charge" buttons) — not tenant-swappable itself, just a fixed tint.
+  static const Color primaryColorLight2 = Color(0xFFE8956A);
+
+  // POS dark theme (PIN login / POS home) — shared across both modules.
+  static const Color posThemeBg = Color(0xFF1A1A1A);
+  static const Color posThemeSurface = Color(0xFF252525);
+  static const Color posThemeBorder = Color(0xFF333333);
+  static const Color posThemeText = Color(0xFFE8E8E8);
+  static const Color posThemeSubText = Color(0xFF888888);
+  static const Color posStatusGreen = Color(0xFF4CAF50);
+  static const Color posStatusRed = Color(0xFFEF5350);
+
+  // POS misc
+  static const Color heldStatusBg = Color(0xFFFFF1E6);
+  static const Color productImagePlaceholderBg = Color(0xFFF5F5F5);
+  static const Color productImagePlaceholderBgOut = Color(0xFFF0F0F0);
 }

@@ -31,6 +31,33 @@ dependencies:
   http_parser: ^4.1.2
   file_picker: ^10.3.7
   audioplayers: ^6.6.0
+  # Receipt PDF generation (Phase 1) — no printer hardware integration exists
+  # yet, so receipts are scoped to in-app + shareable PDF, per the Phase 1
+  # plan. Shared via the already-used share_plus, no `printing` package needed.
+  pdf: ^3.11.1
+  # Network-interface status for the offline banner (Phase 3) — reflects
+  # whether a network interface is connected, not verified internet
+  # reachability; see NetworkStatusService's doc comment.
+  connectivity_plus: ^6.1.5
+  # Local queue for sales made while offline (Phase 3) — both were already
+  # transitive dependencies (via file_picker); promoted to direct since
+  # PendingSaleLocalStore now uses them explicitly.
+  sqflite: ^2.4.2
+  path: ^1.9.1
+  # Auth token storage (Phase 4 security pass) — Keychain/Keystore-backed,
+  # replacing plaintext shared_preferences for the access/refresh tokens.
+  flutter_secure_storage: ^9.2.4
+  # Thermal receipt printer support (Phase 3) — print_bluetooth_thermal is
+  # the Bluetooth transport (list/connect/write bytes; no location
+  # permission needed, unlike older classic-Bluetooth packages);
+  # esc_pos_utils_plus builds the actual ESC/POS command bytes. Chosen over
+  # esc_pos_bluetooth, which is stale (pinned to Dart 2.12, depends on an
+  # unmaintained Bluetooth plugin).
+  # Pinned below latest (1.2.4) — that requires Flutter >=3.44.0, newer than
+  # this project's installed SDK (3.35.6). 1.2.1 is the newest version still
+  # compatible.
+  print_bluetooth_thermal: 1.2.1
+  esc_pos_utils_plus: ^2.0.4
 
   # Pinned to the exact version the main app's pubspec.lock resolves to —
   # newer dio releases have added DioExceptionType cases not handled by
@@ -38,10 +65,26 @@ dependencies:
   # exhaustiveness check even though flutter analyze doesn't catch it.
   dio: 5.9.0
 
+  # Hosted Stripe Checkout / Billing Portal for per-store POS subscriptions —
+  # opened in-app rather than a native payment sheet, same pattern as the
+  # buyer app's gateway_payment flow. Version matches solvexo-app's pubspec.
+  webview_flutter: ^4.13.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
   flutter_lints: ^5.0.0
+  mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  remove_alpha_ios: true       # iOS App Store requires no transparency
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true

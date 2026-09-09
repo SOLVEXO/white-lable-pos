@@ -19,20 +19,12 @@ class PosRangeReportView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      // CSV export lives on Daily Report — the backend only supports
+      // exporting a single date, so there's no honest "export this range"
+      // action to offer here.
       appBar: CustomAppBarTwo(
         title: 'Reports',
         color: AppColors.black2,
-        actions: [
-          Obx(() => GestureDetector(
-            onTap: c.isExporting.value ? null : c.exportTodayCsv,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: c.isExporting.value
-                  ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor))
-                  : Icon(Icons.ios_share_rounded, color: AppColors.primaryColor, size: 20),
-            ),
-          )),
-        ],
       ),
       body: Column(children: [
         _DateRangeBar(c: c),

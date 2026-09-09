@@ -3,7 +3,9 @@ import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
+import 'package:solvexo_pos/app/data/repositories/pos_subscription_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/seller_repository.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
@@ -11,14 +13,24 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class SellerPosManagementController extends GetxController {
-  final _posRepo    = PosRepository();
-  final _sellerRepo = SellerRepository();
+  SellerPosManagementController({
+    PosRepository? posRepository,
+    SellerRepository? sellerRepository,
+    PosSubscriptionRepository? posSubscriptionRepository,
+  })  : _posRepo = posRepository ?? PosRepository(),
+        _sellerRepo = sellerRepository ?? SellerRepository(),
+        _subscriptionRepo = posSubscriptionRepository ?? PosSubscriptionRepository();
+
+  final PosRepository _posRepo;
+  final SellerRepository _sellerRepo;
+  final PosSubscriptionRepository _subscriptionRepo;
 
   // ── Loading ───────────────────────────────────────────────────────────────
   final RxBool isLoading         = true.obs;
   final RxBool isSavingEmployee  = false.obs;
   final RxBool isSavingRegister  = false.obs;
   final RxBool isSavingShift     = false.obs;
+  final RxBool isCheckingPosAccess = false.obs;
 
   // ── Data ──────────────────────────────────────────────────────────────────
   final RxList<PosEmployeeModel>  employees       = <PosEmployeeModel>[].obs;
@@ -314,5 +326,32 @@ class SellerPosManagementController extends GetxController {
   }
 
   // ── Launch POS terminal ───────────────────────────────────────────────────
-  void openPosTerminal() => Get.toNamed(Routes.posPinLogin);
+
+  /// Gates entry to the POS terminal on this store's subscription status.
+  /// Only this entry point is gated — an already-open register session
+  /// (reached via posHome/its tabs) is never re-checked here, so a lapsed
+  /// subscription mid-shift doesn't interrupt it; it only blocks the next
+  /// PIN-login/register-open for this store.
+  Future<void> openPosTerminal() async {
+    if (storeId.value.isEmpty) return;
+    isCheckingPosAccess.value = true;
+    try {
+      final status = await _subscriptionRepo.getStatus(storeId.value);
+      if (status.status.isEntitled) {
+        Get.toNamed(Routes.posPinLogin);
+        return;
+      }
+      Get.toNamed(
+        Routes.posSubscriptionPaywall,
+        arguments: {
+          'storeId': storeId.value,
+          'storeName': storeName.value,
+          'isExpired': status.status == PosSubscriptionStatusValue.expired,
+          'expiresAt': status.expiresAt?.toIso8601String(),
+        },
+      );
+    } finally {
+      isCheckingPosAccess.value = false;
+    }
+  }
 }

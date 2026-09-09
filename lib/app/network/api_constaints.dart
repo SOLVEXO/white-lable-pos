@@ -5,7 +5,7 @@ class ApiConstants {
   // Omitting it keeps today's behavior (staging) unchanged for both apps.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://staging.solvexo.store',
+    defaultValue: 'https://api.solvexo.store',
   );
 
   static const String apiPrefix = "$baseUrl/api";
@@ -229,6 +229,13 @@ class ApiConstants {
   static const String updateStore = "$apiPrefix/store/update-store";
   static const String myStores = "$apiPrefix/store/my-stores";
   static String getStoreById(String id) => "$apiPrefix/store/getStoreById/$id";
+  // Admin-configurable currencies a store's baseCurrency may be set to —
+  // replaces the old hardcoded PKR/USD list.
+  static const String enabledCurrencies =
+      "$apiPrefix/store/public/enabled-currencies";
+  // IP-detected country + a suggested (never enforced) currency, used to
+  // pre-fill Onboarding's currency step before a store exists yet.
+  static const String suggestLocation = "$apiPrefix/store/suggest-location";
 
   // ============ Store Verification (KYC) Endpoints — seller ============
   static String storeVerification(String storeId) =>
@@ -264,6 +271,13 @@ class ApiConstants {
       "$apiPrefix/inventory/getStoreInventory/$storeId";
   static String lowStockSummary(String storeId) =>
       "$apiPrefix/inventory/low-stock-summary/$storeId";
+  // Phase 2 (POS Customers): real past-buyers list for a store (paginated,
+  // no search param) and a separate global registered-user search used to
+  // attach a customer to a sale — see CustomerRepository.
+  static String storeCustomers(String storeId) =>
+      "$apiPrefix/store/$storeId/customers";
+  static String customerSearch(String storeId) =>
+      "$apiPrefix/draft-orders/$storeId/customers/search";
   static String sellerOrders(String storeId) =>
       "$apiPrefix/orders/seller-orders/$storeId";
   static String markOrderPaid(String orderId) =>
@@ -278,6 +292,16 @@ class ApiConstants {
   // are passed via BaseClient's `queryParameters:` map by the repository, not
   // string-interpolated here, so values are always properly encoded.
   static const String posPinLogin = '$apiPrefix/pos/pin-login';
+  static const String posPinLogout = '$apiPrefix/pos/pin-logout';
+
+  // Admin-managed POS plans + per-store purchase status (Stripe-backed,
+  // fixed-term one-time purchase — no recurring subscription/billing
+  // portal, see backend spec).
+  static const String posPlans = '$apiPrefix/pos-plans';
+  static String posSubscriptionStatus(String storeId) =>
+      '$apiPrefix/pos-subscriptions/$storeId';
+  static String posSubscriptionCheckoutSession(String storeId) =>
+      '$apiPrefix/pos-subscriptions/$storeId/checkout-session';
 
   // Employees
   static String posEmployees(String storeId) =>

@@ -7,6 +7,7 @@ import 'package:solvexo_pos/utils/toast_util.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:solvexo_pos/config/resources/app_colors.dart';
 
 /// Shared behaviour for every redesigned screen's controller — feedback
 /// (toasts/snackbars/dialogs/bottom sheets), a generic [BaseViewState] for
@@ -62,7 +63,7 @@ abstract class BaseController extends GetxController {
       message,
       snackPosition: SnackPosition.TOP,
       backgroundColor: backgroundColor ?? BaseColors.onSurfaceLight,
-      colorText: Colors.white,
+      colorText: AppColors.white,
       margin: const EdgeInsets.all(12),
       borderRadius: BaseRadius.md,
     );
@@ -75,7 +76,7 @@ abstract class BaseController extends GetxController {
   Future<T?> showAppBottomSheet<T>(Widget sheet, {bool isScrollControlled = true}) => Get.bottomSheet<T>(
         sheet,
         isScrollControlled: isScrollControlled,
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.transparent,
       );
 
   void dismissKeyboard() {

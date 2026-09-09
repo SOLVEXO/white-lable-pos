@@ -20,7 +20,7 @@ class LocationFormSheet extends StatefulWidget {
     Get.bottomSheet(
       LocationFormSheet(controller: controller, existing: existing),
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.transparent,
     );
   }
 

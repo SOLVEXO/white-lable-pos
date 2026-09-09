@@ -20,23 +20,23 @@ class PosStatsRow extends StatelessWidget {
         Expanded(
           flex: 2,
           child: _StatCard(
-            label: 'Sales',
-            value: '\$${controller.totalSales.toStringAsFixed(2)}',
+            label: 'Sales (loaded)',
+            value: '${controller.currencySymbol.value}${controller.totalSales.toStringAsFixed(2)}',
             subtitle: '${controller.txnCount} txns',
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
-            label: 'Avg',
-            value: '\$${controller.avgTransaction.toStringAsFixed(2)}',
+            label: 'Avg (loaded)',
+            value: '${controller.currencySymbol.value}${controller.avgTransaction.toStringAsFixed(2)}',
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
-            label: 'Cash',
-            value: '\$${controller.cashTotal.toStringAsFixed(0)}',
+            label: 'Cash (loaded)',
+            value: '${controller.currencySymbol.value}${controller.cashTotal.toStringAsFixed(0)}',
           ),
         ),
       ]),

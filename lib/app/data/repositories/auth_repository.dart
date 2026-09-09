@@ -75,6 +75,27 @@ class AuthRepository {
     }
   }
 
+  /// Re-verifies the current user's role against a fresh server call
+  /// (`GET /api/auth/getprofile`, JWT-guarded) instead of trusting the
+  /// locally-cached value indefinitely — see the Phase 4 plan's note on
+  /// `AppPreferences.setUserRole`'s doc comment for what this narrows (not
+  /// eliminates) about the app-level role-gate's client-trust weakness.
+  /// Returns null on any failure (offline, expired token, etc.) — callers
+  /// should keep whatever's already cached rather than treat this as fatal.
+  Future<String?> getProfile() async {
+    try {
+      final response = await _baseClient.get(ApiConstants.getMe, requiresAuth: true);
+      if (response.data['success'] == true) {
+        final data = response.data['data'] as Map<String, dynamic>?;
+        return data?['role'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ getProfile error: $e');
+      return null;
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _baseClient.post(ApiConstants.logout);

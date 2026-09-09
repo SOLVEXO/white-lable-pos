@@ -6,11 +6,19 @@ import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:get/get.dart';
 
 class PosHeldSalesController extends GetxController {
-  final _posRepo = PosRepository();
+  PosHeldSalesController({PosRepository? posRepository}) : _posRepo = posRepository ?? PosRepository();
+
+  final PosRepository _posRepo;
 
   final RxList<PosSaleModel> heldSales = <PosSaleModel>[].obs;
   final RxBool isLoading = true.obs;
   final RxString processingId = ''.obs;
+
+  // Reuses PosHomeController's already-loaded store currency symbol rather
+  // than fetching settings again — this screen is only ever reached from
+  // the POS terminal shell, where that controller is already alive.
+  String get currencySymbol =>
+      Get.isRegistered<PosHomeController>() ? Get.find<PosHomeController>().currencySymbol.value : '\$';
 
   String _sessionId = '';
   String _storeId   = '';

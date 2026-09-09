@@ -20,6 +20,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
+// ── Responsive breakpoints ────────────────────────────────────────────────────
+// This screen is used on phones as well as larger tablet / foldable / desktop
+// windows, so layout decisions (columns, max content width) are derived from
+// the available width rather than assuming a phone-sized viewport.
+class _Bp {
+  static const double tablet = 680;
+  static const double desktop = 1080;
+  static const double maxContent = 1180;
+}
+
 class SellerPosManagementView extends StatelessWidget {
   SellerPosManagementView({super.key});
 
@@ -28,9 +38,9 @@ class SellerPosManagementView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
+      backgroundColor: AppColors.background,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
+        preferredSize: const Size.fromHeight(56),
         child: Obx(
           () => CustomAppBarTwo(
             title: c.storeName.value.isEmpty
@@ -43,20 +53,11 @@ class SellerPosManagementView extends StatelessWidget {
             // Get.back() would silently do nothing. Same convention as
             // seller_stores/pos_home, the app's other stack-root screens:
             // no leading button at all.
-            showLeading: false,
-            actions: [
-              GestureDetector(
-                onTap: c.refreshData,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: Icon(
-                    Icons.refresh_rounded,
-                    color: AppColors.primaryColor,
-                    size: 22,
-                  ),
-                ),
-              ),
-            ],
+            showLeading: true,
+            // actions: [
+            //   _RefreshButton(c: c),
+            //   const SizedBox(width: 6),
+            // ],
           ),
         ),
       ),
@@ -66,25 +67,45 @@ class SellerPosManagementView extends StatelessWidget {
         }
         return CustomRefreshWrapper(
           onRefresh: c.refreshData,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final isTablet = width >= _Bp.tablet;
+              final isDesktop = width >= _Bp.desktop;
+              final hPad = isTablet ? 24.0 : AppDimen.allPadding;
 
-          child: ListView(
-            padding: const EdgeInsets.all(AppDimen.allPadding),
-            children: [
-              _OpenPosButton(c: c),
-              const SizedBox(height: 16),
-              _StatsRow(c: c),
-              const SizedBox(height: 12),
-              const _ReportsLinksRow(),
-              const SizedBox(height: 20),
-              _EmployeesSection(c: c),
-              const SizedBox(height: 20),
-              _RegistersSection(c: c),
-              const SizedBox(height: 20),
-              _ShiftsSection(c: c),
-              const SizedBox(height: 20),
-              _SessionsSection(c: c),
-              const SizedBox(height: 20),
-            ],
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _Bp.maxContent),
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(hPad, 18, hPad, 28),
+                    children: [
+                      _OpenPosHeroCard(c: c, isWide: isTablet),
+                      const SizedBox(height: 18),
+                      _StatsRow(c: c, isWide: isTablet),
+                      const SizedBox(height: 14),
+                      const _ReportsLinksRow(),
+                      const SizedBox(height: 26),
+                      _ResponsiveSectionGrid(
+                        isDesktop: isDesktop,
+                        children: [
+                          _EmployeesSection(c: c),
+                          _RegistersSection(c: c),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      _ResponsiveSectionGrid(
+                        isDesktop: isDesktop,
+                        children: [
+                          _ShiftsSection(c: c),
+                          _SessionsSection(c: c),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         );
       }),
@@ -92,166 +113,235 @@ class SellerPosManagementView extends StatelessWidget {
   }
 }
 
-// ── Open POS button ──────────────────────────────────────────────────────────
-class _OpenPosButton extends StatelessWidget {
+class _RefreshButton extends StatelessWidget {
   final SellerPosManagementController c;
-  const _OpenPosButton({required this.c});
+  const _RefreshButton({required this.c});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: c.openPosTerminal,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFd97757), Color(0xFFE8956A)],
+    return Material(
+      color: AppColors.primaryColor.withOpacity(0.1),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: c.refreshData,
+        child: Padding(
+          padding: const EdgeInsets.all(9),
+          child: Icon(
+            Icons.refresh_rounded,
+            color: AppColors.primaryColor,
+            size: 20,
           ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryColor.withOpacity(0.35),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.point_of_sale_rounded, color: Colors.white, size: 22),
-            SizedBox(width: 10),
-            CustomText(
-              text: 'Open POS Terminal',
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.white,
-            ),
-          ],
         ),
       ),
     );
   }
 }
 
-// ── Stats row ────────────────────────────────────────────────────────────────
-class _StatsRow extends StatelessWidget {
-  final SellerPosManagementController c;
-  const _StatsRow({required this.c});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            icon: Icons.people_outline_rounded,
-            label: 'Employees',
-            value: '${c.employees.length}',
-            color: AppColors.primaryColor,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.point_of_sale_outlined,
-            label: 'Registers',
-            value: '${c.registers.length}',
-            color: AppColors.orange,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.attach_money_rounded,
-            label: "Today's Sales",
-            value:
-                '\$${(c.dailyReport.value?.totalRevenue ?? 0).toStringAsFixed(0)}',
-            color: AppColors.green2,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ReportsLinksRow extends StatelessWidget {
-  const _ReportsLinksRow();
-
-  @override
-  Widget build(BuildContext context) {
-    // UI-level only — a tenant can hide the audit log entry point via
-    // white-label feature flags; the route/API still exist either way.
-    final showAuditLog = Get.find<BrandingService>().isFeatureEnabled(
-      'posAuditLog',
-    );
-    return Row(
-      children: [
-        Expanded(
-          child: _LinkChip(
-            icon: Icons.bar_chart_rounded,
-            label: 'Reports',
-            onTap: () => Get.toNamed(Routes.posRangeReport),
-          ),
-        ),
-        if (showAuditLog) ...[
-          const SizedBox(width: 10),
-          Expanded(
-            child: _LinkChip(
-              icon: Icons.history_rounded,
-              label: 'Activity Log',
-              onTap: () => Get.toNamed(Routes.posAuditLog),
-            ),
-          ),
-        ],
-        const SizedBox(width: 10),
-        Expanded(
-          child: _LinkChip(
-            icon: Icons.store_mall_directory_outlined,
-            label: 'Locations',
-            onTap: () => Get.toNamed(Routes.sellerPosLocations),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LinkChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _LinkChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
+// A two-up section grid on wide screens, stacked single column on phones.
+class _ResponsiveSectionGrid extends StatelessWidget {
+  final bool isDesktop;
+  final List<Widget> children;
+  const _ResponsiveSectionGrid({
+    required this.isDesktop,
+    required this.children,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+    if (!isDesktop) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [children[0], const SizedBox(height: 22), children[1]],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: children[0]),
+        const SizedBox(width: 20),
+        Expanded(child: children[1]),
+      ],
+    );
+  }
+}
+
+// ── Open POS hero card ────────────────────────────────────────────────────────
+// Wraps [child] in Expanded only in a horizontal Flex — the same child is
+// used inside a vertical Flex on phones, where Expanded would demand an
+// unbounded height and crash inside the scroll view.
+class _MaybeExpanded extends StatelessWidget {
+  final bool expand;
+  final Widget child;
+  const _MaybeExpanded({required this.expand, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return expand ? Expanded(child: child) : child;
+  }
+}
+
+class _OpenPosHeroCard extends StatelessWidget {
+  final SellerPosManagementController c;
+  final bool isWide;
+  const _OpenPosHeroCard({required this.c, required this.isWide});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final isChecking = c.isCheckingPosAccess.value;
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(isWide ? 26 : 20),
         decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.lightGrey2),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16, color: AppColors.primaryColor),
-            const SizedBox(width: 6),
-            CustomText(
-              text: label,
-              fontSize: AppFontSize.tiny,
-              fontWeight: FontWeight.w600,
-              color: AppColors.black2,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primaryColor, AppColors.primaryColorLight2],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryColor.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
+        child: Flex(
+          direction: isWide ? Axis.horizontal : Axis.vertical,
+          crossAxisAlignment: isWide
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.point_of_sale_rounded,
+                color: AppColors.white,
+                size: 26,
+              ),
+            ),
+            SizedBox(width: isWide ? 20 : 0, height: isWide ? 0 : 14),
+            _MaybeExpanded(
+              expand: isWide,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CustomText(
+                    text: 'Open POS Terminal',
+                    fontSize: AppFontSize.medium,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.white,
+                  ),
+                  const SizedBox(height: 4),
+                  CustomText(
+                    text: 'Start a new sales session on this device',
+                    fontSize: AppFontSize.tiny,
+                    color: AppColors.white.withOpacity(0.85),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: isWide ? 20 : 0, height: isWide ? 0 : 16),
+            SizedBox(
+              width: isWide ? null : double.infinity,
+              child: Material(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: isChecking ? null : c.openPosTerminal,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 22,
+                    ),
+                    child: isChecking
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: AppColors.primaryColor,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CustomText(
+                                text: 'Launch',
+                                fontSize: AppFontSize.verySmall,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                color: AppColors.primaryColor,
+                                size: 17,
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+// ── Stats row ────────────────────────────────────────────────────────────────
+class _StatsRow extends StatelessWidget {
+  final SellerPosManagementController c;
+  final bool isWide;
+  const _StatsRow({required this.c, required this.isWide});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () => Row(
+        children: [
+          Expanded(
+            child: _StatCard(
+              icon: Icons.people_alt_rounded,
+              label: 'Employees',
+              value: '${c.employees.length}',
+              color: AppColors.primaryColor,
+              isWide: isWide,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatCard(
+              icon: Icons.point_of_sale_rounded,
+              label: 'Registers',
+              value: '${c.registers.length}',
+              color: AppColors.orange,
+              isWide: isWide,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatCard(
+              icon: Icons.trending_up_rounded,
+              label: "Today's Sales",
+              value:
+                  '\$${(c.dailyReport.value?.totalRevenue ?? 0).toStringAsFixed(0)}',
+              color: AppColors.green2,
+              isWide: isWide,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -262,42 +352,44 @@ class _StatCard extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final bool isWide;
   const _StatCard({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    required this.isWide,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      padding: EdgeInsets.symmetric(vertical: isWide ? 20 : 14, horizontal: 12),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: AppColors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 18),
+            child: Icon(icon, color: color, size: isWide ? 20 : 18),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isWide ? 12 : 8),
           CustomText(
             text: value,
-            fontSize: AppFontSize.medium,
+            fontSize: isWide ? AppFontSize.small : AppFontSize.medium,
             fontWeight: FontWeight.bold,
             color: AppColors.black2,
           ),
@@ -314,21 +406,125 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+// ── Quick links row ────────────────────────────────────────────────────────────
+class _ReportsLinksRow extends StatelessWidget {
+  const _ReportsLinksRow();
+
+  @override
+  Widget build(BuildContext context) {
+    // UI-level only — a tenant can hide the audit log entry point via
+    // white-label feature flags; the route/API still exist either way.
+    final showAuditLog = Get.find<BrandingService>().isFeatureEnabled(
+      'posAuditLog',
+    );
+    return Row(
+      children: [
+        Expanded(
+          child: _LinkChip(
+            icon: Icons.bar_chart_rounded,
+            label: 'Reports',
+            color: AppColors.primaryColor,
+            onTap: () => Get.toNamed(Routes.posRangeReport),
+          ),
+        ),
+        if (showAuditLog) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: _LinkChip(
+              icon: Icons.history_rounded,
+              label: 'Activity Log',
+              color: AppColors.orange,
+              onTap: () => Get.toNamed(Routes.posAuditLog),
+            ),
+          ),
+        ],
+        const SizedBox(width: 10),
+        Expanded(
+          child: _LinkChip(
+            icon: Icons.store_mall_directory_rounded,
+            label: 'Locations',
+            color: AppColors.green2,
+            onTap: () => Get.toNamed(Routes.sellerPosLocations),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LinkChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _LinkChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.lightGrey2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(height: 6),
+              CustomText(
+                text: label,
+                fontSize: AppFontSize.tiny,
+                fontWeight: FontWeight.w600,
+                color: AppColors.black2,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Section header ────────────────────────────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
   final String title;
-  final String actionLabel;
-  final VoidCallback onAction;
+  final IconData icon;
+  final Color color;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   const _SectionHeader({
     required this.title,
-    required this.actionLabel,
-    required this.onAction,
+    required this.icon,
+    required this.color,
+    this.actionLabel,
+    this.onAction,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
+        Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Icon(icon, color: color, size: 16),
+        ),
+        const SizedBox(width: 10),
         CustomText(
           text: title,
           fontFamily: AppTextStyles.headingFontFamily,
@@ -337,34 +533,77 @@ class _SectionHeader extends StatelessWidget {
           color: AppColors.black2,
         ),
         const Spacer(),
-        GestureDetector(
-          onTap: onAction,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.add_rounded,
-                  color: AppColors.primaryColor,
-                  size: 14,
+        if (actionLabel != null && onAction != null)
+          Material(
+            color: AppColors.primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: onAction,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
                 ),
-                const SizedBox(width: 4),
-                CustomText(
-                  text: actionLabel,
-                  fontSize: AppFontSize.tiny,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryColor,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add_rounded,
+                      color: AppColors.primaryColor,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    CustomText(
+                      text: actionLabel!,
+                      fontSize: AppFontSize.tiny,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryColor,
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
       ],
+    );
+  }
+}
+
+// Shared white rounded card wrapper used by every section list.
+class _SectionCard extends StatelessWidget {
+  final List<Widget> children;
+  const _SectionCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: children.asMap().entries.expand((entry) {
+          final i = entry.key;
+          return [
+            if (i > 0)
+              const Divider(
+                height: 1,
+                color: AppColors.lightGrey2,
+                indent: 16,
+                endIndent: 16,
+              ),
+            entry.value,
+          ];
+        }).toList(),
+      ),
     );
   }
 }
@@ -381,6 +620,8 @@ class _EmployeesSection extends StatelessWidget {
       children: [
         _SectionHeader(
           title: 'Employees',
+          icon: Icons.people_alt_rounded,
+          color: AppColors.primaryColor,
           actionLabel: 'Add',
           onAction: () => _showAddEmployeeSheet(context),
         ),
@@ -392,36 +633,10 @@ class _EmployeesSection extends StatelessWidget {
               message: 'No employees yet. Add one to get started.',
             );
           }
-          return Container(
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: c.employees.asMap().entries.map((entry) {
-                final i = entry.key;
-                final emp = entry.value;
-                return Column(
-                  children: [
-                    if (i > 0)
-                      const Divider(
-                        height: 1,
-                        color: AppColors.lightGrey2,
-                        indent: 16,
-                        endIndent: 16,
-                      ),
-                    _EmployeeTile(emp: emp, c: c),
-                  ],
-                );
-              }).toList(),
-            ),
+          return _SectionCard(
+            children: c.employees
+                .map((emp) => _EmployeeTile(emp: emp, c: c))
+                .toList(),
           );
         }),
       ],
@@ -491,6 +706,9 @@ class _EmployeeTile extends StatelessWidget {
                   Icons.more_vert_rounded,
                   color: AppColors.iosGrey,
                   size: 20,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 onSelected: (action) {
                   switch (action) {
@@ -585,6 +803,40 @@ class _EmployeeTile extends StatelessWidget {
   }
 }
 
+// ── Bottom sheet chrome shared by Add/Edit sheets ─────────────────────────────
+Widget _sheetHandle() {
+  return Container(
+    width: 36,
+    height: 4,
+    decoration: BoxDecoration(
+      color: AppColors.lightGrey2,
+      borderRadius: BorderRadius.circular(2),
+    ),
+  );
+}
+
+Widget _sheetTitle(String text, IconData icon, Color color) {
+  return Row(
+    children: [
+      Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 18),
+      ),
+      const SizedBox(width: 10),
+      CustomText(
+        text: text,
+        fontSize: AppFontSize.medium,
+        fontWeight: FontWeight.bold,
+        color: AppColors.black2,
+      ),
+    ],
+  );
+}
+
 // ── Add Employee bottom sheet ─────────────────────────────────────────────────
 class _AddEmployeeSheet extends StatelessWidget {
   final SellerPosManagementController c;
@@ -604,23 +856,16 @@ class _AddEmployeeSheet extends StatelessWidget {
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.lightGrey2,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+            Center(child: _sheetHandle()),
             const SizedBox(height: 16),
-            const CustomText(
-              text: 'Add Employee',
-              fontSize: AppFontSize.medium,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black2,
+            _sheetTitle(
+              'Add Employee',
+              Icons.person_add_alt_1_rounded,
+              AppColors.primaryColor,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             CustomTextField(
               controller: c.empNameCtrl,
               hintText: 'Full Name',
@@ -738,7 +983,7 @@ class _AddEmployeeSheet extends StatelessWidget {
                       ),
                     ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             Obx(
               () => CustomButton(
                 label: c.isSavingEmployee.value ? '' : 'Add Employee',
@@ -802,23 +1047,16 @@ class _EditEmployeeSheetState extends State<_EditEmployeeSheet> {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.lightGrey2,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          Center(child: _sheetHandle()),
           const SizedBox(height: 16),
-          const CustomText(
-            text: 'Edit Employee',
-            fontSize: AppFontSize.medium,
-            fontWeight: FontWeight.bold,
-            color: AppColors.black2,
+          _sheetTitle(
+            'Edit Employee',
+            Icons.edit_rounded,
+            AppColors.primaryColor,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           CustomTextField(
             controller: _nameCtrl,
             hintText: 'Full Name',
@@ -862,7 +1100,7 @@ class _EditEmployeeSheetState extends State<_EditEmployeeSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           CustomButton(
             label: _saving ? '' : 'Save Changes',
             width: double.infinity,
@@ -907,6 +1145,8 @@ class _RegistersSection extends StatelessWidget {
       children: [
         _SectionHeader(
           title: 'Registers',
+          icon: Icons.point_of_sale_rounded,
+          color: AppColors.orange,
           actionLabel: 'Add',
           onAction: () => _showAddRegisterSheet(context),
         ),
@@ -918,132 +1158,10 @@ class _RegistersSection extends StatelessWidget {
               message: 'No registers. Add one to start processing sales.',
             );
           }
-          return Container(
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: c.registers.asMap().entries.map((entry) {
-                final i = entry.key;
-                final reg = entry.value;
-                return Column(
-                  children: [
-                    if (i > 0)
-                      const Divider(
-                        height: 1,
-                        color: AppColors.lightGrey2,
-                        indent: 16,
-                        endIndent: 16,
-                      ),
-                    Obx(() {
-                      final isProcessing =
-                          c.processingRegisterId.value == reg.id;
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.orange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.point_of_sale_rounded,
-                            color: AppColors.orange,
-                            size: 18,
-                          ),
-                        ),
-                        title: CustomText(
-                          text: reg.name,
-                          fontSize: AppFontSize.verySmall,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.black2,
-                        ),
-                        subtitle: CustomText(
-                          text: reg.status == 'active' ? 'Active' : 'Inactive',
-                          fontSize: AppFontSize.tiny,
-                          color: reg.status == 'active'
-                              ? AppColors.green2
-                              : AppColors.iosGrey,
-                        ),
-                        trailing: isProcessing
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.orange,
-                                ),
-                              )
-                            : PopupMenuButton<String>(
-                                icon: const Icon(
-                                  Icons.more_vert_rounded,
-                                  color: AppColors.iosGrey,
-                                  size: 20,
-                                ),
-                                onSelected: (action) {
-                                  switch (action) {
-                                    case 'rename':
-                                      _showRenameRegisterDialog(context, reg);
-                                      break;
-                                    case 'toggle':
-                                      c.updateRegister(
-                                        reg,
-                                        status: reg.status == 'active'
-                                            ? 'inactive'
-                                            : 'active',
-                                      );
-                                      break;
-                                    case 'delete':
-                                      _confirmDeleteRegister(context, reg);
-                                      break;
-                                  }
-                                },
-                                itemBuilder: (_) => [
-                                  const PopupMenuItem(
-                                    value: 'rename',
-                                    child: CustomText(
-                                      text: 'Rename',
-                                      fontSize: AppFontSize.verySmall,
-                                      color: AppColors.black2,
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'toggle',
-                                    child: CustomText(
-                                      text: reg.status == 'active'
-                                          ? 'Deactivate'
-                                          : 'Activate',
-                                      fontSize: AppFontSize.verySmall,
-                                      color: AppColors.black2,
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: CustomText(
-                                      text: 'Delete',
-                                      fontSize: AppFontSize.verySmall,
-                                      color: AppColors.red,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      );
-                    }),
-                  ],
-                );
-              }).toList(),
-            ),
+          return _SectionCard(
+            children: c.registers
+                .map((reg) => _RegisterTile(reg: reg, c: c))
+                .toList(),
           );
         }),
       ],
@@ -1059,6 +1177,124 @@ class _RegistersSection extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
     );
+  }
+}
+
+class _RegisterTile extends StatelessWidget {
+  final StoreRegister reg;
+  final SellerPosManagementController c;
+  const _RegisterTile({required this.reg, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final isProcessing = c.processingRegisterId.value == reg.id;
+      return ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.orange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(
+            Icons.point_of_sale_rounded,
+            color: AppColors.orange,
+            size: 18,
+          ),
+        ),
+        title: CustomText(
+          text: reg.name,
+          fontSize: AppFontSize.verySmall,
+          fontWeight: FontWeight.w600,
+          color: AppColors.black2,
+        ),
+        subtitle: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: reg.status == 'active'
+                    ? AppColors.green2
+                    : AppColors.iosGrey,
+                shape: BoxShape.circle,
+              ),
+            ),
+            CustomText(
+              text: reg.status == 'active' ? 'Active' : 'Inactive',
+              fontSize: AppFontSize.tiny,
+              color: reg.status == 'active'
+                  ? AppColors.green2
+                  : AppColors.iosGrey,
+            ),
+          ],
+        ),
+        trailing: isProcessing
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.orange,
+                ),
+              )
+            : PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.iosGrey,
+                  size: 20,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onSelected: (action) {
+                  switch (action) {
+                    case 'rename':
+                      _showRenameRegisterDialog(context, reg);
+                      break;
+                    case 'toggle':
+                      c.updateRegister(
+                        reg,
+                        status: reg.status == 'active' ? 'inactive' : 'active',
+                      );
+                      break;
+                    case 'delete':
+                      _confirmDeleteRegister(context, reg);
+                      break;
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'rename',
+                    child: CustomText(
+                      text: 'Rename',
+                      fontSize: AppFontSize.verySmall,
+                      color: AppColors.black2,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'toggle',
+                    child: CustomText(
+                      text: reg.status == 'active' ? 'Deactivate' : 'Activate',
+                      fontSize: AppFontSize.verySmall,
+                      color: AppColors.black2,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: CustomText(
+                      text: 'Delete',
+                      fontSize: AppFontSize.verySmall,
+                      color: AppColors.red,
+                    ),
+                  ),
+                ],
+              ),
+      );
+    });
   }
 
   void _showRenameRegisterDialog(BuildContext context, StoreRegister reg) {
@@ -1106,23 +1342,16 @@ class _AddRegisterSheet extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.lightGrey2,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          Center(child: _sheetHandle()),
           const SizedBox(height: 16),
-          const CustomText(
-            text: 'Add Register',
-            fontSize: AppFontSize.medium,
-            fontWeight: FontWeight.bold,
-            color: AppColors.black2,
+          _sheetTitle(
+            'Add Register',
+            Icons.point_of_sale_rounded,
+            AppColors.orange,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           CustomTextField(
             controller: c.regNameCtrl,
             hintText: 'Register Name (e.g. Counter 1)',
@@ -1133,7 +1362,7 @@ class _AddRegisterSheet extends StatelessWidget {
               size: 18,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Obx(
             () => CustomButton(
               label: c.isSavingRegister.value ? '' : 'Add Register',
@@ -1172,6 +1401,8 @@ class _ShiftsSection extends StatelessWidget {
       children: [
         _SectionHeader(
           title: 'Shifts',
+          icon: Icons.schedule_rounded,
+          color: AppColors.accentColor,
           actionLabel: 'Add',
           onAction: () => _showAddShiftSheet(context),
         ),
@@ -1183,112 +1414,10 @@ class _ShiftsSection extends StatelessWidget {
               message: 'No shifts defined. Add shifts to assign to employees.',
             );
           }
-          return Container(
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: c.shifts.asMap().entries.map((entry) {
-                final i = entry.key;
-                final shift = entry.value;
-                return Column(
-                  children: [
-                    if (i > 0)
-                      const Divider(
-                        height: 1,
-                        color: AppColors.lightGrey2,
-                        indent: 16,
-                        endIndent: 16,
-                      ),
-                    Obx(() {
-                      final isProcessing =
-                          c.processingShiftId.value == shift.id;
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.schedule_rounded,
-                            color: AppColors.primaryColor,
-                            size: 18,
-                          ),
-                        ),
-                        title: CustomText(
-                          text: shift.name,
-                          fontSize: AppFontSize.verySmall,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.black2,
-                        ),
-                        subtitle: CustomText(
-                          text: '${shift.startTime} – ${shift.endTime}',
-                          fontSize: AppFontSize.tiny,
-                          color: AppColors.iosGrey,
-                        ),
-                        trailing: isProcessing
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primaryColor,
-                                ),
-                              )
-                            : PopupMenuButton<String>(
-                                icon: const Icon(
-                                  Icons.more_vert_rounded,
-                                  color: AppColors.iosGrey,
-                                  size: 20,
-                                ),
-                                onSelected: (action) {
-                                  switch (action) {
-                                    case 'rename':
-                                      _showRenameShiftDialog(context, shift);
-                                      break;
-                                    case 'delete':
-                                      _confirmDeleteShift(context, shift);
-                                      break;
-                                  }
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'rename',
-                                    child: CustomText(
-                                      text: 'Edit',
-                                      fontSize: AppFontSize.verySmall,
-                                      color: AppColors.black2,
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: CustomText(
-                                      text: 'Delete',
-                                      fontSize: AppFontSize.verySmall,
-                                      color: AppColors.red,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      );
-                    }),
-                  ],
-                );
-              }).toList(),
-            ),
+          return _SectionCard(
+            children: c.shifts
+                .map((shift) => _ShiftTile(shift: shift, c: c))
+                .toList(),
           );
         }),
       ],
@@ -1304,6 +1433,92 @@ class _ShiftsSection extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
     );
+  }
+}
+
+class _ShiftTile extends StatelessWidget {
+  final StoreShift shift;
+  final SellerPosManagementController c;
+  const _ShiftTile({required this.shift, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final isProcessing = c.processingShiftId.value == shift.id;
+      return ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.accentColor.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            Icons.schedule_rounded,
+            color: AppColors.accentColor,
+            size: 18,
+          ),
+        ),
+        title: CustomText(
+          text: shift.name,
+          fontSize: AppFontSize.verySmall,
+          fontWeight: FontWeight.w600,
+          color: AppColors.black2,
+        ),
+        subtitle: CustomText(
+          text: '${shift.startTime} – ${shift.endTime}',
+          fontSize: AppFontSize.tiny,
+          color: AppColors.iosGrey,
+        ),
+        trailing: isProcessing
+            ? SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.accentColor,
+                ),
+              )
+            : PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.iosGrey,
+                  size: 20,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onSelected: (action) {
+                  switch (action) {
+                    case 'rename':
+                      _showRenameShiftDialog(context, shift);
+                      break;
+                    case 'delete':
+                      _confirmDeleteShift(context, shift);
+                      break;
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'rename',
+                    child: CustomText(
+                      text: 'Edit',
+                      fontSize: AppFontSize.verySmall,
+                      color: AppColors.black2,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: CustomText(
+                      text: 'Delete',
+                      fontSize: AppFontSize.verySmall,
+                      color: AppColors.red,
+                    ),
+                  ),
+                ],
+              ),
+      );
+    });
   }
 
   void _showRenameShiftDialog(BuildContext context, StoreShift shift) {
@@ -1398,23 +1613,16 @@ class _AddShiftSheet extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.lightGrey2,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          Center(child: _sheetHandle()),
           const SizedBox(height: 16),
-          const CustomText(
-            text: 'Add Shift',
-            fontSize: AppFontSize.medium,
-            fontWeight: FontWeight.bold,
-            color: AppColors.black2,
+          _sheetTitle(
+            'Add Shift',
+            Icons.schedule_rounded,
+            AppColors.accentColor,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           CustomTextField(
             controller: c.shiftNameCtrl,
             hintText: 'Shift Name (e.g. Morning)',
@@ -1455,7 +1663,7 @@ class _AddShiftSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Obx(
             () => CustomButton(
               label: c.isSavingShift.value ? '' : 'Add Shift',
@@ -1494,6 +1702,19 @@ class _SessionsSection extends StatelessWidget {
       children: [
         Row(
           children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppColors.green2.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(
+                Icons.history_rounded,
+                color: AppColors.green2,
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 10),
             const CustomText(
               text: 'Recent Sessions',
               fontFamily: AppTextStyles.headingFontFamily,
@@ -1530,36 +1751,8 @@ class _SessionsSection extends StatelessWidget {
             );
           }
           final sessions = c.recentSessions.take(5).toList();
-          return Container(
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: sessions.asMap().entries.map((entry) {
-                final i = entry.key;
-                final s = entry.value;
-                return Column(
-                  children: [
-                    if (i > 0)
-                      const Divider(
-                        height: 1,
-                        color: AppColors.lightGrey2,
-                        indent: 16,
-                        endIndent: 16,
-                      ),
-                    _SessionTile(session: s),
-                  ],
-                );
-              }).toList(),
-            ),
+          return _SectionCard(
+            children: sessions.map((s) => _SessionTile(session: s)).toList(),
           );
         }),
       ],
@@ -1586,7 +1779,7 @@ class _SessionTile extends StatelessWidget {
           color: (isOpen ? AppColors.green2 : AppColors.iosGrey).withOpacity(
             0.1,
           ),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
           isOpen ? Icons.lock_open_rounded : Icons.lock_rounded,
@@ -1656,16 +1849,23 @@ class _EmptyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.lightGrey2),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.lightGrey2, size: 22),
-          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppColors.iosGrey, size: 20),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: CustomText(
               text: message,

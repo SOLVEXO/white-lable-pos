@@ -50,19 +50,20 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDfMF4NDtKBG8RJo1_tYqvxOnD5b4a8iZk',
-    appId: '1:1232419360:android:dab674012629346a6b5a45',
-    messagingSenderId: '1232419360',
-    projectId: 'ecommerceapp-7f45d',
-    storageBucket: 'ecommerceapp-7f45d.firebasestorage.app',
+    apiKey: 'AIzaSyCTgAJRMcc3h8Cisd6XHbuyEp5kOcyvOfM',
+    appId: '1:707145385701:android:a05900fbeb08c5de38360c',
+    messagingSenderId: '707145385701',
+    projectId: 'solvexo-cec1a',
+    storageBucket: 'solvexo-cec1a.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCbBG7SR0d1_xieJMXAC49qIx0r4ZxbSY4',
-    appId: '1:1232419360:ios:25bda295f568e1d16b5a45',
-    messagingSenderId: '1232419360',
-    projectId: 'ecommerceapp-7f45d',
-    storageBucket: 'ecommerceapp-7f45d.firebasestorage.app',
-    iosBundleId: 'com.example.bookStoreApp',
+    apiKey: 'AIzaSyD8SBN_Z7No0yeqhzy1qzxJlQ9DpANVGfc',
+    appId: '1:707145385701:ios:77cd62c6f6a4c6b138360c',
+    messagingSenderId: '707145385701',
+    projectId: 'solvexo-cec1a',
+    storageBucket: 'solvexo-cec1a.firebasestorage.app',
+    androidClientId: '707145385701-fd2nfbjmhln0at4iadcu5j0s1g4rjf01.apps.googleusercontent.com',
+    iosClientId: '707145385701-7b85837kd77cebhf80gfa6f8puboaosn.apps.googleusercontent.com',
+    iosBundleId: 'com.solvexo.solvexoPos',
   );
 }

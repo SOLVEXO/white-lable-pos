@@ -111,10 +111,10 @@ class _SetupSummary extends StatelessWidget {
                   ? 'Not selected'
                   : controller.sellerTypeName,
             ),
-            _SummaryRow(
+            const _SummaryRow(
               emoji: '📦',
-              label: 'Products activated',
-              value: controller.activatedProductsLabel,
+              label: 'Products',
+              value: 'Physical Products',
             ),
             _SummaryRow(emoji: '💳', label: 'Plan', value: 'Starter — Free'),
             const _SummaryRow(emoji: '✨', label: 'AI Credits', value: '100 free credits included'),

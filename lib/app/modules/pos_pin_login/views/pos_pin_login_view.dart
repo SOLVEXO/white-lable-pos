@@ -49,12 +49,11 @@ class PosPinLoginView extends StatelessWidget {
 }
 
 // ── Theme constants ────────────────────────────────────────────────────────────
-const kPinBg = Color(0xFF1A1A1A);
-const kPinSurface = Color(0xFF252525);
-const kPinBorder = Color(0xFF333333);
-const kPinText = Color(0xFFE8E8E8);
-const kPinSub = Color(0xFF888888);
-const kPinOrange = Color(0xFFd97757);
+const kPinBg = AppColors.posThemeBg;
+const kPinSurface = AppColors.posThemeSurface;
+const kPinBorder = AppColors.posThemeBorder;
+const kPinText = AppColors.posThemeText;
+const kPinSub = AppColors.posThemeSubText;
 
 // ── Header ─────────────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
@@ -65,12 +64,12 @@ class _Header extends StatelessWidget {
         Container(
           padding: EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: kPinOrange.withOpacity(0.15),
+            color: AppColors.primaryColor.withOpacity(0.15),
             shape: BoxShape.circle,
           ),
           child: SvgIcon(
             assetName: AppIcons.posIcon,
-            color: kPinOrange,
+            color: AppColors.primaryColor,
             size: 32,
           ),
         ),
@@ -133,9 +132,9 @@ class _RegisterSelector extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.point_of_sale_outlined,
-                color: kPinOrange,
+                color: AppColors.primaryColor,
                 size: 18,
               ),
               const SizedBox(width: 10),
@@ -205,14 +204,14 @@ class _RegisterSelector extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: c.selectedRegister.value?['id'] == reg['id']
-                          ? kPinOrange.withOpacity(0.15)
+                          ? AppColors.primaryColor.withOpacity(0.15)
                           : kPinBg,
                       borderRadius: BorderRadius.circular(
                         AppDimen.borderRadius,
                       ),
                       border: Border.all(
                         color: c.selectedRegister.value?['id'] == reg['id']
-                            ? kPinOrange
+                            ? AppColors.primaryColor
                             : kPinBorder,
                       ),
                     ),
@@ -221,7 +220,7 @@ class _RegisterSelector extends StatelessWidget {
                         Icon(
                           Icons.point_of_sale_outlined,
                           color: c.selectedRegister.value?['id'] == reg['id']
-                              ? kPinOrange
+                              ? AppColors.primaryColor
                               : kPinSub,
                           size: 18,
                         ),
@@ -289,9 +288,9 @@ class _PinDots extends StatelessWidget {
             height: 18,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: filled ? kPinOrange : Colors.transparent,
+              color: filled ? AppColors.primaryColor : AppColors.transparent,
               border: Border.all(
-                color: filled ? kPinOrange : kPinBorder,
+                color: filled ? AppColors.primaryColor : kPinBorder,
                 width: 2,
               ),
             ),
@@ -372,22 +371,22 @@ class _KeyButton extends StatelessWidget {
         width: 80,
         height: 72,
         decoration: BoxDecoration(
-          color: isBackspace ? kPinOrange.withOpacity(0.12) : kPinSurface,
+          color: isBackspace ? AppColors.primaryColor.withOpacity(0.12) : kPinSurface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: kPinBorder),
         ),
         alignment: Alignment.center,
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: kPinOrange,
+                  color: AppColors.primaryColor,
                 ),
               )
             : isBackspace
-            ? const Icon(Icons.backspace_outlined, color: kPinOrange, size: 22)
+            ? Icon(Icons.backspace_outlined, color: AppColors.primaryColor, size: 22)
             : CustomText(
                 text: label,
                 fontSize: AppFontSize.veryLarge,

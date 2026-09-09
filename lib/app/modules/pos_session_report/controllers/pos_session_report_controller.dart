@@ -3,7 +3,9 @@ import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:get/get.dart';
 
 class PosSessionReportController extends GetxController {
-  final _posRepo = PosRepository();
+  PosSessionReportController({PosRepository? posRepository}) : _posRepo = posRepository ?? PosRepository();
+
+  final PosRepository _posRepo;
 
   final RxBool isLoading = true.obs;
   final Rx<PosSessionReportModel?> report = Rx(null);

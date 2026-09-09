@@ -57,6 +57,57 @@ class SellerRepository {
     }
   }
 
+  // ─── GET /api/store/public/enabled-currencies ─────────────────────────────
+  // Admin-configurable list a store's baseCurrency must be one of — the
+  // backend's own createStore validation rejects anything else, so this
+  // replaces the old hardcoded ['PKR', 'USD'] onboarding list.
+
+  Future<List<String>> getEnabledCurrencies() async {
+    try {
+      final response = await _client.get(
+        ApiConstants.enabledCurrencies,
+        requiresAuth: false,
+      );
+      if (response.data['success'] == true) {
+        final list = response.data['data'] as List<dynamic>;
+        return list
+            .map((e) => (e as Map<String, dynamic>)['code'] as String)
+            .toList();
+      }
+      return [];
+    } on DioException catch (e) {
+      DioExceptionHandler.handleDioException(e);
+      return [];
+    } catch (e) {
+      debugPrint('❌ getEnabledCurrencies error: $e');
+      return [];
+    }
+  }
+
+  // ─── GET /api/store/suggest-location ──────────────────────────────────────
+  // IP-detected country + a suggested currency for Onboarding's currency
+  // step — a suggestion only, never enforced.
+
+  Future<String?> getSuggestedCurrency() async {
+    try {
+      final response = await _client.get(
+        ApiConstants.suggestLocation,
+        requiresAuth: true,
+      );
+      if (response.data['success'] == true) {
+        final data = response.data['data'] as Map<String, dynamic>;
+        return data['suggestedCurrency'] as String?;
+      }
+      return null;
+    } on DioException catch (e) {
+      DioExceptionHandler.handleDioException(e);
+      return null;
+    } catch (e) {
+      debugPrint('❌ getSuggestedCurrency error: $e');
+      return null;
+    }
+  }
+
   // ─── POST /api/store/create-store ─────────────────────────────────────────
 
   Future<StoreModel?> createStore({
@@ -65,7 +116,6 @@ class SellerRepository {
     required List<String> productTypes,
     required String baseCurrency,
     String? logoUrl,
-    String? categoryId,
     String? description,
   }) async {
     try {
@@ -76,7 +126,6 @@ class SellerRepository {
         'productTypes': productTypes,
         'baseCurrency': baseCurrency,
         if ((logoUrl ?? '').isNotEmpty) 'logo': logoUrl,
-        if ((categoryId ?? '').isNotEmpty) 'categoryId': categoryId,
         if ((description ?? '').isNotEmpty) 'description': description,
       };
       debugPrint('   body: $body');

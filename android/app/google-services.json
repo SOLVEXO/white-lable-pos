@@ -1,0 +1,106 @@
+{
+  "project_info": {
+    "project_number": "707145385701",
+    "project_id": "solvexo-cec1a",
+    "storage_bucket": "solvexo-cec1a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:707145385701:android:9402a5a036486f4c38360c",
+        "android_client_info": {
+          "package_name": "com.solvexo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "707145385701-si9vgmalovmug4q75ruqe9s3kj2kpo1u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.solvexo.app",
+            "certificate_hash": "9e45e6dcae2f908626c9b7f4800df78759a1934b"
+          }
+        },
+        {
+          "client_id": "707145385701-utile119eic2h4tpabagorjn6eim4960.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.solvexo.app",
+            "certificate_hash": "262d042c917cfb2cc450c346d9989128857aca3e"
+          }
+        },
+        {
+          "client_id": "707145385701-24e0irbfrsvkqbv0i74o6araatqthptn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTgAJRMcc3h8Cisd6XHbuyEp5kOcyvOfM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "707145385701-24e0irbfrsvkqbv0i74o6araatqthptn.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "707145385701-7b85837kd77cebhf80gfa6f8puboaosn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.solvexo.solvexoPos"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:707145385701:android:a05900fbeb08c5de38360c",
+        "android_client_info": {
+          "package_name": "com.solvexo.solvexo_pos"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "707145385701-fd2nfbjmhln0at4iadcu5j0s1g4rjf01.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.solvexo.solvexo_pos",
+            "certificate_hash": "262d042c917cfb2cc450c346d9989128857aca3e"
+          }
+        },
+        {
+          "client_id": "707145385701-24e0irbfrsvkqbv0i74o6araatqthptn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTgAJRMcc3h8Cisd6XHbuyEp5kOcyvOfM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "707145385701-24e0irbfrsvkqbv0i74o6araatqthptn.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "707145385701-7b85837kd77cebhf80gfa6f8puboaosn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.solvexo.solvexoPos"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

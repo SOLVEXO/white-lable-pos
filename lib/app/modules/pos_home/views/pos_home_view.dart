@@ -27,7 +27,20 @@ class PosHomeView extends StatelessWidget {
           const Divider(height: 1, color: AppColors.lightGrey2),
           PosCategoryRow(c: c),
           const Divider(height: 1, color: AppColors.lightGrey2),
-          Expanded(child: _ProductGrid(c: c)),
+          Expanded(child: Stack(children: [
+          _ProductGrid(c: c),
+          Obx(() => c.isLoadingMoreProducts.value
+              ? Positioned(
+                  bottom: 8, left: 0, right: 0,
+                  child: Center(
+                    child: SizedBox(
+                      width: 22, height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink()),
+        ])),
         ]),
 
         Obx(() => AnimatedPositioned(
@@ -106,6 +119,7 @@ class _ProductGrid extends StatelessWidget {
         );
       }
       return GridView.builder(
+        controller: c.productScrollController,
         padding: EdgeInsets.fromLTRB(
             12, 12, 12, c.hasItems ? (bottomPad + 88) : 12),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

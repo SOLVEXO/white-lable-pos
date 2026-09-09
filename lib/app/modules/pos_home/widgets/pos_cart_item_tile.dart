@@ -74,7 +74,7 @@ class PosCartItemTile extends StatelessWidget {
               _QtyBtn(icon: Icons.add_rounded, onTap: () => c.increment(item)),
               const SizedBox(width: 8),
               CustomText(
-                text: '× \$${item.unitPrice.toStringAsFixed(2)}',
+                text: '× ${c.currencySymbol.value}${item.unitPrice.toStringAsFixed(2)}',
                 fontSize: AppFontSize.tiny,
                 color: AppColors.iosGrey,
                 fontFamily: AppTextStyles.monoFontFamily,
@@ -100,7 +100,7 @@ class PosCartItemTile extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           CustomText(
-            text: '\$${item.lineTotal.toStringAsFixed(2)}',
+            text: '${c.currencySymbol.value}${item.lineTotal.toStringAsFixed(2)}',
             fontSize: AppFontSize.small2,
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor,

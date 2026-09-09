@@ -36,6 +36,16 @@ import '../modules/pos_audit_log/bindings/pos_audit_log_binding.dart';
 import '../modules/pos_audit_log/views/pos_audit_log_view.dart';
 import '../modules/pos_range_report/bindings/pos_range_report_binding.dart';
 import '../modules/pos_range_report/views/pos_range_report_view.dart';
+import '../modules/pos_inventory/bindings/pos_inventory_binding.dart';
+import '../modules/pos_inventory/views/pos_inventory_view.dart';
+import '../modules/pos_stock_activity/bindings/pos_stock_activity_binding.dart';
+import '../modules/pos_stock_activity/views/pos_stock_activity_view.dart';
+import '../modules/pos_customers/bindings/pos_customers_binding.dart';
+import '../modules/pos_customers/views/pos_customers_view.dart';
+import '../modules/pos_subscription_paywall/bindings/pos_subscription_paywall_binding.dart';
+import '../modules/pos_subscription_paywall/views/pos_subscription_paywall_view.dart';
+import '../modules/pos_subscription_checkout/bindings/pos_subscription_checkout_binding.dart';
+import '../modules/pos_subscription_checkout/views/pos_subscription_checkout_view.dart';
 part 'app_routes.dart';
 
 class AppPages {
@@ -151,6 +161,39 @@ class AppPages {
       name: Routes.posRangeReport,
       page: () => PosRangeReportView(),
       binding: PosRangeReportBinding(),
+      middlewares: [PosAccessMiddleware()],
+    ),
+    GetPage(
+      name: Routes.posInventory,
+      page: () => PosInventoryView(),
+      binding: PosInventoryBinding(),
+      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+    ),
+    GetPage(
+      name: Routes.posStockActivity,
+      page: () => PosStockActivityView(),
+      binding: PosStockActivityBinding(),
+      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+    ),
+    GetPage(
+      name: Routes.posCustomers,
+      page: () => PosCustomersView(),
+      binding: PosCustomersBinding(),
+      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+    ),
+    // Reached from the seller dashboard (SellerPosManagementController
+    // .openPosTerminal) before PIN login, so only the base seller-auth
+    // check applies — no PIN-logged-in employee/register session exists yet.
+    GetPage(
+      name: Routes.posSubscriptionPaywall,
+      page: () => PosSubscriptionPaywallView(),
+      binding: PosSubscriptionPaywallBinding(),
+      middlewares: [PosAccessMiddleware()],
+    ),
+    GetPage(
+      name: Routes.posSubscriptionCheckout,
+      page: () => PosSubscriptionCheckoutView(),
+      binding: PosSubscriptionCheckoutBinding(),
       middlewares: [PosAccessMiddleware()],
     ),
   ];

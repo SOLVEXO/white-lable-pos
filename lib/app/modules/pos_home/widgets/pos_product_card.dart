@@ -12,7 +12,7 @@ class PosProductCard extends StatelessWidget {
   final PosProductModel product;
   const PosProductCard({super.key, required this.c, required this.product});
 
-  static const Color _cardBg = Color(0xFFF5F5F5);
+  static const Color _cardBg = AppColors.productImagePlaceholderBg;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +29,7 @@ class PosProductCard extends StatelessWidget {
             color: AppColors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: inCart ? AppColors.primaryColor : Colors.transparent,
+              color: inCart ? AppColors.primaryColor : AppColors.transparent,
               width: 2,
             ),
             boxShadow: [
@@ -50,7 +50,7 @@ class PosProductCard extends StatelessWidget {
                 flex: 11,
                 child: Container(
                   width: double.infinity,
-                  color: isOut ? const Color(0xFFF0F0F0) : _cardBg,
+                  color: isOut ? AppColors.productImagePlaceholderBgOut : _cardBg,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -144,7 +144,7 @@ class PosProductCard extends StatelessWidget {
                         )
                       else
                         CustomText(
-                          text: '\$${product.price.toStringAsFixed(2)}',
+                          text: '${c.currencySymbol.value}${product.price.toStringAsFixed(2)}',
                           fontSize: AppFontSize.verySmall,
                           fontWeight: FontWeight.bold,
                           color: inCart ? AppColors.primaryColor : AppColors.black2,

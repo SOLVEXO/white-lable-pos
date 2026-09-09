@@ -27,7 +27,7 @@ class PosStatusBadge extends StatelessWidget {
   static _Style _resolve(String status) {
     switch (status) {
       case 'held':
-        return const _Style('Held', AppColors.orange, Color(0xFFFFF1E6));
+        return const _Style('Held', AppColors.orange, AppColors.heldStatusBg);
       case 'refunded':
         return const _Style('Refunded', AppColors.red, AppColors.lightRed);
       case 'partially_refunded':

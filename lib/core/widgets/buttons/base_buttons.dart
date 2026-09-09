@@ -5,6 +5,7 @@ import '../../theme/base_colors.dart';
 import '../../theme/base_shadows.dart';
 import '../../theme/base_spacing.dart';
 import '../../theme/base_animations.dart';
+import 'package:solvexo_pos/config/resources/app_colors.dart';
 
 /// Shared visual size contract every button in the family honors, so a
 /// [PrimaryButton] and an [OutlineButton] on the same row always line up.
@@ -55,29 +56,29 @@ class _BaseButton extends StatelessWidget {
     switch (kind) {
       case _ButtonKind.primary:
         bg = _disabled ? BaseColors.primary.withOpacity(0.35) : BaseColors.primary;
-        fg = Colors.white;
+        fg = AppColors.white;
         shadow = _disabled ? BaseShadows.none : BaseShadows.forLevel(BaseElevation.level2);
         break;
       case _ButtonKind.secondary:
         bg = _disabled ? BaseColors.secondary.withOpacity(0.35) : BaseColors.secondary;
-        fg = Colors.white;
+        fg = AppColors.white;
         break;
       case _ButtonKind.outline:
-        bg = Colors.transparent;
+        bg = AppColors.transparent;
         fg = _disabled ? BaseColors.onSurfaceMutedLight : BaseColors.primary;
         border = Border.all(color: _disabled ? BaseColors.borderLight : BaseColors.primary, width: 1.4);
         break;
       case _ButtonKind.ghost:
-        bg = Colors.transparent;
+        bg = AppColors.transparent;
         fg = _disabled ? BaseColors.onSurfaceMutedLight : BaseColors.onSurfaceLight;
         break;
       case _ButtonKind.danger:
         bg = _disabled ? BaseColors.danger.withOpacity(0.35) : BaseColors.danger;
-        fg = Colors.white;
+        fg = AppColors.white;
         break;
       case _ButtonKind.gradient:
-        bg = Colors.transparent;
-        fg = Colors.white;
+        bg = AppColors.transparent;
+        fg = AppColors.white;
         shadow = _disabled ? BaseShadows.none : BaseShadows.glow();
         break;
     }

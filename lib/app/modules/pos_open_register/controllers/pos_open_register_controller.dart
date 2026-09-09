@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class PosOpenRegisterController extends GetxController {
-  final _posRepo = PosRepository();
+  PosOpenRegisterController({PosRepository? posRepository}) : _posRepo = posRepository ?? PosRepository();
+
+  final PosRepository _posRepo;
 
   final RxBool isOpening = false.obs;
   final TextEditingController openingCashController = TextEditingController();
@@ -40,7 +42,11 @@ class PosOpenRegisterController extends GetxController {
 
   Future<void> openRegister() async {
     final cashText = openingCashController.text.trim();
-    final openingCash = double.tryParse(cashText) ?? 0.0;
+    final openingCash = double.tryParse(cashText);
+    if (openingCash == null || openingCash < 0) {
+      CustomAppSnackbar.warning('Enter a valid opening cash amount.');
+      return;
+    }
 
     if (shiftId.isEmpty) {
       CustomAppSnackbar.error('No shift assigned to this employee.');

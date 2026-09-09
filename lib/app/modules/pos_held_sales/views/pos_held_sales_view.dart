@@ -155,7 +155,7 @@ class _HeldSaleTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: CustomText(
-              text: '\$${sale.total.toStringAsFixed(2)}',
+              text: '${c.currencySymbol}${sale.total.toStringAsFixed(2)}',
               fontSize: AppFontSize.small2,
               fontWeight: FontWeight.bold,
               color: AppColors.orange,
@@ -186,7 +186,7 @@ class _HeldSaleTile extends StatelessWidget {
                     ),
                   ),
                   CustomText(
-                    text: '×${item.qty}  \$${item.lineTotal.toStringAsFixed(2)}',
+                    text: '×${item.qty}  ${c.currencySymbol}${item.lineTotal.toStringAsFixed(2)}',
                     fontSize: AppFontSize.tiny,
                     color: AppColors.iosGrey,
                   ),
@@ -316,7 +316,7 @@ class _HeldSaleTile extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             CustomText(
-              text: 'Total: \$${sale.total.toStringAsFixed(2)} — choose the payment method used.',
+              text: 'Total: ${c.currencySymbol}${sale.total.toStringAsFixed(2)} — choose the payment method used.',
               fontSize: AppFontSize.tiny,
               color: AppColors.iosGrey,
             ),

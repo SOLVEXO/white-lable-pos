@@ -3,11 +3,14 @@ import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
+import 'package:solvexo_pos/utils/pos_role.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 class PosOrdersController extends GetxController {
-  final _posRepo = PosRepository();
+  PosOrdersController({PosRepository? posRepository}) : _posRepo = posRepository ?? PosRepository();
+
+  final PosRepository _posRepo;
 
   final ScrollController scrollController = ScrollController();
 
@@ -21,6 +24,10 @@ class PosOrdersController extends GetxController {
   final RxString paymentFilter = 'All'.obs;
   final RxString statusFilter  = 'All'.obs;
   final RxString processingId  = ''.obs;
+  final RxString currencySymbol = '\$'.obs;
+  /// See PosRole.isCurrentEmployeeManager's doc comment — gates the
+  /// quick refund/void actions to match the backend's actual (if weak) check.
+  final RxBool isManager = false.obs;
 
   String _storeId   = '';
   String _sessionId = '';
@@ -29,26 +36,26 @@ class PosOrdersController extends GetxController {
 
   static const statusFilters = ['All', 'completed', 'held', 'refunded', 'voided', 'partially_refunded'];
 
-  // ── Computed stats (over the currently loaded + filtered page set) ────────
-  double get totalSales  => filteredSales.fold(0.0, (s, t) => s + t.total);
-  double get avgTransaction => filteredSales.isEmpty ? 0.0 : totalSales / filteredSales.length;
+  // ── Computed stats ───────────────────────────────────────────────────────
+  // Payment/status filters are now applied server-side (see loadSales/
+  // loadMore), so `sales` already only contains matching rows. These totals
+  // still only cover the pages loaded so far, not the full server-side
+  // result set — there's no filtered-aggregate endpoint to total against —
+  // so the UI labels them "(loaded)" rather than implying a full total.
+  double get totalSales  => sales.fold(0.0, (s, t) => s + t.total);
+  double get avgTransaction => sales.isEmpty ? 0.0 : totalSales / sales.length;
   double get cashTotal  =>
-      filteredSales.where((t) => t.paymentMethod == 'cash').fold(0.0, (s, t) => s + t.total);
-  int    get txnCount   => filteredSales.length;
+      sales.where((t) => t.paymentMethod == 'cash').fold(0.0, (s, t) => s + t.total);
+  int    get txnCount   => sales.length;
   bool   get hasMore    => _hasMore;
 
-  List<PosSaleModel> get filteredSales {
-    return sales.where((s) {
-      final matchPayment = paymentFilter.value == 'All' || s.paymentMethod == paymentFilter.value;
-      final matchStatus = statusFilter.value == 'All' || s.status == statusFilter.value;
-      return matchPayment && matchStatus;
-    }).toList();
-  }
+  List<PosSaleModel> get filteredSales => sales;
 
   @override
   void onInit() {
     super.onInit();
     _loadContext().then((_) => loadSales());
+    PosRole.isCurrentEmployeeManager().then((v) => isManager.value = v);
     scrollController.addListener(() {
       if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
         loadMore();
@@ -65,9 +72,14 @@ class PosOrdersController extends GetxController {
   Future<void> _loadContext() async {
     _storeId   = await AppPreferences.getStoreId()      ?? '';
     _sessionId = await AppPreferences.getPosSessionId() ?? '';
+    final settings = await _posRepo.getPosSettings(_storeId);
+    final symbol = settings?.currencySymbol;
+    if (symbol != null && symbol.trim().isNotEmpty) currencySymbol.value = symbol;
   }
 
   String? _fmtDate(DateTime? d) => d?.toIso8601String().split('T').first;
+  String? get _paymentParam => paymentFilter.value == 'All' ? null : paymentFilter.value;
+  String? get _statusParam => statusFilter.value == 'All' ? null : statusFilter.value;
 
   Future<void> loadSales() async {
     isLoading.value = true;
@@ -79,6 +91,8 @@ class PosOrdersController extends GetxController {
         page: _page,
         from: _fmtDate(fromDate.value),
         to: _fmtDate(toDate.value),
+        paymentMethod: _paymentParam,
+        status: _statusParam,
       );
       sales.assignAll(result.items);
       _hasMore = result.hasMore;
@@ -97,6 +111,8 @@ class PosOrdersController extends GetxController {
         page: _page + 1,
         from: _fmtDate(fromDate.value),
         to: _fmtDate(toDate.value),
+        paymentMethod: _paymentParam,
+        status: _statusParam,
       );
       sales.addAll(result.items);
       _page++;
@@ -108,8 +124,16 @@ class PosOrdersController extends GetxController {
 
   Future<void> refreshData() => loadSales();
 
-  void setPaymentFilter(String method) => paymentFilter.value = method;
-  void setStatusFilter(String status) => statusFilter.value = status;
+  // Filters are applied server-side, so changing either re-fetches page 1.
+  void setPaymentFilter(String method) {
+    paymentFilter.value = method;
+    loadSales();
+  }
+
+  void setStatusFilter(String status) {
+    statusFilter.value = status;
+    loadSales();
+  }
 
   void setDateRange(DateTime? from, DateTime? to) {
     fromDate.value = from;
@@ -126,8 +150,7 @@ class PosOrdersController extends GetxController {
   Future<void> refundSale(PosSaleModel sale) async {
     processingId.value = sale.id;
     try {
-      final employeeId = await AppPreferences.getPosEmployeeId();
-      final result = await _posRepo.refundSale(sale.id, actingEmployeeId: employeeId);
+      final result = await _posRepo.refundSale(sale.id);
       if (!result.success) {
         CustomAppSnackbar.error(result.message ?? 'Could not process refund.');
         return;
@@ -145,8 +168,7 @@ class PosOrdersController extends GetxController {
   Future<void> voidSale(PosSaleModel sale) async {
     processingId.value = sale.id;
     try {
-      final employeeId = await AppPreferences.getPosEmployeeId();
-      final ok = await _posRepo.voidSale(sale.id, actingEmployeeId: employeeId);
+      final ok = await _posRepo.voidSale(sale.id);
       if (!ok) return;
       final idx = sales.indexWhere((s) => s.id == sale.id);
       if (idx >= 0) sales[idx] = _withStatus(sales[idx], 'voided');

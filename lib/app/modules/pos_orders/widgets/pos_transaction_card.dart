@@ -68,8 +68,12 @@ class PosTransactionCard extends StatelessWidget {
                   )
                 : PosTransactionButtons(
                     onReceipt: () => Get.toNamed(Routes.posSaleDetail, arguments: sale.id),
-                    onRefund: sale.canRefund ? () => _confirmRefund(context) : null,
-                    onVoid: sale.canVoid ? () => _confirmVoid(context) : null,
+                    // Refund/void offered to managers only — matches the
+                    // backend's real, signed-token-verified enforcement,
+                    // see PosRole's doc comment. A cashier can still open
+                    // the sale detail screen, which explains why.
+                    onRefund: (sale.canRefund && controller.isManager.value) ? () => _confirmRefund(context) : null,
+                    onVoid: (sale.canVoid && controller.isManager.value) ? () => _confirmVoid(context) : null,
                   ),
           ],
         ),
@@ -91,7 +95,7 @@ class PosTransactionCard extends StatelessWidget {
           color: AppColors.primaryColor,
         ),
         CustomText(
-          text: '\$${sale.total.toStringAsFixed(2)}',
+          text: '${controller.currencySymbol.value}${sale.total.toStringAsFixed(2)}',
           fontSize: AppFontSize.small,
           fontWeight: FontWeight.bold,
           color: AppColors.black,
@@ -169,7 +173,7 @@ class PosTransactionCard extends StatelessWidget {
     CustomConfirmDialog.show(
       context,
       title: 'Confirm Refund',
-      message: 'Refund \$${sale.total.toStringAsFixed(2)} for this sale?',
+      message: 'Refund ${controller.currencySymbol.value}${sale.total.toStringAsFixed(2)} for this sale?',
       confirmLabel: 'Refund',
       confirmColor: AppColors.red,
       onConfirm: () => controller.refundSale(sale),

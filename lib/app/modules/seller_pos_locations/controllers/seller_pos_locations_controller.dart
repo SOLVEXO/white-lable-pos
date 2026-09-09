@@ -6,7 +6,10 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 class SellerPosLocationsController extends GetxController {
-  final StoreLocationsRepository _repo = StoreLocationsRepository();
+  SellerPosLocationsController({StoreLocationsRepository? storeLocationsRepository})
+      : _repo = storeLocationsRepository ?? StoreLocationsRepository();
+
+  final StoreLocationsRepository _repo;
 
   String storeId = '';
 

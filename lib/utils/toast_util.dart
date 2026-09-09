@@ -50,7 +50,7 @@ class ToastUtil {
   //       // gravity: ToastGravity.CENTER,
   //       timeInSecForIosWeb: 1,
   //       // backgroundColor: A.red,
-  //       // textColor: Colors.white,
+  //       // textColor: AppColors.white,
   //       fontSize: 14.0);
   // }
 }

@@ -36,10 +36,22 @@ class PosProductsView extends StatelessWidget {
               return CustomRefreshWrapper(
                 onRefresh: controller.refreshData,
                 child: ListView.separated(
+                  controller: controller.scrollController,
                   padding: const EdgeInsets.all(AppDimen.allPadding),
-                  itemCount: products.length,
+                  itemCount: products.length + (controller.isLoadingMore.value ? 1 : 0),
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) => PosProductTile(product: products[i]),
+                  itemBuilder: (_, i) {
+                    if (i >= products.length) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor)),
+                      );
+                    }
+                    return PosProductTile(
+                      product: products[i],
+                      currencySymbol: controller.currencySymbol.value,
+                    );
+                  },
                 ),
               );
             }),

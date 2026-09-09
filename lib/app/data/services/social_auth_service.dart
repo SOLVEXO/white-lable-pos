@@ -11,7 +11,12 @@ class SocialAuthService {
     try {
       debugPrint('🔄 Starting Google Sign In...');
 
-      await _googleSignIn.initialize();
+      // Web OAuth client id matching the backend's GOOGLE_CLIENT_ID env var,
+      // needed so GoogleSignInAccount.authentication returns an idToken whose
+      // audience the server accepts.
+      await _googleSignIn.initialize(
+        serverClientId: '707145385701-quuhmj7p5tgvr1jjuuqgb0h0t2r7rqk2.apps.googleusercontent.com',
+      );
 
       final GoogleSignInAccount account = await _googleSignIn.authenticate();
       final auth = account.authentication;

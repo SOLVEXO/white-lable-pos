@@ -7,36 +7,76 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class PosProductsController extends GetxController {
-  final _posRepo = PosRepository();
+  PosProductsController({PosRepository? posRepository}) : _posRepo = posRepository ?? PosRepository();
+
+  final PosRepository _posRepo;
 
   final RxBool isLoading = false.obs;
+  final RxBool isLoadingMore = false.obs;
   final RxString searchText = ''.obs;
+  final RxString currencySymbol = '\$'.obs;
   final TextEditingController searchController = TextEditingController();
+  final ScrollController scrollController = ScrollController();
   final RxList<PosProductModel> _allProducts = <PosProductModel>[].obs;
+
+  static const _pageSize = 40;
 
   String _storeId = '';
   Timer? _debounce;
+  int _page = 1;
+  bool _hasMore = true;
+  bool get hasMore => _hasMore;
 
   List<PosProductModel> get filteredProducts => _allProducts;
 
   @override
   void onInit() {
     super.onInit();
-    _loadContext().then((_) => _load());
+    _loadContext().then((_) {
+      _load();
+      _loadSettings();
+    });
+    scrollController.addListener(() {
+      if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 300) {
+        loadMore();
+      }
+    });
   }
 
   Future<void> _loadContext() async {
     _storeId = await AppPreferences.getStoreId() ?? '';
   }
 
+  Future<void> _loadSettings() async {
+    if (_storeId.isEmpty) return;
+    final settings = await _posRepo.getPosSettings(_storeId);
+    final symbol = settings?.currencySymbol;
+    if (symbol != null && symbol.trim().isNotEmpty) currencySymbol.value = symbol;
+  }
+
   Future<void> _load() async {
     if (_storeId.isEmpty) return;
     isLoading.value = true;
+    _page = 1;
     try {
-      final result = await _posRepo.getProducts(_storeId, limit: 200);
+      final result = await _posRepo.getProducts(_storeId, page: _page, limit: _pageSize);
       _allProducts.assignAll(result.items);
+      _hasMore = result.hasMore;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (isLoadingMore.value || !_hasMore || searchText.value.trim().isNotEmpty) return;
+    isLoadingMore.value = true;
+    try {
+      final result = await _posRepo.getProducts(_storeId, page: _page + 1, limit: _pageSize);
+      _allProducts.addAll(result.items);
+      _page++;
+      _hasMore = result.hasMore;
+    } finally {
+      isLoadingMore.value = false;
     }
   }
 
@@ -60,6 +100,7 @@ class PosProductsController extends GetxController {
   void onClose() {
     _debounce?.cancel();
     searchController.dispose();
+    scrollController.dispose();
     super.onClose();
   }
 }

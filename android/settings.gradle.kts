@@ -20,6 +20,9 @@ pluginManagement {
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.9.1" apply false
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services") version("4.3.15") apply false
+    // END: FlutterFire Configuration
     // Bumped from 2.1.0 to match the root app: google_maps_flutter_android
     // (pulled in transitively via book_store_app's pubspec) ships
     // kotlin-stdlib metadata compiled with Kotlin 2.3.x, which an older

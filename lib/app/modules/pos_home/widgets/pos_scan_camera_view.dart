@@ -39,18 +39,18 @@ class _PosScanCameraViewState extends State<PosScanCameraView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.black,
       appBar: CustomAppBarTwo(
         title: 'Scan barcode',
-        backgroundColor: Colors.black,
-        color: Colors.white,
+        backgroundColor: AppColors.black,
+        color: AppColors.white,
         actions: [
           IconButton(
             icon: ValueListenableBuilder(
               valueListenable: _controller,
               builder: (context, state, child) => Icon(
                 state.torchState == TorchState.on ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-                color: Colors.white,
+                color: AppColors.white,
               ),
             ),
             onPressed: () => _controller.toggleTorch(),

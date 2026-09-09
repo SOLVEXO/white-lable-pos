@@ -28,6 +28,10 @@ abstract class Routes {
   static const posPinLogin = '/pos/pin-login';
   static const posOpenRegister = '/pos/open-register';
 
+  // POS subscription gate
+  static const posSubscriptionPaywall = '/pos/subscription-paywall';
+  static const posSubscriptionCheckout = '/pos/subscription-checkout';
+
   // POS operational screens
   static const posHeldSales = '/pos/held-sales';
   static const posSaleDetail = '/pos/sale-detail';
@@ -36,4 +40,9 @@ abstract class Routes {
   static const posSessionHistory = '/pos/session-history';
   static const posAuditLog = '/pos/audit-log';
   static const posRangeReport = '/pos/range-report';
+
+  // Phase 2 — supporting modules
+  static const posInventory = '/pos/inventory';
+  static const posStockActivity = '/pos/stock-activity';
+  static const posCustomers = '/pos/customers';
 }

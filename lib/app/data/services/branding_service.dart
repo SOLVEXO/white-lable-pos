@@ -16,7 +16,10 @@ import 'package:get/get.dart';
 /// `main.dart` (mirrors this codebase's other early/global services); read
 /// anywhere via `Get.find<BrandingService>()`.
 class BrandingService extends GetxController {
-  final BrandingRepository _repository = BrandingRepository();
+  BrandingService({BrandingRepository? brandingRepository})
+      : _repository = brandingRepository ?? BrandingRepository();
+
+  final BrandingRepository _repository;
 
   final Rx<BrandingConfigModel> config = Rx<BrandingConfigModel>(StoreConfig.toBrandingConfig());
 

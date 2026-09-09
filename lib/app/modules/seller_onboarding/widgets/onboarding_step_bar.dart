@@ -10,7 +10,7 @@ class OnboardingStepBar extends StatelessWidget {
 
   const OnboardingStepBar({super.key, required this.controller});
 
-  static const _labels = ['Store Info', 'Seller Type', 'What You Sell', 'Go Live'];
+  static const _labels = ['Store Info', 'Seller Type', 'Go Live'];
 
   @override
   Widget build(BuildContext context) {

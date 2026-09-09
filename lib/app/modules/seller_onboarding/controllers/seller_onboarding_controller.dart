@@ -3,10 +3,8 @@ import 'dart:io';
 import 'package:solvexo_pos/app/components/app_image_picker.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
-import 'package:solvexo_pos/app/data/repositories/category_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/seller_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/upload_repository.dart';
-import 'package:solvexo_pos/app/modules/category/models/category_model.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
@@ -16,7 +14,7 @@ import 'package:get/get.dart';
 
 // ── Enums ──────────────────────────────────────────────────────────────────────
 
-enum OnboardingStep { storeInfo, sellerType, whatYouSell, goLive }
+enum OnboardingStep { storeInfo, sellerType, goLive }
 
 enum SellerTypeOption {
   creator,
@@ -27,23 +25,7 @@ enum SellerTypeOption {
   mixOfAbove,
 }
 
-enum WhatYouSellOption {
-  physicalProducts,
-  digitalDownloads,
-  educationalResources,
-  servicesBookings,
-  subscriptions,
-  inPersonPos,
-}
-
 // ── Data models ────────────────────────────────────────────────────────────────
-
-class ActivatedTool {
-  final String name;
-  final Color textColor;
-  final Color bgColor;
-  const ActivatedTool(this.name, this.textColor, this.bgColor);
-}
 
 class SellerTypeData {
   final SellerTypeOption type;
@@ -55,21 +37,6 @@ class SellerTypeData {
     required this.emoji,
     required this.name,
     required this.description,
-  });
-}
-
-class WhatYouSellData {
-  final WhatYouSellOption option;
-  final String emoji;
-  final String name;
-  final String description;
-  final List<ActivatedTool> tools;
-  const WhatYouSellData({
-    required this.option,
-    required this.emoji,
-    required this.name,
-    required this.description,
-    required this.tools,
   });
 }
 
@@ -114,106 +81,6 @@ const kSellerTypes = [
   ),
 ];
 
-final kWhatYouSell = [
-  WhatYouSellData(
-    option: WhatYouSellOption.physicalProducts,
-    emoji: '📦',
-    name: 'Physical Products',
-    description: 'Ship items to customers',
-    tools: [
-      ActivatedTool(
-        'Inventory Manager',
-        AppColors.darkGreen,
-        AppColors.greenContainerInnerColor,
-      ),
-      ActivatedTool('Shipping Manager', AppColors.iosBlue, AppColors.lightBlue),
-    ],
-  ),
-  WhatYouSellData(
-    option: WhatYouSellOption.digitalDownloads,
-    emoji: '💾',
-    name: 'Digital Downloads',
-    description: 'PDFs, files, audio, video',
-    tools: [
-      ActivatedTool(
-        'Digital Delivery',
-        AppColors.purpleColor,
-        AppColors.lightPurple,
-      ),
-    ],
-  ),
-  WhatYouSellData(
-    option: WhatYouSellOption.educationalResources,
-    emoji: '📚',
-    name: 'Educational Resources',
-    description: 'Worksheets, lesson plans',
-    tools: [
-      ActivatedTool(
-        'Edu Resource Tools',
-        AppColors.orange,
-        AppColors.lightCameo,
-      ),
-      ActivatedTool(
-        'AI Worksheet Builder',
-        AppColors.primaryColor,
-        AppColors.languageBg,
-      ),
-    ],
-  ),
-  WhatYouSellData(
-    option: WhatYouSellOption.servicesBookings,
-    emoji: '📋',
-    name: 'Services / Bookings',
-    description: 'Appointments and packages',
-    tools: [
-      ActivatedTool(
-        'Booking Calendar',
-        AppColors.accepted,
-        AppColors.acceptedBg,
-      ),
-    ],
-  ),
-  WhatYouSellData(
-    option: WhatYouSellOption.subscriptions,
-    emoji: '🔄',
-    name: 'Subscriptions',
-    description: 'Recurring membership access',
-    tools: [
-      ActivatedTool('Subscriptions', AppColors.grey, AppColors.background),
-    ],
-  ),
-  WhatYouSellData(
-    option: WhatYouSellOption.inPersonPos,
-    emoji: '🖥️',
-    name: 'In-Person / POS',
-    description: 'Sell at a physical location',
-    tools: [
-      ActivatedTool('POS Register', AppColors.red, AppColors.lightRed),
-      ActivatedTool('AI Studio', AppColors.purpleColor, AppColors.lightPurple),
-      ActivatedTool('Marketplace Listing', AppColors.blue, AppColors.lightBlue),
-    ],
-  ),
-];
-
-const kStoreCurrencies = ['PKR', 'USD'];
-
-const kCountries = [
-  'United States',
-  'United Kingdom',
-  'Canada',
-  'Australia',
-  'Germany',
-  'France',
-  'Netherlands',
-  'UAE',
-  'Saudi Arabia',
-  'Malaysia',
-  'Singapore',
-  'Pakistan',
-  'India',
-  'South Africa',
-];
-
 // ── API value helpers ─────────────────────────────────────────────────────────
 
 extension SellerTypeApi on SellerTypeOption {
@@ -235,31 +102,10 @@ extension SellerTypeApi on SellerTypeOption {
   }
 }
 
-extension WhatYouSellApi on WhatYouSellOption {
-  String get apiValue {
-    switch (this) {
-      case WhatYouSellOption.physicalProducts:
-        return 'physical_products';
-      case WhatYouSellOption.digitalDownloads:
-        return 'digital_downloads';
-      case WhatYouSellOption.educationalResources:
-        return 'educational_resources';
-      case WhatYouSellOption.servicesBookings:
-        return 'services_bookings';
-      case WhatYouSellOption.subscriptions:
-        return 'subscriptions';
-      case WhatYouSellOption.inPersonPos:
-        return 'in_person_pos';
-    }
-  }
-}
-
-extension WhatYouSellFromApi on String {
-  /// Reverse of [WhatYouSellApi.apiValue] — used to rehydrate a store's saved
-  /// `productTypes` (backend strings) back into [WhatYouSellOption]s for edit UIs.
-  WhatYouSellOption? get asWhatYouSellOption =>
-      WhatYouSellOption.values.firstWhereOrNull((o) => o.apiValue == this);
-}
+// POS only ever sells physical, shippable goods — the app has no digital-
+// delivery/booking/subscription flows, so onboarding no longer asks; this is
+// the one and only `productTypes` value every store created here gets.
+const kPosProductType = 'physical_products';
 
 // ── Controller ─────────────────────────────────────────────────────────────────
 
@@ -267,10 +113,8 @@ class SellerOnboardingController extends GetxController {
   SellerOnboardingController({
     SellerRepository? sellerRepository,
     UploadRepository? uploadRepository,
-    CategoryRepository? categoryRepository,
   }) : _sellerRepo = sellerRepository ?? SellerRepository(),
-       _uploadRepo = uploadRepository ?? UploadRepository(),
-       _categoryRepo = categoryRepository ?? CategoryRepository();
+       _uploadRepo = uploadRepository ?? UploadRepository();
 
   // Starts at storeInfo — account creation is handled by AuthController
   final Rx<OnboardingStep> step = OnboardingStep.storeInfo.obs;
@@ -279,28 +123,20 @@ class SellerOnboardingController extends GetxController {
 
   final SellerRepository _sellerRepo;
   final UploadRepository _uploadRepo;
-  final CategoryRepository _categoryRepo;
 
   // Step 1 — Store Info
   final RxString storeName = ''.obs;
-  final RxString storeCategory = ''.obs; // display name shown in the picker
-  final RxString storeCategoryId =
-      ''.obs; // real category _id sent to the backend
   final RxString storeDescription = ''.obs;
   final Rx<File?> logoFile = Rx<File?>(null);
   // Currency for pricing/payouts — required, immutable after store creation.
+  // Populated from the backend's admin-configurable enabled-currencies list
+  // (see _fetchCurrencies), not a hardcoded set.
   final RxString storeCurrency = ''.obs;
-
-  // Admin-curated main categories a seller picks from — sellers cannot
-  // create these themselves, only choose one.
-  final RxList<CategoryModel> mainCategories = <CategoryModel>[].obs;
-  final RxBool isLoadingCategories = false.obs;
+  final RxList<String> availableCurrencies = <String>[].obs;
+  final RxBool isLoadingCurrencies = false.obs;
 
   // Step 2 — Seller Type (single-select)
   final Rx<SellerTypeOption?> sellerType = Rx(null);
-
-  // Step 3 — What You Sell (multi-select)
-  final RxSet<WhatYouSellOption> whatYouSell = <WhatYouSellOption>{}.obs;
 
   // Text controllers
   late final TextEditingController storeNameCtrl;
@@ -317,8 +153,6 @@ class SellerOnboardingController extends GetxController {
         return storeName.value.trim().isNotEmpty && storeCurrency.value.isNotEmpty;
       case OnboardingStep.sellerType:
         return sellerType.value != null;
-      case OnboardingStep.whatYouSell:
-        return whatYouSell.isNotEmpty;
       case OnboardingStep.goLive:
         return true;
     }
@@ -328,8 +162,6 @@ class SellerOnboardingController extends GetxController {
     switch (step.value) {
       case OnboardingStep.sellerType:
         return canProceed ? 'Continue' : 'Select one to continue';
-      case OnboardingStep.whatYouSell:
-        return canProceed ? 'Continue' : 'Select at least one';
       case OnboardingStep.goLive:
         return 'Go to My Dashboard';
       default:
@@ -337,30 +169,9 @@ class SellerOnboardingController extends GetxController {
     }
   }
 
-  List<ActivatedTool> get activatedTools {
-    final tools = <ActivatedTool>[];
-    final seen = <String>{};
-    for (final data in kWhatYouSell) {
-      if (whatYouSell.contains(data.option)) {
-        for (final t in data.tools) {
-          if (seen.add(t.name)) tools.add(t);
-        }
-      }
-    }
-    return tools;
-  }
-
   String get sellerTypeName {
     final t = kSellerTypes.firstWhereOrNull((t) => t.type == sellerType.value);
     return t?.name ?? '';
-  }
-
-  String get activatedProductsLabel {
-    final names = kWhatYouSell
-        .where((d) => whatYouSell.contains(d.option))
-        .map((d) => d.name)
-        .join(', ');
-    return names.isEmpty ? 'None selected' : names;
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────────
@@ -383,14 +194,6 @@ class SellerOnboardingController extends GetxController {
 
   void selectSellerType(SellerTypeOption type) => sellerType.value = type;
 
-  void toggleWhatYouSell(WhatYouSellOption option) {
-    if (whatYouSell.contains(option)) {
-      whatYouSell.remove(option);
-    } else {
-      whatYouSell.add(option);
-    }
-  }
-
   void pickLogo() {
     AppImagePicker.show(
       title: 'Store Logo',
@@ -400,48 +203,40 @@ class SellerOnboardingController extends GetxController {
     );
   }
 
-  Future<void> _fetchMainCategories() async {
-    isLoadingCategories.value = true;
-    final trees = await _categoryRepo.getAllCategoryTrees();
-    // `getAllCategoryTrees` returns only root categories already, but
-    // filter defensively in case that ever changes.
-    mainCategories.assignAll(trees.where((c) => c.isParent));
-    isLoadingCategories.value = false;
+  Future<void> _fetchCurrencies() async {
+    isLoadingCurrencies.value = true;
+    final currencies = await _sellerRepo.getEnabledCurrencies();
+    availableCurrencies.assignAll(currencies);
+    isLoadingCurrencies.value = false;
+
+    if (storeCurrency.value.isEmpty) {
+      // Pre-fill (never force) from the seller's IP-detected country, same
+      // as the web onboarding wizard — only applied if that currency is
+      // actually one of the admin-enabled ones just fetched.
+      final suggested = await _sellerRepo.getSuggestedCurrency();
+      if (suggested != null && availableCurrencies.contains(suggested)) {
+        storeCurrency.value = suggested;
+      }
+    }
   }
 
-  Future<void> pickCategory() async {
-    if (mainCategories.isEmpty && !isLoadingCategories.value) {
-      await _fetchMainCategories();
+  Future<void> pickCurrency() async {
+    if (availableCurrencies.isEmpty && !isLoadingCurrencies.value) {
+      await _fetchCurrencies();
     }
-    if (mainCategories.isEmpty) {
-      ToastUtil.showToast('No store categories are available right now.');
+    if (availableCurrencies.isEmpty) {
+      ToastUtil.showToast('No store currencies are available right now.');
       return;
     }
 
     Get.bottomSheet(
       _PickerSheet(
-        title: 'Store Category',
-        items: mainCategories.map((c) => c.name).toList(),
-        selected: storeCategory.value,
-        onSelect: (name) {
-          storeCategory.value = name;
-          storeCategoryId.value =
-              mainCategories.firstWhereOrNull((c) => c.name == name)?.id ?? '';
-        },
-      ),
-      backgroundColor: Colors.transparent,
-    );
-  }
-
-  void pickCurrency() {
-    Get.bottomSheet(
-      _PickerSheet(
         title: 'Store Currency',
-        items: kStoreCurrencies,
+        items: availableCurrencies,
         selected: storeCurrency.value,
         onSelect: (code) => storeCurrency.value = code,
       ),
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.transparent,
     );
   }
 
@@ -463,9 +258,8 @@ class SellerOnboardingController extends GetxController {
     final store = await _sellerRepo.createStore(
       name: storeName.value.trim(),
       sellerType: sellerType.value?.apiValue ?? 'creator',
-      productTypes: whatYouSell.map((o) => o.apiValue).toList(),
+      productTypes: const [kPosProductType],
       description: storeDescription.value.trim(),
-      categoryId: storeCategoryId.value.trim(),
       logoUrl: logoUrl,
       baseCurrency: storeCurrency.value,
     );
@@ -479,9 +273,10 @@ class SellerOnboardingController extends GetxController {
       // Local role is already set to 'seller' at login time (this app is
       // seller-only — see PosLoginController), so no role handling needed
       // here.
-      // The store is created 'pending' and stays invisible/unable to sell
-      // until an admin approves it (see StoreService.createStore); business/
-      // KYC verification is submitted on Seller Web, not in this app.
+      // Self-serve activation is unconditional now (StoreService.createStore
+      // hardcodes selfServeActivation = true) — the store is created
+      // 'active' immediately, no admin review queue. Business/KYC
+      // verification is submitted separately on Seller Web, not in this app.
       Get.offAllNamed(Routes.sellerHome);
     }
     // On failure, _sellerRepo already shows a toast — stay on screen.
@@ -494,7 +289,7 @@ class SellerOnboardingController extends GetxController {
     super.onInit();
     storeNameCtrl = TextEditingController();
     storeDescCtrl = TextEditingController();
-    _fetchMainCategories();
+    _fetchCurrencies();
   }
 
   @override

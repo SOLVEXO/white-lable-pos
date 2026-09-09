@@ -5,7 +5,9 @@ import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 class PosAuditLogController extends GetxController {
-  final _posRepo = PosRepository();
+  PosAuditLogController({PosRepository? posRepository}) : _posRepo = posRepository ?? PosRepository();
+
+  final PosRepository _posRepo;
 
   final ScrollController scrollController = ScrollController();
 

@@ -1,6 +1,7 @@
 import 'package:solvexo_pos/app/components/common_image_view.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_status_style.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/controllers/seller_stores_controller.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_text_styles.dart';
@@ -59,6 +60,10 @@ class StoreCard extends StatelessWidget {
                         fontSize: AppFontSize.tiny,
                         color: AppColors.grey,
                       ),
+                      if (store.posSubscriptionStatus != null) ...[
+                        const SizedBox(height: 5),
+                        _PosSubscriptionBadge(status: store.posSubscriptionStatus!),
+                      ],
                     ],
                   ),
                 ),
@@ -239,6 +244,45 @@ class _StatusBadge extends StatelessWidget {
           color: style.color,
         ),
       ],
+    );
+  }
+}
+
+// ── POS subscription badge ──────────────────────────────────────────────────
+// Distinct from the business-status badge above ([_StatusBadge]) — this
+// reflects the store's Stripe-backed POS subscription (see
+// SellerStoresController._loadSubscriptionStatuses), which is what actually
+// gates entry to that store's POS terminal.
+class _PosSubscriptionBadge extends StatelessWidget {
+  final PosSubscriptionStatusValue status;
+  const _PosSubscriptionBadge({required this.status});
+
+  (Color, String) get _style {
+    switch (status) {
+      case PosSubscriptionStatusValue.active:
+        return (AppColors.posStatusGreen, 'POS Active');
+      case PosSubscriptionStatusValue.expired:
+        return (AppColors.posStatusRed, 'POS Expired');
+      case PosSubscriptionStatusValue.none:
+        return (AppColors.lightGrey5, 'No POS Plan');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, label) = _style;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: CustomText(
+        text: label,
+        fontSize: AppFontSize.tiny,
+        fontWeight: FontWeight.w600,
+        color: color,
+      ),
     );
   }
 }

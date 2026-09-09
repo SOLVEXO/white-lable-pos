@@ -9,8 +9,9 @@ import 'package:flutter/material.dart';
 
 class PosProductTile extends StatelessWidget {
   final PosProductModel product;
+  final String currencySymbol;
 
-  const PosProductTile({super.key, required this.product});
+  const PosProductTile({super.key, required this.product, this.currencySymbol = '\$'});
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +84,7 @@ class PosProductTile extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         CustomText(
-          text: '\$${product.price.toStringAsFixed(2)}',
+          text: '$currencySymbol${product.price.toStringAsFixed(2)}',
           fontSize: AppFontSize.small2,
           fontWeight: FontWeight.w600,
           color: AppColors.primaryColor,
