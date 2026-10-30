@@ -93,7 +93,7 @@ class AppPages {
       name: Routes.posHome,
       page: () => PosMainView(),
       binding: PosBinding(),
-      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+      middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)],
     ),
     GetPage(
       name: Routes.sellerPosManagement,
@@ -109,7 +109,7 @@ class AppPages {
       name: Routes.posOrders,
       page: () => PosOrdersView(),
       binding: PosOrdersBinding(),
-      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+      middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)],
     ),
     GetPage(
       name: Routes.posPinLogin,
@@ -133,7 +133,7 @@ class AppPages {
       name: Routes.posDailyReport,
       page: () => PosDailyReportView(),
       binding: PosDailyReportBinding(),
-      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+      middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)],
     ),
     GetPage(
       name: Routes.posProducts,
@@ -145,25 +145,25 @@ class AppPages {
       name: Routes.posSettings,
       page: () => PosSettingsView(),
       binding: PosSettingsBinding(),
-      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+      middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)],
     ),
     GetPage(
       name: Routes.posSaleDetail,
       page: () => PosSaleDetailView(),
       binding: PosSaleDetailBinding(),
-      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+      middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)],
     ),
     GetPage(
       name: Routes.posSessionReport,
       page: () => PosSessionReportView(),
       binding: PosSessionReportBinding(),
-      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+      middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)],
     ),
     GetPage(
       name: Routes.posSessionHistory,
       page: () => PosSessionHistoryView(),
       binding: PosSessionHistoryBinding(),
-      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+      middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)],
     ),
     GetPage(
       name: Routes.posAuditLog,

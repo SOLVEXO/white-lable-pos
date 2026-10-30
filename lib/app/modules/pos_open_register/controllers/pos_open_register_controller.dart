@@ -1,6 +1,7 @@
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
+import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:flutter/material.dart';
@@ -65,6 +66,12 @@ class PosOpenRegisterController extends GetxController {
 
       final session = result.session;
       if (!result.success || session == null) {
+        // The backend refused because the POS plan isn't active: the repository has switched the app to
+        // restricted mode — leave Open Register for the restricted shell (close shift, reports, sign out).
+        if (PosEntitlementService.isRestricted) {
+          Get.offAllNamed(Routes.posHome);
+          return;
+        }
         CustomAppSnackbar.error(_friendlyError(result.message ?? ''));
         return;
       }

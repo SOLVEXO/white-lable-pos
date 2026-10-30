@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:solvexo_pos/app/data/local/idempotency_intent_store.dart';
 import 'package:solvexo_pos/app/data/local/pending_sale_local_store.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
+import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/network/api_constaints.dart';
 import 'package:solvexo_pos/app/network/base_client.dart';
 import 'package:solvexo_pos/app/network/dio_exception_handler.dart';
@@ -95,21 +96,27 @@ class PosRepository {
         'Idempotency-Key': idempotencyKey,
       };
 
-  /// True when a failed request is a *definite* rejection — the server looked
-  /// at it and said no (validation, forbidden, not found, plan inactive, …) —
-  /// so the intent is over and its key can be dropped. Everything else
-  /// (no response, timeouts, 5xx, 408/409/429) is ambiguous: the server may
-  /// or may not have acted, so the SAME key must be reused on the retry.
-  bool _isFinalFailure(DioException e) {
-    final s = e.response?.statusCode;
-    return s != null && s >= 400 && s < 500 && s != 408 && s != 409 && s != 429;
-  }
+  /// True when a failed request is a *definite* answer — the server looked at
+  /// it and said no (validation, forbidden, not found, plan inactive, and every
+  /// BUSINESS-conflict 409 such as "held sale already completed") — so the
+  /// intent is over: its key is dropped, it is never retried and never queued.
+  ///
+  /// Only these are ambiguous (the server may or may not have acted, so the
+  /// SAME key is reused on a retry): no response, timeouts, 5xx, 408/429, and
+  /// the one retryable 409 — `IDEMPOTENCY_IN_PROGRESS` ("this key is still
+  /// running"). See [isRetryableStatus].
+  bool _isFinalFailure(DioException e) => !isRetryableStatus(e.response?.statusCode, _dioCode(e));
 
   /// The backend's machine-readable `code` (e.g. `POS_PLAN_REQUIRED`), if any.
   String? _dioCode(DioException e) {
     final data = e.response?.data;
     if (data is Map) return data['code'] as String?;
     return null;
+  }
+
+  /// Tells the app (restricted mode) that the server just refused because the plan isn't active.
+  void _noteEntitlement(DioException e) {
+    if (_dioCode(e) == 'POS_PLAN_REQUIRED') PosEntitlementService.maybe?.markRestricted();
   }
 
   // ── PIN login ────────────────────────────────────────────────────────────
@@ -145,6 +152,7 @@ class PosRepository {
       return (success: true, employee: employee, activeSession: activeSession, employeeToken: employeeToken, message: null);
     } on DioException catch (e) {
       _logDioError('pinLogin', e);
+      _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e, showToast: false);
       return (success: false, employee: null, activeSession: null, employeeToken: null, message: _dioMessage(e));
     } catch (e) {
@@ -551,6 +559,7 @@ class PosRepository {
     } on DioException catch (e) {
       settled = _isFinalFailure(e);
       _logDioError('openSession', e);
+      _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e, showToast: false);
       return (success: false, session: null, message: _dioMessage(e));
     } catch (e) {
@@ -582,6 +591,7 @@ class PosRepository {
     } on DioException catch (e) {
       settled = _isFinalFailure(e);
       _logDioError('closeSession', e);
+      _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e, showToast: false);
       return (success: false, session: null, message: _dioMessage(e));
     } catch (e) {
@@ -697,6 +707,7 @@ class PosRepository {
     } on DioException catch (e) {
       settled = _isFinalFailure(e);
       _logDioError('cashAdjustment', e);
+      _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e);
       return null;
     } catch (e) {
@@ -861,6 +872,7 @@ class PosRepository {
       return (success: false, sale: null, message: res.data['message'] as String?, queued: false);
     } on DioException catch (e) {
       _logDioError('createSale', e);
+      _noteEntitlement(e);
       if (!_isFinalFailure(e) && Get.isRegistered<PendingSaleSyncService>()) {
         // The outcome is unknown (no route to the server, a timeout after the
         // request was sent, a 5xx, or "already in progress"): the sale may
@@ -903,6 +915,7 @@ class PosRepository {
       return (success: false, connectivityError: false, retryable: false, message: res.data['message'] as String?, code: null);
     } on DioException catch (e) {
       _logDioError('submitRawSale', e);
+      _noteEntitlement(e);
       final connectivityError = _isConnectivityError(e);
       // retryable = outcome still unknown (connectivity, timeouts, 5xx, 409 in-progress): keep the
       // queued sale and replay it with the same key. Only a definite rejection is a final failure.
@@ -1023,6 +1036,7 @@ class PosRepository {
     } on DioException catch (e) {
       settled = _isFinalFailure(e);
       _logDioError('completeSale', e);
+      _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e, showToast: false);
       return (success: false, sale: null, message: _dioMessage(e));
     } catch (e) {
@@ -1116,6 +1130,7 @@ class PosRepository {
     } on DioException catch (e) {
       settled = _isFinalFailure(e);
       _logDioError('refundSale', e);
+      _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e);
       return (success: false, refundedAmount: null, newStatus: null, message: null);
     } catch (e) {
@@ -1149,6 +1164,7 @@ class PosRepository {
     } on DioException catch (e) {
       settled = _isFinalFailure(e);
       _logDioError('voidSale', e);
+      _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e);
       return false;
     } catch (e) {
@@ -1342,4 +1358,19 @@ class PosRepository {
       return _emptyPage();
     }
   }
+}
+
+/// Whether an HTTP failure leaves the outcome UNKNOWN (so the request may be retried / queued with its
+/// SAME idempotency key) as opposed to a definite answer.
+///  * no response (connectivity/timeouts) → retryable
+///  * 5xx, 408, 429 → retryable
+///  * 409 → retryable ONLY for `IDEMPOTENCY_IN_PROGRESS`; every other 409 is a business conflict
+///    (HELD_SALE_ALREADY_RESOLVED, SALE_CHANGED_CONCURRENTLY, SESSION_ALREADY_CLOSED, …) and is final
+///  * every other 4xx → final
+bool isRetryableStatus(int? status, String? code) {
+  if (status == null) return true;
+  if (status >= 500) return true;
+  if (status == 408 || status == 429) return true;
+  if (status == 409) return code == 'IDEMPOTENCY_IN_PROGRESS';
+  return false;
 }

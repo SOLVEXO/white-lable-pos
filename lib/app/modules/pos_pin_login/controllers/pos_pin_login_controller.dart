@@ -1,6 +1,7 @@
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
+import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/data/repositories/seller_repository.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
@@ -123,6 +124,16 @@ class PosPinLoginController extends GetxController {
 
       final activeSession = result.activeSession;
       final pickedRegisterId = selectedRegister.value!['id']!;
+
+      // PIN login itself is never blocked by the plan. Ask the backend whether selling is allowed; if the
+      // plan is inactive AND enforced, go to the restricted shell (close shift, reports, refund/void,
+      // sign out) instead of Open Register — there is nothing to open and nothing to sell.
+      final restricted = await (PosEntitlementService.maybe?.checkPlan(storeId: storeId.value) ?? Future.value(false));
+      if (restricted) {
+        if (activeSession != null && activeSession.isOpen) await _persistSession(activeSession);
+        Get.offAllNamed(Routes.posHome);
+        return;
+      }
 
       if (activeSession != null && activeSession.isOpen) {
         if (activeSession.registerId != pickedRegisterId) {

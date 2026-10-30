@@ -4,6 +4,7 @@ import 'package:solvexo_pos/app/data/repositories/auth_repository.dart';
 import 'package:solvexo_pos/app/data/services/branding_service.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
+import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/network/dio_service.dart';
 import 'package:solvexo_pos/firebase_options.dart';
@@ -48,6 +49,7 @@ void main() async {
   // Must come after NetworkStatusService — it looks that up in its own
   // init() to listen for reconnects and drain the offline sale queue.
   await Get.put(PendingSaleSyncService(), permanent: true).init();
+  Get.put(PosEntitlementService(), permanent: true);
   await Get.put(ThermalPrinterService(), permanent: true).init();
   runApp(const MyApp());
 }

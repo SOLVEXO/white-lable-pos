@@ -29,8 +29,19 @@ class PosSubscriptionStatusModel {
   final DateTime? expiresAt;
   final int? daysRemaining;
 
+  /// Whether the backend is actually refusing to let a store without an active plan sell
+  /// (`POS_ENTITLEMENT_ENFORCED`). The app only restricts itself when this is true — it never
+  /// invents a rule the server isn't enforcing. Missing (older backend) = not enforced.
+  final bool enforced;
+
+  /// The status call itself failed (network/auth) — says nothing about the plan, so callers must
+  /// not lock anyone out because of it.
+  final bool isUnknown;
+
   const PosSubscriptionStatusModel({
     required this.status,
+    this.enforced = false,
+    this.isUnknown = false,
     this.planName,
     this.purchasedAt,
     this.expiresAt,
@@ -39,6 +50,7 @@ class PosSubscriptionStatusModel {
 
   factory PosSubscriptionStatusModel.fromJson(Map<String, dynamic> json) => PosSubscriptionStatusModel(
         status: PosSubscriptionStatusValue.fromJson(json['status'] as String?),
+        enforced: json['enforced'] as bool? ?? false,
         planName: json['planName'] as String?,
         purchasedAt: DateTime.tryParse(json['purchasedAt'] as String? ?? ''),
         expiresAt: DateTime.tryParse(json['expiresAt'] as String? ?? ''),
@@ -49,5 +61,5 @@ class PosSubscriptionStatusModel {
   /// as not-entitled rather than silently letting the seller into the
   /// terminal, but distinguishable from a real `none` if callers need to.
   factory PosSubscriptionStatusModel.unknown() =>
-      const PosSubscriptionStatusModel(status: PosSubscriptionStatusValue.none);
+      const PosSubscriptionStatusModel(status: PosSubscriptionStatusValue.none, isUnknown: true);
 }

@@ -1,6 +1,6 @@
 import 'package:solvexo_pos/app/data/local/idempotency_intent_store.dart';
 import 'package:solvexo_pos/app/data/models/inventory/inventory_models.dart';
-import 'package:solvexo_pos/app/data/repositories/pos_repository.dart' show PagedResult;
+import 'package:solvexo_pos/app/data/repositories/pos_repository.dart' show PagedResult, isRetryableStatus;
 import 'package:solvexo_pos/app/network/api_constaints.dart';
 import 'package:solvexo_pos/app/network/base_client.dart';
 import 'package:solvexo_pos/app/network/dio_exception_handler.dart';
@@ -166,7 +166,8 @@ class InventoryRepository {
       return (success: false, message: res.data['message'] as String? ?? 'Failed to update stock');
     } on DioException catch (e) {
       final s = e.response?.statusCode;
-      settled = s != null && s >= 400 && s < 500 && s != 408 && s != 409 && s != 429;
+      final code = e.response?.data is Map ? (e.response!.data as Map)['code'] as String? : null;
+      settled = !isRetryableStatus(s, code);
       _logDioError('adjustVariantStock', e);
       final data = e.response?.data;
       final msg = data is Map ? data['message'] as String? : null;

@@ -9,6 +9,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/app/data/repositories/category_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
+import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/modules/category/models/category_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/hid_scan_detector.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_customer_picker_sheet.dart';
@@ -214,7 +215,7 @@ class PosHomeController extends GetxController {
   /// message instead of a 403 after filling out the whole cart.
   bool get isDiscountBlocked => discountValue > 0 && !isManager.value;
 
-  bool get canCharge => hasItems && !isCashUnderTendered && !isDiscountBlocked;
+  bool get canCharge => hasItems && !isCashUnderTendered && !isDiscountBlocked && !PosEntitlementService.isRestricted;
 
   int cartQtyFor(PosProductModel p, [PosProductVariant? v]) {
     final key = v != null ? '${p.productId}_${v.variantId}' : p.productId;

@@ -148,11 +148,35 @@ void main() {
       expect(sync.enqueued, hasLength(1));
     });
 
-    test('"already in progress" (409) is ambiguous: queued with the same key', () async {
+    test('IDEMPOTENCY_IN_PROGRESS (409) is ambiguous: queued with the same key', () async {
+      final sync = FakeSync();
+      Get.put<PendingSaleSyncService>(sync);
+      scriptPosts([_fail(DioExceptionType.badResponse, status: 409, body: {'code': 'IDEMPOTENCY_IN_PROGRESS', 'message': 'still running'})]);
+      expect((await charge()).queued, isTrue);
+      expect(sync.enqueued, hasLength(1));
+    });
+
+    test('a BUSINESS 409 is final: shown to the user, never queued, key released', () async {
+      final sync = FakeSync();
+      Get.put<PendingSaleSyncService>(sync);
+      scriptPosts([
+        _fail(DioExceptionType.badResponse, status: 409, body: {'code': 'HELD_SALE_ALREADY_RESOLVED', 'message': 'This held sale was already completed or discarded'}),
+        _res({'success': true, 'data': _saleJson()}),
+      ]);
+      final result = await charge();
+      expect(result.queued, isFalse);
+      expect(result.success, isFalse);
+      expect(result.message, 'This held sale was already completed or discarded');
+      expect(sync.enqueued, isEmpty);
+      await charge();
+      expect(sentHeaders[1]['Idempotency-Key'], isNot(sentHeaders[0]['Idempotency-Key']), reason: 'a final answer ends the intent');
+    });
+
+    test('a 409 with no code at all is treated as a business conflict (final), not retried', () async {
       final sync = FakeSync();
       Get.put<PendingSaleSyncService>(sync);
       scriptPosts([_fail(DioExceptionType.badResponse, status: 409)]);
-      expect((await charge()).queued, isTrue);
+      expect((await charge()).queued, isFalse);
     });
 
     test('a POS-plan rejection (403 POS_PLAN_REQUIRED) is final: not queued, message surfaced', () async {
@@ -248,6 +272,17 @@ void main() {
       expect(sentHeaders.single['Idempotency-Key'], 'queued-key-1');
     });
 
+    test('replay: IDEMPOTENCY_IN_PROGRESS stays queued; a business 409 is final (marked failed, shown, never retried)', () async {
+      scriptPosts([
+        _fail(DioExceptionType.badResponse, status: 409, body: {'code': 'IDEMPOTENCY_IN_PROGRESS', 'message': 'x'}),
+        _fail(DioExceptionType.badResponse, status: 409, body: {'code': 'SESSION_ALREADY_CLOSED', 'message': 'closed'}),
+      ]);
+      expect((await repo.submitRawSale(payload)).retryable, isTrue);
+      final biz = await repo.submitRawSale(payload);
+      expect(biz.retryable, isFalse);
+      expect(biz.code, 'SESSION_ALREADY_CLOSED');
+    });
+
     test('a 5xx / timeout is retryable (keep it queued), a 400/403 is final', () async {
       scriptPosts([
         _fail(DioExceptionType.badResponse, status: 503),
@@ -259,6 +294,23 @@ void main() {
       final last = await repo.submitRawSale(payload);
       expect(last.retryable, isFalse);
       expect(last.code, 'POS_PLAN_REQUIRED');
+    });
+  });
+
+  group('isRetryableStatus', () {
+    test('network, 5xx, 408, 429 retry; only IDEMPOTENCY_IN_PROGRESS among 409s retries; other 4xx are final', () {
+      expect(isRetryableStatus(null, null), isTrue);
+      expect(isRetryableStatus(500, null), isTrue);
+      expect(isRetryableStatus(503, null), isTrue);
+      expect(isRetryableStatus(408, null), isTrue);
+      expect(isRetryableStatus(429, null), isTrue);
+      expect(isRetryableStatus(409, 'IDEMPOTENCY_IN_PROGRESS'), isTrue);
+      expect(isRetryableStatus(409, 'HELD_SALE_ALREADY_RESOLVED'), isFalse);
+      expect(isRetryableStatus(409, 'SALE_CHANGED_CONCURRENTLY'), isFalse);
+      expect(isRetryableStatus(409, null), isFalse);
+      for (final c in [400, 401, 403, 404, 422]) {
+        expect(isRetryableStatus(c, null), isFalse, reason: '$c is a definite answer');
+      }
     });
   });
 }

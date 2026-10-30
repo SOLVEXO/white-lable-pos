@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:get/get.dart';
@@ -13,10 +14,17 @@ import 'package:get/get.dart';
 /// Use this on the POS terminal shell and its tabs; leave it false for the
 /// PIN-login and open-register screens themselves, which establish that
 /// session in the first place.
+///
+/// [allowWhenRestricted] marks the screens that stay reachable in *restricted mode* (the store has no
+/// active POS plan and the backend is enforcing it — see [PosEntitlementService]): the shell, Orders /
+/// sale detail (refund + void), reports, shift history and Settings (close shift, sign out). There, a
+/// PIN-logged-in cashier with no open session is let through instead of being bounced to PIN login,
+/// because there is nothing to open and nothing to sell.
 class PosAccessMiddleware extends GetMiddleware {
   final bool requireActiveSession;
+  final bool allowWhenRestricted;
 
-  PosAccessMiddleware({this.requireActiveSession = false});
+  PosAccessMiddleware({this.requireActiveSession = false, this.allowWhenRestricted = false});
 
   @override
   int? get priority => 1;
@@ -40,6 +48,7 @@ class PosAccessMiddleware extends GetMiddleware {
     }
 
     if (requireActiveSession && !AppPreferences.cachedHasPosSession) {
+      if (allowWhenRestricted && PosEntitlementService.isRestricted) return page;
       Get.offAllNamed(Routes.posPinLogin);
     }
     return page;
