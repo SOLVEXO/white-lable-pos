@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/components/custom_button.dart';
@@ -336,7 +337,7 @@ class _StatsRow extends StatelessWidget {
               icon: Icons.trending_up_rounded,
               label: "Today's Sales",
               value:
-                  '\$${(c.dailyReport.value?.totalRevenue ?? 0).toStringAsFixed(0)}',
+                  Money.format((c.dailyReport.value?.totalRevenue ?? 0)),
               color: AppColors.green2,
               isWide: isWide,
             ),
@@ -1823,7 +1824,7 @@ class _SessionTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           CustomText(
-            text: '\$${session.totalSales.toStringAsFixed(2)}',
+            text: Money.format(session.totalSales),
             fontSize: AppFontSize.small2,
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor,

@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
@@ -119,11 +120,11 @@ class _SummaryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(children: [
-      Expanded(child: _Metric(label: 'Total Sales', value: '\$${report.totalSales.toStringAsFixed(2)}', color: AppColors.primaryColor)),
+      Expanded(child: _Metric(label: 'Total Sales', value: Money.format(report.totalSales), color: AppColors.primaryColor)),
       const SizedBox(width: 10),
       Expanded(child: _Metric(label: 'Transactions', value: '${report.totalTransactions}', color: AppColors.orange)),
       const SizedBox(width: 10),
-      Expanded(child: _Metric(label: 'Refunds', value: '\$${report.refundsTotal.toStringAsFixed(2)}', color: AppColors.red)),
+      Expanded(child: _Metric(label: 'Refunds', value: Money.format(report.refundsTotal), color: AppColors.red)),
     ]);
   }
 }
@@ -185,7 +186,7 @@ class _PayRow extends StatelessWidget {
       const SizedBox(width: 6),
       CustomText(text: '($count)', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
       const Spacer(),
-      CustomText(text: '\$${amount.toStringAsFixed(2)}', fontSize: AppFontSize.verySmall, fontWeight: FontWeight.w600, color: AppColors.black2),
+      CustomText(text: Money.format(amount), fontSize: AppFontSize.verySmall, fontWeight: FontWeight.w600, color: AppColors.black2),
     ]);
   }
 }
@@ -219,7 +220,7 @@ class _CashFlowCard extends StatelessWidget {
         CustomText(text: label, fontSize: AppFontSize.verySmall, fontWeight: bold ? FontWeight.bold : FontWeight.w400, color: AppColors.black2),
         const Spacer(),
         CustomText(
-          text: '${amount < 0 ? '-' : ''}\$${amount.abs().toStringAsFixed(2)}',
+          text: Money.format(amount),
           fontSize: AppFontSize.verySmall,
           fontWeight: FontWeight.w600,
           color: color ?? AppColors.black2,

@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/store_locations_overview_model.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
@@ -50,7 +51,7 @@ class LocationsOverviewHeader extends StatelessWidget {
               Expanded(
                 child: _OverviewStat(
                   label: 'Total Sales',
-                  value: '\$${overview.combinedTotalSales.toStringAsFixed(2)}',
+                  value: Money.format(overview.combinedTotalSales),
                   color: AppColors.green2,
                 ),
               ),

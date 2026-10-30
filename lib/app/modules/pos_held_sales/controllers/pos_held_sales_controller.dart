@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
@@ -18,7 +19,7 @@ class PosHeldSalesController extends GetxController {
   // than fetching settings again — this screen is only ever reached from
   // the POS terminal shell, where that controller is already alive.
   String get currencySymbol =>
-      Get.isRegistered<PosHomeController>() ? Get.find<PosHomeController>().currencySymbol.value : '\$';
+      Get.isRegistered<PosHomeController>() ? Get.find<PosHomeController>().currencySymbol.value : Money.symbol();
 
   String _sessionId = '';
   String _storeId   = '';

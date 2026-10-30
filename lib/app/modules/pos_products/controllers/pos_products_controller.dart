@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'dart:async';
 
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
@@ -14,7 +15,7 @@ class PosProductsController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isLoadingMore = false.obs;
   final RxString searchText = ''.obs;
-  final RxString currencySymbol = '\$'.obs;
+  final RxString currencySymbol = Money.symbol().obs;
   final TextEditingController searchController = TextEditingController();
   final ScrollController scrollController = ScrollController();
   final RxList<PosProductModel> _allProducts = <PosProductModel>[].obs;
@@ -49,9 +50,8 @@ class PosProductsController extends GetxController {
 
   Future<void> _loadSettings() async {
     if (_storeId.isEmpty) return;
-    final settings = await _posRepo.getPosSettings(_storeId);
-    final symbol = settings?.currencySymbol;
-    if (symbol != null && symbol.trim().isNotEmpty) currencySymbol.value = symbol;
+    await _posRepo.getPosSettings(_storeId); // also configures Money (store currency + exponent)
+    currencySymbol.value = Money.symbol(); // from the store's currency code, never free text
   }
 
   Future<void> _load() async {

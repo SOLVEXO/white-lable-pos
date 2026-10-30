@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/buttons/app_button.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
@@ -155,7 +156,7 @@ class _HeldSaleTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: CustomText(
-              text: '${c.currencySymbol}${sale.total.toStringAsFixed(2)}',
+              text: Money.format(sale.total),
               fontSize: AppFontSize.small2,
               fontWeight: FontWeight.bold,
               color: AppColors.orange,
@@ -186,7 +187,7 @@ class _HeldSaleTile extends StatelessWidget {
                     ),
                   ),
                   CustomText(
-                    text: '×${item.qty}  ${c.currencySymbol}${item.lineTotal.toStringAsFixed(2)}',
+                    text: '×${item.qty}  ${Money.format(item.lineTotal)}',
                     fontSize: AppFontSize.tiny,
                     color: AppColors.iosGrey,
                   ),
@@ -316,7 +317,7 @@ class _HeldSaleTile extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             CustomText(
-              text: 'Total: ${c.currencySymbol}${sale.total.toStringAsFixed(2)} — choose the payment method used.',
+              text: 'Total: ${Money.format(sale.total)} — choose the payment method used.',
               fontSize: AppFontSize.tiny,
               color: AppColors.iosGrey,
             ),

@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'dart:async';
 
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
@@ -210,13 +211,13 @@ class PosSettingsController extends GetxController {
         PosSettingsTile(
           emoji: AppIcons.anylaticsIcon,
           title: "Today's Sales",
-          trailing: '\$${todaySales.value.toStringAsFixed(2)}',
+          trailing: Money.format(todaySales.value),
           onTap: () => Get.toNamed(Routes.posDailyReport),
         ),
         PosSettingsTile(
           emoji: AppIcons.cashIcon,
           title: 'Opening Float',
-          trailing: '\$${openingFloat.value.toStringAsFixed(2)}',
+          trailing: Money.format(openingFloat.value),
         ),
         PosSettingsTile(
           emoji: AppIcons.anylaticsIcon,
@@ -561,7 +562,7 @@ class PosSettingsController extends GetxController {
                       const Spacer(),
                       if (diff != 0)
                         CustomText(
-                          text: '\$${diff.abs().toStringAsFixed(2)}',
+                          text: Money.format(diff.abs()),
                           fontSize: AppFontSize.verySmall,
                           fontWeight: FontWeight.bold,
                           color: short ? AppColors.red : AppColors.orange,
@@ -655,7 +656,7 @@ class PosSettingsController extends GetxController {
             const Spacer(),
             if (difference != 0)
               CustomText(
-                text: '\$${difference.abs().toStringAsFixed(2)}',
+                text: Money.format(difference.abs()),
                 fontSize: AppFontSize.small2,
                 fontWeight: FontWeight.bold,
                 color: short ? AppColors.red : AppColors.orange,
@@ -865,7 +866,7 @@ class _CashFlowRow extends StatelessWidget {
         ),
         const Spacer(),
         CustomText(
-          text: '${amount < 0 ? '-' : ''}\$${amount.abs().toStringAsFixed(2)}',
+          text: Money.format(amount),
           fontSize: AppFontSize.verySmall,
           fontWeight: bold ? FontWeight.bold : FontWeight.w600,
           color: AppColors.black2,

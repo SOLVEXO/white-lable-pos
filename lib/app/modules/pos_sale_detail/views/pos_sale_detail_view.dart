@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_button.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
@@ -152,7 +153,7 @@ class _HeaderCard extends StatelessWidget {
         if (sale.refundedAmount > 0) ...[
           const SizedBox(height: 8),
           CustomText(
-            text: 'Refunded: $currencySymbol${sale.refundedAmount.toStringAsFixed(2)}',
+            text: 'Refunded: ${Money.format(sale.refundedAmount)}',
             fontSize: AppFontSize.tiny,
             fontWeight: FontWeight.w600,
             color: AppColors.red,
@@ -195,7 +196,7 @@ class _ItemsCard extends StatelessWidget {
                   color: AppColors.black2,
                 ),
                 CustomText(
-                  text: '${c.currencySymbol.value}${item.price.toStringAsFixed(2)} × ${item.qty}'
+                  text: '${Money.format(item.price)} × ${item.qty}'
                       '${item.refundedQty > 0 ? ' (${item.refundedQty} refunded)' : ''}',
                   fontSize: AppFontSize.tiny,
                   color: AppColors.iosGrey,
@@ -203,7 +204,7 @@ class _ItemsCard extends StatelessWidget {
               ]),
             ),
             CustomText(
-              text: '${c.currencySymbol.value}${item.lineTotal.toStringAsFixed(2)}',
+              text: Money.format(item.lineTotal),
               fontSize: AppFontSize.verySmall,
               fontWeight: FontWeight.bold,
               color: AppColors.black2,
@@ -276,7 +277,7 @@ class _TotalsCard extends StatelessWidget {
         CustomText(text: label, fontSize: AppFontSize.verySmall, fontWeight: bold ? FontWeight.bold : FontWeight.w400, color: AppColors.black2),
         const Spacer(),
         CustomText(
-          text: '${amount < 0 ? '-' : ''}$currencySymbol${amount.abs().toStringAsFixed(2)}',
+          text: Money.format(amount),
           fontSize: bold ? AppFontSize.small2 : AppFontSize.verySmall,
           fontWeight: bold ? FontWeight.bold : FontWeight.w600,
           color: color ?? AppColors.black2,
@@ -322,17 +323,17 @@ class _ActionsSection extends StatelessWidget {
         if (sale.canRefund && c.isManager.value) ...[
           if (hasSelection)
             _ActionButton(
-              label: 'Refund Selected (${c.currencySymbol.value}${c.selectedRefundAmount.toStringAsFixed(2)})',
+              label: 'Refund Selected (${Money.format(c.selectedRefundAmount)})',
               color: AppColors.red,
               onTap: () => _confirm(context, 'Partial Refund',
-                  'Refund ${c.currencySymbol.value}${c.selectedRefundAmount.toStringAsFixed(2)} for the selected items?', c.refundPartial),
+                  'Refund ${Money.format(c.selectedRefundAmount)} for the selected items?', c.refundPartial),
             ),
           _ActionButton(
             label: 'Refund Full Sale',
             color: AppColors.red,
             outline: hasSelection,
             onTap: () => _confirm(context, 'Full Refund',
-                'Refund the entire sale (${c.currencySymbol.value}${sale.total.toStringAsFixed(2)})?', c.refundFull),
+                'Refund the entire sale (${Money.format(sale.total)})?', c.refundFull),
           ),
         ],
         if (sale.canVoid && c.isManager.value)

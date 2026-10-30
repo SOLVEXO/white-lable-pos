@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -101,7 +102,7 @@ class PosHomeController extends GetxController {
 
   // ── Store settings (tax label/currency come from here) ─────────────────────
   final Rx<PosSettingsModel?> settings = Rx(null);
-  final RxString currencySymbol = '\$'.obs;
+  final RxString currencySymbol = Money.symbol().obs;
 
   // ── Products ──────────────────────────────────────────────────────────────
   final RxList<PosProductModel> allProducts = <PosProductModel>[].obs;
@@ -282,10 +283,7 @@ class PosHomeController extends GetxController {
   Future<void> _loadSettings() async {
     if (storeId.value.isEmpty) return;
     settings.value = await _posRepo.getPosSettings(storeId.value);
-    final symbol = settings.value?.currencySymbol;
-    if (symbol != null && symbol.trim().isNotEmpty) {
-      currencySymbol.value = symbol;
-    }
+    currencySymbol.value = Money.symbol(); // from the store's currency code, never free text
   }
 
   // ── Products ──────────────────────────────────────────────────────────────
@@ -744,7 +742,7 @@ class _VariantPickerSheet extends StatelessWidget {
                       ),
                     ),
                     CustomText(
-                      text: '${controller.currencySymbol.value}${v.price.toStringAsFixed(2)}',
+                      text: Money.format(v.price),
                       color: AppColors.primaryColor,
                       fontWeight: FontWeight.bold,
                     ),

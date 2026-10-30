@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
@@ -130,7 +131,7 @@ class _SessionTile extends StatelessWidget {
             ]),
           ),
           CustomText(
-            text: '\$${session.totalSales.toStringAsFixed(2)}',
+            text: Money.format(session.totalSales),
             fontSize: AppFontSize.small2,
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor,

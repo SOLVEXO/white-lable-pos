@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'dart:typed_data';
 
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
@@ -24,7 +25,7 @@ class PosSaleDetailController extends GetxController {
   final RxBool isPrinting = false.obs;
   bool get hasSavedPrinter => _printerService.hasSavedPrinter;
   final Rx<PosSaleModel?> sale = Rx(null);
-  final RxString currencySymbol = '\$'.obs;
+  final RxString currencySymbol = Money.symbol().obs;
   /// See PosRole.isCurrentEmployeeManager's doc comment — gates the
   /// refund/void actions to match the backend's actual (if weak) check.
   final RxBool isManager = false.obs;
@@ -51,8 +52,7 @@ class PosSaleDetailController extends GetxController {
       final storeId = sale.value?.storeId;
       if (storeId != null && storeId.isNotEmpty) {
         _settings = await _posRepo.getPosSettings(storeId);
-        final symbol = _settings?.currencySymbol;
-        if (symbol != null && symbol.trim().isNotEmpty) currencySymbol.value = symbol;
+        currencySymbol.value = Money.symbol(); // from the store's currency code, never free text
       }
     } finally {
       isLoading.value = false;
@@ -158,14 +158,14 @@ class PosSaleDetailController extends GetxController {
       ..writeln(s.createdAt.toLocal().toString())
       ..writeln('-' * 28);
     for (final item in s.items) {
-      buffer.writeln('${item.name} x${item.qty}  $sym${item.lineTotal.toStringAsFixed(2)}');
+      buffer.writeln('${item.name} x${item.qty}  ${Money.format(item.lineTotal)}');
     }
     buffer
       ..writeln('-' * 28)
-      ..writeln('Subtotal: $sym${s.subtotal.toStringAsFixed(2)}')
-      ..writeln('Discount: -$sym${s.discount.toStringAsFixed(2)}')
-      ..writeln('Tax: +$sym${s.tax.toStringAsFixed(2)}')
-      ..writeln('Total: $sym${s.total.toStringAsFixed(2)}')
+      ..writeln('Subtotal: ${Money.format(s.subtotal)}')
+      ..writeln('Discount: -${Money.format(s.discount)}')
+      ..writeln('Tax: +${Money.format(s.tax)}')
+      ..writeln('Total: ${Money.format(s.total)}')
       ..writeln('Payment: ${s.paymentMethod}')
       ..writeln('Customer: ${s.customerName}');
     SharePlus.instance.share(ShareParams(text: buffer.toString(), subject: 'Receipt ${s.saleNumber}'));

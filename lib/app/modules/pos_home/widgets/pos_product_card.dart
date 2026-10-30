@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
@@ -144,7 +145,7 @@ class PosProductCard extends StatelessWidget {
                         )
                       else
                         CustomText(
-                          text: '${c.currencySymbol.value}${product.price.toStringAsFixed(2)}',
+                          text: Money.format(product.price),
                           fontSize: AppFontSize.verySmall,
                           fontWeight: FontWeight.bold,
                           color: inCart ? AppColors.primaryColor : AppColors.black2,

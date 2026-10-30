@@ -68,7 +68,7 @@ class Money {
     final code = (currency ?? Money.currency).toUpperCase();
     final exp = exponent ?? (currency == null ? Money.exponent : exponentFor(code));
     final rounded = round(v, exp);
-    return NumberFormat.currency(locale: 'en_US', name: code, decimalDigits: exp).format(rounded);
+    return NumberFormat.simpleCurrency(locale: 'en_US', name: code, decimalDigits: exp).format(rounded);
   }
 
   /// Like [format] but always shows the sign: `+$2.16`, `-$5.00`.
@@ -77,7 +77,7 @@ class Money {
 
   /// Just the symbol (`$`, `¥`, `PKR`) — for input prefixes/hints.
   static String symbol([String? currency]) =>
-      NumberFormat.currency(locale: 'en_US', name: (currency ?? Money.currency).toUpperCase()).currencySymbol;
+      NumberFormat.simpleCurrency(locale: 'en_US', name: (currency ?? Money.currency).toUpperCase()).currencySymbol;
 
   /// Plain decimal text for editing, with the currency's own decimals (`12.50`, `1250`, `1.250`).
   static String plain(num v, {int? exponent}) => round(v, exponent).toStringAsFixed(exponent ?? Money.exponent);

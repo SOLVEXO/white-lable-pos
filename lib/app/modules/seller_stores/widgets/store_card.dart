@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/common_image_view.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_status_style.dart';
@@ -89,7 +90,7 @@ class StoreCard extends StatelessWidget {
                 const SizedBox(width: 20),
                 _StatItem(
                   icon: Icons.trending_up_rounded,
-                  value: '\$${store.totalSales.toStringAsFixed(0)}',
+                  value: Money.format(store.totalSales),
                   label: 'Sales',
                 ),
                 const Spacer(),

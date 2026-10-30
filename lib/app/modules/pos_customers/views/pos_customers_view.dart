@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
@@ -176,7 +177,7 @@ class _CustomerTile extends StatelessWidget {
               children: [
                 CustomText(
                   text:
-                      '$currencySymbol${(customer.totalSpent ?? 0).toStringAsFixed(2)}',
+                      Money.format((customer.totalSpent ?? 0)),
                   fontSize: AppFontSize.verySmall,
                   fontWeight: FontWeight.bold,
                   color: AppColors.black2,

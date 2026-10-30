@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
@@ -145,7 +146,7 @@ class _SummaryGrid extends StatelessWidget {
         Expanded(
           child: _MetricCard(
             label: 'Total Revenue',
-            value: '\$${report.totalRevenue.toStringAsFixed(2)}',
+            value: Money.format(report.totalRevenue),
             icon: Icons.attach_money_rounded,
             iconColor: AppColors.primaryColor,
           ),
@@ -154,7 +155,7 @@ class _SummaryGrid extends StatelessWidget {
         Expanded(
           child: _MetricCard(
             label: 'Net Revenue',
-            value: '\$${report.netRevenue.toStringAsFixed(2)}',
+            value: Money.format(report.netRevenue),
             icon: Icons.trending_up_rounded,
             iconColor: AppColors.green2,
           ),
@@ -174,7 +175,7 @@ class _SummaryGrid extends StatelessWidget {
         Expanded(
           child: _MetricCard(
             label: 'Refunds',
-            value: '\$${report.refundsTotal.toStringAsFixed(2)}',
+            value: Money.format(report.refundsTotal),
             icon: Icons.undo_rounded,
             iconColor: AppColors.red,
           ),
@@ -185,7 +186,7 @@ class _SummaryGrid extends StatelessWidget {
         Expanded(
           child: _MetricCard(
             label: 'Avg. Sale',
-            value: '\$${report.avgTransactionValue.toStringAsFixed(2)}',
+            value: Money.format(report.avgTransactionValue),
             icon: Icons.calculate_outlined,
             iconColor: AppColors.primaryColor,
           ),
@@ -194,7 +195,7 @@ class _SummaryGrid extends StatelessWidget {
         Expanded(
           child: _MetricCard(
             label: 'Discount + Tax',
-            value: '-\$${report.totalDiscount.toStringAsFixed(2)} / +\$${report.totalTax.toStringAsFixed(2)}',
+            value: '-${Money.format(report.totalDiscount)} / +${Money.format(report.totalTax)}',
             icon: Icons.local_offer_outlined,
             iconColor: AppColors.orange,
           ),
@@ -282,7 +283,7 @@ class _TopProducts extends StatelessWidget {
               ]),
             ),
             CustomText(
-              text: '\$${p.revenue.toStringAsFixed(2)}',
+              text: Money.format(p.revenue),
               fontSize: AppFontSize.small2,
               fontWeight: FontWeight.bold,
               color: AppColors.primaryColor,
@@ -412,7 +413,7 @@ class _PayRow extends StatelessWidget {
         ),
         const Spacer(),
         CustomText(
-          text: '\$${amount.toStringAsFixed(2)}',
+          text: Money.format(amount),
           fontSize: AppFontSize.verySmall,
           fontWeight: FontWeight.w600,
           color: AppColors.black2,

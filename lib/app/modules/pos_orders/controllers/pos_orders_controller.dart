@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
@@ -24,7 +25,7 @@ class PosOrdersController extends GetxController {
   final RxString paymentFilter = 'All'.obs;
   final RxString statusFilter  = 'All'.obs;
   final RxString processingId  = ''.obs;
-  final RxString currencySymbol = '\$'.obs;
+  final RxString currencySymbol = Money.symbol().obs;
   /// See PosRole.isCurrentEmployeeManager's doc comment — gates the
   /// quick refund/void actions to match the backend's actual (if weak) check.
   final RxBool isManager = false.obs;
@@ -72,9 +73,8 @@ class PosOrdersController extends GetxController {
   Future<void> _loadContext() async {
     _storeId   = await AppPreferences.getStoreId()      ?? '';
     _sessionId = await AppPreferences.getPosSessionId() ?? '';
-    final settings = await _posRepo.getPosSettings(_storeId);
-    final symbol = settings?.currencySymbol;
-    if (symbol != null && symbol.trim().isNotEmpty) currencySymbol.value = symbol;
+    await _posRepo.getPosSettings(_storeId); // also configures Money (store currency + exponent)
+    currencySymbol.value = Money.symbol(); // from the store's currency code, never free text
   }
 
   String? _fmtDate(DateTime? d) => d?.toIso8601String().split('T').first;

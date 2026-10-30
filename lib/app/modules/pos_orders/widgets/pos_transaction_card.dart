@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
@@ -95,7 +96,7 @@ class PosTransactionCard extends StatelessWidget {
           color: AppColors.primaryColor,
         ),
         CustomText(
-          text: '${controller.currencySymbol.value}${sale.total.toStringAsFixed(2)}',
+          text: Money.format(sale.total),
           fontSize: AppFontSize.small,
           fontWeight: FontWeight.bold,
           color: AppColors.black,
@@ -173,7 +174,7 @@ class PosTransactionCard extends StatelessWidget {
     CustomConfirmDialog.show(
       context,
       title: 'Confirm Refund',
-      message: 'Refund ${controller.currencySymbol.value}${sale.total.toStringAsFixed(2)} for this sale?',
+      message: 'Refund ${Money.format(sale.total)} for this sale?',
       confirmLabel: 'Refund',
       confirmColor: AppColors.red,
       onConfirm: () => controller.refundSale(sale),

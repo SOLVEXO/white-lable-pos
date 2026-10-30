@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
@@ -111,9 +112,9 @@ class _SummaryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(children: [
-      Expanded(child: _Metric(label: 'Revenue', value: '\$${report.totalRevenue.toStringAsFixed(2)}', color: AppColors.primaryColor)),
+      Expanded(child: _Metric(label: 'Revenue', value: Money.format(report.totalRevenue), color: AppColors.primaryColor)),
       const SizedBox(width: 10),
-      Expanded(child: _Metric(label: 'Net', value: '\$${report.netRevenue.toStringAsFixed(2)}', color: AppColors.green2)),
+      Expanded(child: _Metric(label: 'Net', value: Money.format(report.netRevenue), color: AppColors.green2)),
       const SizedBox(width: 10),
       Expanded(child: _Metric(label: 'Transactions', value: '${report.totalTransactions}', color: AppColors.orange)),
     ]);
@@ -179,7 +180,7 @@ class _DailyBreakdown extends StatelessWidget {
             const SizedBox(width: 8),
             SizedBox(
               width: 60,
-              child: CustomText(text: '\$${d.total.toStringAsFixed(0)}', fontSize: AppFontSize.tiny, textAlign: TextAlign.right, color: AppColors.black2),
+              child: CustomText(text: Money.format(d.total), fontSize: AppFontSize.tiny, textAlign: TextAlign.right, color: AppColors.black2),
             ),
           ]),
         )),
@@ -210,7 +211,7 @@ class _TopProducts extends StatelessWidget {
             Expanded(child: CustomText(text: p.name, fontSize: AppFontSize.verySmall, color: AppColors.black2, maxLines: 1, overflow: TextOverflow.ellipsis)),
             CustomText(text: '${p.qty} sold', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
             const SizedBox(width: 8),
-            CustomText(text: '\$${p.revenue.toStringAsFixed(2)}', fontSize: AppFontSize.verySmall, fontWeight: FontWeight.bold, color: AppColors.primaryColor),
+            CustomText(text: Money.format(p.revenue), fontSize: AppFontSize.verySmall, fontWeight: FontWeight.bold, color: AppColors.primaryColor),
           ]),
         )),
       ]),

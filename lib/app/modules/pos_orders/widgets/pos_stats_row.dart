@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/controllers/pos_orders_controller.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
@@ -21,7 +22,7 @@ class PosStatsRow extends StatelessWidget {
           flex: 2,
           child: _StatCard(
             label: 'Sales (loaded)',
-            value: '${controller.currencySymbol.value}${controller.totalSales.toStringAsFixed(2)}',
+            value: Money.format(controller.totalSales),
             subtitle: '${controller.txnCount} txns',
           ),
         ),
@@ -29,14 +30,14 @@ class PosStatsRow extends StatelessWidget {
         Expanded(
           child: _StatCard(
             label: 'Avg (loaded)',
-            value: '${controller.currencySymbol.value}${controller.avgTransaction.toStringAsFixed(2)}',
+            value: Money.format(controller.avgTransaction),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
             label: 'Cash (loaded)',
-            value: '${controller.currencySymbol.value}${controller.cashTotal.toStringAsFixed(0)}',
+            value: Money.format(controller.cashTotal),
           ),
         ),
       ]),

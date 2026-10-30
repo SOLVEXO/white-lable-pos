@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/components/svg_icon.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
@@ -97,7 +98,7 @@ class PosCartBar extends StatelessWidget {
                       fontSize: AppFontSize.tiny,
                     ),
                     CustomText(
-                      text: '${c.currencySymbol.value}${c.total.toStringAsFixed(2)}',
+                      text: Money.format(c.total),
                       color: AppColors.white,
                       fontSize: AppFontSize.small,
                       fontWeight: FontWeight.bold,

@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/components/svg_icon.dart';
@@ -231,16 +232,16 @@ class _CartFooter extends StatelessWidget {
             ),
             child: Column(children: [
               _TotalRow(label: 'Subtotal',
-                  value: '${c.currencySymbol.value}${c.subtotal.toStringAsFixed(2)}'),
+                  value: Money.format(c.subtotal)),
               if (c.discountValue > 0) ...[
                 const SizedBox(height: 5),
                 _TotalRow(label: 'Discount',
-                    value: '-${c.currencySymbol.value}${c.discountValue.toStringAsFixed(2)}',
+                    value: '-${Money.format(c.discountValue)}',
                     valueColor: AppColors.green2),
               ],
               if (c.taxValue > 0) ...[
                 const SizedBox(height: 5),
-                _TotalRow(label: 'Tax', value: '+${c.currencySymbol.value}${c.taxValue.toStringAsFixed(2)}'),
+                _TotalRow(label: 'Tax', value: '+${Money.format(c.taxValue)}'),
               ],
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
@@ -261,7 +262,7 @@ class _CartFooter extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: CustomText(
-                    text: '${c.currencySymbol.value}${c.total.toStringAsFixed(2)}',
+                    text: Money.format(c.total),
                     fontSize: AppFontSize.medium,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primaryColor,
@@ -342,8 +343,8 @@ class _CartFooter extends StatelessWidget {
                 const Spacer(),
                 CustomText(
                   text: c.isCashUnderTendered
-                      ? '${c.currencySymbol.value}${(c.total - c.tenderedAmount).toStringAsFixed(2)}'
-                      : '${c.currencySymbol.value}${c.changeDue.toStringAsFixed(2)}',
+                      ? Money.format((c.total - c.tenderedAmount))
+                      : Money.format(c.changeDue),
                   fontSize: AppFontSize.verySmall,
                   fontWeight: FontWeight.bold,
                   color: c.isCashUnderTendered ? AppColors.red : AppColors.green2,
@@ -426,7 +427,7 @@ class _CartFooter extends StatelessWidget {
                               ? 'Add items'
                               : c.isCashUnderTendered
                                   ? 'Enter full amount'
-                                  : 'Charge ${c.currencySymbol.value}${c.total.toStringAsFixed(2)}',
+                                  : 'Charge ${Money.format(c.total)}',
                           color: AppColors.white,
                           fontSize: AppFontSize.verySmall,
                           fontWeight: FontWeight.bold,

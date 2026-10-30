@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
 import 'package:solvexo_pos/app/data/repositories/customer_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
@@ -20,7 +21,7 @@ class PosCustomersController extends GetxController {
   final ScrollController scrollController = ScrollController();
   final RxBool isLoading = true.obs;
   final RxBool isLoadingMore = false.obs;
-  final RxString currencySymbol = '\$'.obs;
+  final RxString currencySymbol = Money.symbol().obs;
   final RxList<CustomerModel> customers = <CustomerModel>[].obs;
 
   String _storeId = '';
@@ -47,9 +48,8 @@ class PosCustomersController extends GetxController {
 
   Future<void> _loadContext() async {
     _storeId = await AppPreferences.getStoreId() ?? '';
-    final settings = await _posRepo.getPosSettings(_storeId);
-    final symbol = settings?.currencySymbol;
-    if (symbol != null && symbol.trim().isNotEmpty) currencySymbol.value = symbol;
+    await _posRepo.getPosSettings(_storeId); // also configures Money (store currency + exponent)
+    currencySymbol.value = Money.symbol(); // from the store's currency code, never free text
   }
 
   Future<void> loadCustomers() async {

@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
@@ -74,7 +75,7 @@ class PosCartItemTile extends StatelessWidget {
               _QtyBtn(icon: Icons.add_rounded, onTap: () => c.increment(item)),
               const SizedBox(width: 8),
               CustomText(
-                text: '× ${c.currencySymbol.value}${item.unitPrice.toStringAsFixed(2)}',
+                text: '× ${Money.format(item.unitPrice)}',
                 fontSize: AppFontSize.tiny,
                 color: AppColors.iosGrey,
                 fontFamily: AppTextStyles.monoFontFamily,
@@ -100,7 +101,7 @@ class PosCartItemTile extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           CustomText(
-            text: '${c.currencySymbol.value}${item.lineTotal.toStringAsFixed(2)}',
+            text: Money.format(item.lineTotal),
             fontSize: AppFontSize.small2,
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor,

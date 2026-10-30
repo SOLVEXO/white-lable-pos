@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/store_location_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/store_locations_overview_model.dart';
@@ -110,7 +111,7 @@ class LocationCard extends StatelessWidget {
                   Icon(Icons.attach_money_rounded, size: 13, color: AppColors.green2),
                   SizedBox(width: BaseSpacing.xxs / 2),
                   CustomText(
-                    text: '\$${stat!.totalSales.toStringAsFixed(2)} sales',
+                    text: '${Money.format(stat!.totalSales)} sales',
                     color: AppColors.gray600,
                     fontSize: AppFontSize.tiny,
                     fontWeight: FontWeight.w600,

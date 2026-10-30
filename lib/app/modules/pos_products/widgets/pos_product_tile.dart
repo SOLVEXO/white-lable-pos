@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/modules/pos_products/widgets/pos_stock_badge.dart';
@@ -84,7 +85,7 @@ class PosProductTile extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         CustomText(
-          text: '$currencySymbol${product.price.toStringAsFixed(2)}',
+          text: Money.format(product.price),
           fontSize: AppFontSize.small2,
           fontWeight: FontWeight.w600,
           color: AppColors.primaryColor,
