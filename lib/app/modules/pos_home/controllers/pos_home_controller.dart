@@ -486,8 +486,9 @@ class PosHomeController extends GetxController {
         registerId: registerId.value,
         employeeId: employeeId.value,
         items: _buildItems(),
-        discount: discountValue,
-        tax: taxValue,
+        discountType: isPercentDiscount.value ? 'percent' : 'amount',
+        discountValue: _rawDiscountInput,
+        clientTotal: total,
         paymentMethod: selectedPayment.value,
         customerName: customerController.text.trim().isEmpty
             ? 'Walk-in'
@@ -530,8 +531,9 @@ class PosHomeController extends GetxController {
         registerId: registerId.value,
         employeeId: employeeId.value,
         items: _buildItems(),
-        discount: discountValue,
-        tax: taxValue,
+        discountType: isPercentDiscount.value ? 'percent' : 'amount',
+        discountValue: _rawDiscountInput,
+        clientTotal: total,
         paymentMethod: selectedPayment.value,
         customerName: customerController.text.trim().isEmpty
             ? 'Walk-in'

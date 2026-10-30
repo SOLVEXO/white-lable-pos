@@ -209,6 +209,18 @@ class AppPreferences {
     return token != null && token.isNotEmpty;
   }
 
+  // ── Store currency (so money renders correctly before settings have loaded) ────
+  static Future<void> saveStoreCurrency(String code, int exponent) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('store_currency', code);
+    await prefs.setInt('store_currency_exponent', exponent);
+  }
+
+  static Future<({String? code, int? exponent})> getStoreCurrency() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (code: prefs.getString('store_currency'), exponent: prefs.getInt('store_currency_exponent'));
+  }
+
   // ── Store ID ──────────────────────────────────────────────────────────────────
   static Future<void> saveStoreId(String id) async {
     final prefs = await SharedPreferences.getInstance();

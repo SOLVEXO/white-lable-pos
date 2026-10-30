@@ -7,6 +7,7 @@ import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/network/dio_service.dart';
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/firebase_options.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -30,6 +31,9 @@ void main() async {
   // Warms AppPreferences' sync in-memory cache so PosAccessMiddleware can
   // guard routes without an async gap — see AppPreferences.warmCache().
   await AppPreferences.warmCache();
+  // Last-known store currency, so amounts render in the right currency/decimals before settings load.
+  final cachedCurrency = await AppPreferences.getStoreCurrency();
+  Money.configure(currency: cachedCurrency.code, exponent: cachedCurrency.exponent);
   // Re-verifies the cached role against a fresh server call rather than
   // trusting it indefinitely (Phase 4) — fired in the background, same
   // non-blocking pattern as BrandingService.refreshFromBackend below,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_audit_log_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
@@ -16,6 +17,7 @@ import 'package:solvexo_pos/app/network/api_constaints.dart';
 import 'package:solvexo_pos/app/network/base_client.dart';
 import 'package:solvexo_pos/app/network/dio_exception_handler.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/utils/toast_util.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -827,9 +829,13 @@ class PosRepository {
     required String registerId,
     required String employeeId,
     required List<Map<String, dynamic>> items,
-    double? discount,
-    double? tax,
+    String? discountType, // "amount" | "percent" — the server computes the discount from it
+    double? discountValue,
+    double? clientTotal, // what this device displayed; the server rejects a mismatch (TOTAL_MISMATCH)
     required String paymentMethod,
+    List<Map<String, dynamic>>? payments, // split tender: [{method, amount, reference?}]
+    double? amountTendered, // single cash payment: what the customer handed over
+    String? paymentReference,
     String customerName = 'Walk-in',
     String? customerId,
     String? notes,
@@ -842,9 +848,12 @@ class PosRepository {
       'registerId': registerId,
       'employeeId': employeeId,
       'items': items,
-      if (discount != null) 'discount': discount,
-      if (tax != null) 'tax': tax,
+      if (discountType != null && (discountValue ?? 0) > 0) ...{'discountType': discountType, 'discountValue': discountValue},
+      if (clientTotal != null) 'clientTotal': clientTotal,
       'paymentMethod': paymentMethod,
+      if (payments != null && payments.isNotEmpty) 'payments': payments,
+      if (amountTendered != null) 'amountTendered': amountTendered,
+      if (paymentReference != null && paymentReference.isNotEmpty) 'paymentReference': paymentReference,
       'customerName': customerName,
       if (customerId != null) 'customerId': customerId,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
@@ -1010,14 +1019,21 @@ class PosRepository {
   Future<({bool success, PosSaleModel? sale, String? message})> completeSale({
     required String saleId,
     required String paymentMethod,
-    double? discount,
-    double? tax,
+    List<Map<String, dynamic>>? payments,
+    double? amountTendered,
+    String? paymentReference,
+    String? discountType,
+    double? discountValue,
+    double? clientTotal,
     String? notes,
   }) async {
     final payload = {
       'paymentMethod': paymentMethod,
-      if (discount != null) 'discount': discount,
-      if (tax != null) 'tax': tax,
+      if (payments != null && payments.isNotEmpty) 'payments': payments,
+      if (amountTendered != null) 'amountTendered': amountTendered,
+      if (paymentReference != null && paymentReference.isNotEmpty) 'paymentReference': paymentReference,
+      if (discountType != null) ...{'discountType': discountType, 'discountValue': discountValue ?? 0},
+      if (clientTotal != null) 'clientTotal': clientTotal,
       if (notes != null) 'notes': notes,
     };
     final fp = IdempotencyIntentStore.fingerprint('completeSale:$saleId', payload);
@@ -1291,7 +1307,12 @@ class PosRepository {
     try {
       final res = await _client.get(ApiConstants.posSettings(storeId), requiresAuth: true);
       final data = _data(res) as Map<String, dynamic>?;
-      return data != null ? PosSettingsModel.fromJson(data) : null;
+      if (data == null) return null;
+      final settings = PosSettingsModel.fromJson(data);
+      // The store's currency + exponent come from the backend; everything that formats money follows it.
+      Money.configure(currency: settings.currency, exponent: settings.currencyExponent);
+      unawaited(AppPreferences.saveStoreCurrency(settings.currency, settings.currencyExponent));
+      return settings;
     } on DioException catch (e) {
       _logDioError('getPosSettings', e);
       DioExceptionHandler.handleDioException(e);

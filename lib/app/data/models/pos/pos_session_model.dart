@@ -48,6 +48,9 @@ class PosSessionModel {
   final String? forceClosedBy;
   final String? forceCloseReason;
   final DateTime? forceCloseAt;
+  /// Currency snapshot of every cash figure on this session (JPY 0, USD 2, KWD 3 decimals).
+  final String currency;
+  final int currencyExponent;
 
   const PosSessionModel({
     required this.id,
@@ -72,6 +75,8 @@ class PosSessionModel {
     this.forceClosedBy,
     this.forceCloseReason,
     this.forceCloseAt,
+    this.currency = 'USD',
+    this.currencyExponent = 2,
   });
 
   bool get isOpen => status == 'open';
@@ -111,5 +116,7 @@ class PosSessionModel {
         forceCloseAt: json['forceCloseAt'] != null
             ? DateTime.tryParse(json['forceCloseAt'] as String)
             : null,
+        currency: (json['currency'] as String?)?.toUpperCase() ?? 'USD',
+        currencyExponent: (json['currencyExponent'] as num?)?.toInt() ?? 2,
       );
 }

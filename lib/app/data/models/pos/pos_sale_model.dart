@@ -45,6 +45,41 @@ class PosSaleItemModel {
       );
 }
 
+/// One tender taken for a sale. [amount] is what was applied to the total (cash net of change);
+/// for cash [tendered] is what the customer handed over.
+class PosPaymentLine {
+  final String method; // cash | card | other
+  final double amount;
+  final double? tendered;
+  final String? reference;
+
+  const PosPaymentLine({required this.method, required this.amount, this.tendered, this.reference});
+
+  factory PosPaymentLine.fromJson(Map<String, dynamic> json) => PosPaymentLine(
+        method: json['method'] as String? ?? 'other',
+        amount: (json['amount'] as num?)?.toDouble() ?? 0,
+        tendered: (json['tendered'] as num?)?.toDouble(),
+        reference: json['reference'] as String?,
+      );
+}
+
+/// One refund event against a sale (what came back, and to which tenders).
+class PosRefundRecord {
+  final double amount;
+  final String kind; // full | partial
+  final List<PosPaymentLine> tenders;
+  final DateTime? createdAt;
+
+  const PosRefundRecord({required this.amount, required this.kind, this.tenders = const [], this.createdAt});
+
+  factory PosRefundRecord.fromJson(Map<String, dynamic> json) => PosRefundRecord(
+        amount: (json['amount'] as num?)?.toDouble() ?? 0,
+        kind: json['kind'] as String? ?? 'partial',
+        tenders: (json['tenders'] as List<dynamic>?)?.map((e) => PosPaymentLine.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
+        createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
+      );
+}
+
 class PosSaleModel {
   final String id;
   final String saleNumber;
@@ -69,6 +104,22 @@ class PosSaleModel {
   final double refundedAmount;
   final DateTime createdAt;
 
+  /// Currency snapshot taken when the sale was made, and its minor-unit exponent (JPY 0, USD 2, KWD 3).
+  /// The backend always sends one (older sales are backfilled from the store).
+  final String currency;
+  final int currencyExponent;
+
+  /// Tender lines — empty for held sales and for sales made before split tender (see [paymentLines]).
+  final List<PosPaymentLine> payments;
+  final double changeGiven;
+  final String? employeeName;
+
+  /// What the cashier entered for the discount, and the tax rate the server applied.
+  final String? discountType; // amount | percent
+  final double? discountValue;
+  final double? taxRate;
+  final List<PosRefundRecord> refunds;
+
   const PosSaleModel({
     required this.id,
     required this.saleNumber,
@@ -91,7 +142,21 @@ class PosSaleModel {
     this.voidedBy,
     this.refundedAmount = 0,
     required this.createdAt,
+    this.currency = 'USD',
+    this.currencyExponent = 2,
+    this.payments = const [],
+    this.changeGiven = 0,
+    this.employeeName,
+    this.discountType,
+    this.discountValue,
+    this.taxRate,
+    this.refunds = const [],
   });
+
+  /// The tender lines to show: the stored ones, or — for a sale made before split tender — one synthetic line.
+  List<PosPaymentLine> get paymentLines =>
+      payments.isNotEmpty ? payments : [PosPaymentLine(method: paymentMethod == 'split' ? 'other' : paymentMethod, amount: total)];
+  bool get isSplit => paymentLines.map((l) => l.method).toSet().length > 1;
 
   bool get isHeld => status == 'held';
   bool get isCompleted => status == 'completed';
@@ -139,5 +204,14 @@ class PosSaleModel {
         createdAt: json['createdAt'] != null
             ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
             : DateTime.now(),
+        currency: (json['currency'] as String?)?.toUpperCase() ?? 'USD',
+        currencyExponent: (json['currencyExponent'] as num?)?.toInt() ?? 2,
+        payments: (json['payments'] as List<dynamic>?)?.map((e) => PosPaymentLine.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
+        changeGiven: (json['changeGiven'] as num?)?.toDouble() ?? 0,
+        employeeName: json['employeeName'] as String?,
+        discountType: json['discountType'] as String?,
+        discountValue: (json['discountValue'] as num?)?.toDouble(),
+        taxRate: (json['taxRate'] as num?)?.toDouble(),
+        refunds: (json['refunds'] as List<dynamic>?)?.map((e) => PosRefundRecord.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
       );
 }
