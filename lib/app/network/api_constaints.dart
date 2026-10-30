@@ -276,8 +276,13 @@ class ApiConstants {
   // attach a customer to a sale — see CustomerRepository.
   static String storeCustomers(String storeId) =>
       "$apiPrefix/store/$storeId/customers";
+  // Store-scoped (only people who ordered from, or were sold to by, this
+  // store). Deliberately NOT the draft-orders search, which queries every
+  // user on the platform.
   static String customerSearch(String storeId) =>
-      "$apiPrefix/draft-orders/$storeId/customers/search";
+      "$apiPrefix/pos/customers/$storeId/search";
+  static String inventoryAdjustStock(String storeId, String variantId) =>
+      "$apiPrefix/inventory/$storeId/variant/$variantId/adjust";
   static String sellerOrders(String storeId) =>
       "$apiPrefix/orders/seller-orders/$storeId";
   static String markOrderPaid(String orderId) =>

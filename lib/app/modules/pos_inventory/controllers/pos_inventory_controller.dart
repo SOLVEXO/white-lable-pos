@@ -173,8 +173,16 @@ class PosInventoryController extends GetxController {
     );
   }
 
+  /// Reason for the adjustment currently being edited (sent to the backend).
+  final RxString adjustReason = 'correction'.obs;
+
   void _showAdjustDialog(String productId, String productName, InventoryVariant variant) {
+    if (variant.unlimitedStock) {
+      CustomAppSnackbar.warning('This item has unlimited stock — there is no quantity to adjust.');
+      return;
+    }
     stockController.text = '${variant.stock}';
+    adjustReason.value = 'correction';
     final ctx = Get.context;
     if (ctx == null) return;
     CustomConfirmDialog.show(
@@ -204,29 +212,52 @@ class PosInventoryController extends GetxController {
             isborder: true,
             fillColor: AppColors.background,
           ),
+          const SizedBox(height: 12),
+          CustomText(text: 'Reason', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+          const SizedBox(height: 6),
+          Obx(() => Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: InventoryRepository.adjustmentReasons.entries
+                    .map((e) => ChoiceChip(
+                          label: Text(e.value),
+                          selected: adjustReason.value == e.key,
+                          onSelected: (_) => adjustReason.value = e.key,
+                        ))
+                    .toList(),
+              )),
         ],
       ),
-      onConfirm: () => _saveStockAdjustment(productId, variant.variantId),
+      onConfirm: () => _saveStockAdjustment(variant),
     );
   }
 
-  Future<void> _saveStockAdjustment(String productId, String variantId) async {
+  Future<void> _saveStockAdjustment(InventoryVariant variant) async {
     final newStock = int.tryParse(stockController.text.trim());
     if (newStock == null || newStock < 0) {
       CustomAppSnackbar.warning('Enter a valid stock quantity.');
       return;
     }
+    final delta = newStock - variant.stock;
+    if (delta == 0) {
+      CustomAppSnackbar.warning('Quantity is unchanged.');
+      return;
+    }
     isAdjusting.value = true;
     try {
-      final ok = await _inventoryRepo.updateVariantStock(
-        productId: productId,
-        variantId: variantId,
-        stock: newStock,
+      final result = await _inventoryRepo.adjustVariantStock(
+        storeId: _storeId,
+        variantId: variant.variantId,
+        delta: delta,
+        reason: adjustReason.value,
       );
-      if (ok) {
+      if (result.success) {
         CustomAppSnackbar.success('Stock updated.');
-        await refreshData();
+      } else {
+        CustomAppSnackbar.error(result.message ?? 'Could not update stock.');
       }
+      // Success or not, reload — a refusal usually means someone else changed the stock first.
+      await refreshData();
     } finally {
       isAdjusting.value = false;
     }

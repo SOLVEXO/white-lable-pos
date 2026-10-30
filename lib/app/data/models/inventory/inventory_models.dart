@@ -30,6 +30,10 @@ class InventoryProductSummary {
   final String sku;
   final String name;
   final int stock;
+  /// True for digital products and any product with an unlimited-stock variant
+  /// (`stock` is then not a count — the list endpoint historically sent the
+  /// display string '∞ Unlimited' in that field).
+  final bool isUnlimited;
   final String stockStatus;
   final double? price;
   final double? minPrice;
@@ -41,6 +45,7 @@ class InventoryProductSummary {
     required this.sku,
     required this.name,
     required this.stock,
+    this.isUnlimited = false,
     required this.stockStatus,
     this.price,
     this.minPrice,
@@ -54,7 +59,11 @@ class InventoryProductSummary {
         productId: json['productId'] as String? ?? json['_id'] as String? ?? '',
         sku: json['sku'] as String? ?? '',
         name: json['name'] as String? ?? '',
-        stock: json['stock'] as int? ?? 0,
+        // Typed fields (`isUnlimited`, `stockQuantity`) are authoritative; the
+        // legacy `stock` may be a number OR the string '∞ Unlimited', so it is
+        // only ever read defensively — a bad type must never blank the list.
+        isUnlimited: json['isUnlimited'] as bool? ?? json['stock'] is String,
+        stock: (json['stockQuantity'] as num?)?.toInt() ?? (json['stock'] is num ? (json['stock'] as num).toInt() : 0),
         stockStatus: json['stockStatus'] as String? ?? '',
         price: (json['price'] as num?)?.toDouble(),
         minPrice: (json['minPrice'] as num?)?.toDouble(),
@@ -107,6 +116,7 @@ class InventoryVariant {
   final String sku;
   final String? barcode;
   final int stock;
+  final bool unlimitedStock;
   final bool isDefault;
   final String label;
 
@@ -115,6 +125,7 @@ class InventoryVariant {
     required this.sku,
     this.barcode,
     required this.stock,
+    this.unlimitedStock = false,
     required this.isDefault,
     required this.label,
   });
@@ -128,7 +139,8 @@ class InventoryVariant {
       variantId: json['_id'] as String? ?? json['variantId'] as String? ?? '',
       sku: json['sku'] as String? ?? '',
       barcode: json['barcode'] as String?,
-      stock: json['stock'] as int? ?? 0,
+      stock: (json['stock'] as num?)?.toInt() ?? 0,
+      unlimitedStock: json['unlimitedStock'] as bool? ?? false,
       isDefault: json['isDefault'] as bool? ?? false,
       label: options.isNotEmpty ? options : (json['sku'] as String? ?? ''),
     );

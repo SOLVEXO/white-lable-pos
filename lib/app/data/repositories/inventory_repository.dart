@@ -1,9 +1,9 @@
+import 'package:solvexo_pos/app/data/local/idempotency_intent_store.dart';
 import 'package:solvexo_pos/app/data/models/inventory/inventory_models.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart' show PagedResult;
 import 'package:solvexo_pos/app/network/api_constaints.dart';
 import 'package:solvexo_pos/app/network/base_client.dart';
 import 'package:solvexo_pos/app/network/dio_exception_handler.dart';
-import 'package:solvexo_pos/utils/toast_util.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
@@ -15,7 +15,10 @@ import 'package:flutter/material.dart';
 /// activity-log.controller.ts directly) — they just weren't wired to any
 /// Flutter repository before Phase 2.
 class InventoryRepository {
+  InventoryRepository({IdempotencyIntentStore? intents}) : _intents = intents ?? IdempotencyIntentStore.instance;
+
   final BaseClient _client = BaseClient();
+  final IdempotencyIntentStore _intents;
 
   dynamic _data(Response response) {
     final raw = response.data;
@@ -118,36 +121,62 @@ class InventoryRepository {
 
   // ── Stock correction ─────────────────────────────────────────────────────
 
-  /// Sets a variant's stock to an absolute new quantity. The backend has no
-  /// reason-code field for this (UpdateVariantDto only carries `stock` for
-  /// our purposes) — it just logs a generic "Stock X → Y adjusted" activity
-  /// entry, visible via [getStockActivity].
-  Future<bool> updateVariantStock({
-    required String productId,
+  /// Reasons the backend accepts on a manual adjustment (`StockAdjustmentReason`
+  /// — the subset that makes sense from a till). Value → label.
+  static const Map<String, String> adjustmentReasons = {
+    'correction': 'Count correction',
+    'restocked': 'Restocked',
+    'damaged': 'Damaged',
+    'return': 'Customer return',
+    'other': 'Other',
+  };
+
+  /// Changes a variant's stock by [delta] units (negative = remove) with a
+  /// [reason], via the reason-coded, audited adjust route. Unlike the old
+  /// absolute `PATCH …/variants/:id {stock}` this is a relative change, so it
+  /// is NOT naturally retry-safe — the intent's idempotency key is sent as
+  /// `Idempotency-Key` and reused on a retry until a final result, so a
+  /// timed-out success can never be applied twice.
+  ///
+  /// The backend refuses stale or impossible changes with a clear message
+  /// (400/409 — e.g. removing more than is on hand); that text is surfaced.
+  Future<({bool success, String? message})> adjustVariantStock({
+    required String storeId,
     required String variantId,
-    required int stock,
+    required int delta,
+    required String reason,
+    String? note,
   }) async {
+    final payload = {
+      'delta': delta,
+      'reason': reason,
+      if (note != null && note.isNotEmpty) 'note': note,
+    };
+    final fp = IdempotencyIntentStore.fingerprint('adjustStock:$variantId', payload);
+    var settled = false;
     try {
       final res = await _client.patch(
-        ApiConstants.productVariant(productId, variantId),
-        data: {'stock': stock},
+        ApiConstants.inventoryAdjustStock(storeId, variantId),
+        data: payload,
         requiresAuth: true,
-        // Confirmed safe to retry on a network blip: this PATCH sets stock
-        // to an absolute value (not a delta), so a retry after a timed-out
-        // success is a no-op, not a double-adjustment.
-        retryable: true,
+        headers: {'Idempotency-Key': await _intents.keyFor(fp)},
       );
-      if (_ok(res)) return true;
-      ToastUtil.showToast(res.data['message'] as String? ?? 'Failed to update stock');
-      return false;
+      settled = true;
+      if (_ok(res)) return (success: true, message: res.data['message'] as String?);
+      return (success: false, message: res.data['message'] as String? ?? 'Failed to update stock');
     } on DioException catch (e) {
-      _logDioError('updateVariantStock', e);
-      DioExceptionHandler.handleDioException(e);
-      return false;
+      final s = e.response?.statusCode;
+      settled = s != null && s >= 400 && s < 500 && s != 408 && s != 409 && s != 429;
+      _logDioError('adjustVariantStock', e);
+      final data = e.response?.data;
+      final msg = data is Map ? data['message'] as String? : null;
+      DioExceptionHandler.handleDioException(e, showToast: false);
+      return (success: false, message: msg ?? 'Failed to update stock');
     } catch (e) {
-      debugPrint('❌ updateVariantStock: $e');
-      ToastUtil.showToast('Failed to update stock.');
-      return false;
+      debugPrint('❌ adjustVariantStock: $e');
+      return (success: false, message: 'Failed to update stock.');
+    } finally {
+      if (settled) await _intents.release(fp);
     }
   }
 

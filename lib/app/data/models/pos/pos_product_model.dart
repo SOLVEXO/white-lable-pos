@@ -11,6 +11,9 @@ class PosProductVariant {
   final double price;
   final double? compareAtPrice;
   final int stock;
+  /// Sold without tracking stock (the server skips the stock check/decrement
+  /// for these). `stock` is meaningless when this is true.
+  final bool unlimitedStock;
   final List<VariantOption> options;
   final bool isDefault;
   final List<String> images;
@@ -22,10 +25,14 @@ class PosProductVariant {
     required this.price,
     this.compareAtPrice,
     required this.stock,
+    this.unlimitedStock = false,
     this.options = const [],
     required this.isDefault,
     this.images = const [],
   });
+
+  /// Can be added to a cart: tracked stock remains, or stock isn't tracked.
+  bool get isAvailable => unlimitedStock || stock > 0;
 
   /// Human-readable label for a variant picker, e.g. "Large / Blue".
   String get label {
@@ -40,7 +47,8 @@ class PosProductVariant {
         barcode: json['barcode'] as String?,
         price: (json['price'] as num?)?.toDouble() ?? 0,
         compareAtPrice: (json['compareAtPrice'] as num?)?.toDouble(),
-        stock: json['stock'] as int? ?? 0,
+        stock: (json['stock'] as num?)?.toInt() ?? 0,
+        unlimitedStock: json['unlimitedStock'] as bool? ?? false,
         options: (json['options'] as List? ?? [])
             .map((o) => VariantOption.fromJson(o as Map<String, dynamic>))
             .toList(),
@@ -76,9 +84,10 @@ class PosProductModel {
   double get price => defaultVariant?.price ?? 0;
   String get sku => defaultVariant?.sku ?? '';
   int get totalStock => variants.fold(0, (sum, v) => sum + v.stock);
-  bool get inStock => variants.any((v) => v.stock > 0);
+  bool get hasUnlimitedStock => variants.any((v) => v.unlimitedStock);
+  bool get inStock => variants.any((v) => v.isAvailable);
   bool get isOutOfStock => !inStock;
-  bool get isLowStock => !isOutOfStock && totalStock <= 10;
+  bool get isLowStock => !isOutOfStock && !hasUnlimitedStock && totalStock <= 10;
 
   String? get displayImage {
     if (image != null && image!.isNotEmpty) return image;

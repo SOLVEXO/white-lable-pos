@@ -6,10 +6,11 @@ import 'package:flutter/material.dart';
 
 class PosStockBadge extends StatelessWidget {
   final int stockCount;
+  final bool unlimited;
 
-  const PosStockBadge({super.key, required this.stockCount});
+  const PosStockBadge({super.key, required this.stockCount, this.unlimited = false});
 
-  bool get _inStock => stockCount > 0;
+  bool get _inStock => unlimited || stockCount > 0;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +29,7 @@ class PosStockBadge extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: CustomText(
-            text: _inStock ? stockCount.toString() : 'Out',
+            text: unlimited ? '∞' : (_inStock ? stockCount.toString() : 'Out'),
             fontSize: AppFontSize.verySmall,
             fontWeight: FontWeight.bold,
             color: _inStock ? AppColors.darkGreen : AppColors.red,
@@ -37,7 +38,7 @@ class PosStockBadge extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         CustomText(
-          text: _inStock ? 'in stock' : 'out of stock',
+          text: unlimited ? 'unlimited' : (_inStock ? 'in stock' : 'out of stock'),
           fontSize: AppFontSize.tiny,
           color: AppColors.lightGrey5,
         ),

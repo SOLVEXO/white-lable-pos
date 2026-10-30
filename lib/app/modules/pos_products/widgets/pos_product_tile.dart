@@ -34,7 +34,7 @@ class PosProductTile extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(child: _productInfo()),
           const SizedBox(width: 12),
-          PosStockBadge(stockCount: product.totalStock),
+          PosStockBadge(stockCount: product.totalStock, unlimited: product.hasUnlimitedStock),
         ],
       ),
     );

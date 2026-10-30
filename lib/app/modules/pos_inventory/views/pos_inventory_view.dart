@@ -203,7 +203,7 @@ class _InventoryTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: _statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
             child: CustomText(
-              text: '${product.stock} in stock',
+              text: product.isUnlimited ? 'Unlimited' : '${product.stock} in stock',
               fontSize: AppFontSize.tiny,
               fontWeight: FontWeight.w600,
               color: _statusColor,
