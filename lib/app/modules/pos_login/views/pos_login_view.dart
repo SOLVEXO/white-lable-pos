@@ -319,7 +319,7 @@ class _GoogleButton extends StatelessWidget {
                     SvgIcon(assetName: AppIcons.googleIcon, size: 22),
                     SizedBox(width: BaseSpacing.sm),
                     CustomText(
-                      text: 'Continue with Google',
+                      text: 'Google',
                       color: AppColors.black2,
                       fontSize: AppFontSize.small2,
                       fontWeight: FontWeight.w600,

@@ -49,7 +49,6 @@ void main() async {
   // init() to listen for reconnects and drain the offline sale queue.
   await Get.put(PendingSaleSyncService(), permanent: true).init();
   await Get.put(ThermalPrinterService(), permanent: true).init();
-
   runApp(const MyApp());
 }
 

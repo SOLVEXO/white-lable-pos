@@ -1,5 +1,9 @@
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/middleware/auth_middleware.dart';
+import '../modules/splash_screen/bindings/splash_screen_binding.dart';
+import '../modules/splash_screen/views/splash_screen_view.dart';
+import '../modules/onboarding/bindings/onboarding_binding.dart';
+import '../modules/onboarding/views/onboarding_view.dart';
 import '../modules/pos_login/bindings/pos_login_binding.dart';
 import '../modules/pos_login/views/pos_login_view.dart';
 import '../modules/seller_onboarding/bindings/seller_onboarding_binding.dart';
@@ -49,9 +53,19 @@ import '../modules/pos_subscription_checkout/views/pos_subscription_checkout_vie
 part 'app_routes.dart';
 
 class AppPages {
-  static const initialRoute = Routes.posLogin;
+  static const initialRoute = Routes.splashScreen;
 
   static final routes = [
+    GetPage(
+      name: Routes.splashScreen,
+      page: () => const SplashScreenView(),
+      binding: SplashScreenBinding(),
+    ),
+    GetPage(
+      name: Routes.onboarding,
+      page: () => const OnboardingView(),
+      binding: OnboardingBinding(),
+    ),
     GetPage(
       name: Routes.posLogin,
       page: () => const PosLoginView(),

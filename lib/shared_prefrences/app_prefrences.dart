@@ -18,6 +18,7 @@ class AppPreferences {
   static const String _storeIdKey = 'store_id';
   static const String _storeNameKey = 'store_name';
   static const String _brandingConfigKey = 'branding_config_json';
+  static const String _hasSeenOnboardingKey = 'has_seen_onboarding';
 
   // ── POS employee / session context ────────────────────────────────────────────
   static const String _posEmployeeIdKey = 'pos_employee_id';
@@ -365,6 +366,17 @@ class AppPreferences {
   static Future<String?> getBrandingConfigJson() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_brandingConfigKey);
+  }
+
+  // ── First-launch onboarding flag ─────────────────────────────────────────
+  static Future<void> setHasSeenOnboarding(bool seen) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_hasSeenOnboardingKey, seen);
+  }
+
+  static Future<bool> getHasSeenOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_hasSeenOnboardingKey) ?? false;
   }
 
   // ── Paired thermal receipt printer (Phase 3) — remembered so the cashier

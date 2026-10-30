@@ -2,7 +2,10 @@ part of 'app_pages.dart';
 // DO NOT EDIT. This is code generated via package:get_cli/get_cli.dart
 
 abstract class Routes {
-  // Entry — POS-specific login (this app has no buyer auth flow).
+  // First-launch entry — splash, then a one-time onboarding carousel before
+  // the POS-specific login (this app has no buyer auth flow).
+  static const splashScreen = '/splash';
+  static const onboarding = '/onboarding';
   static const posLogin = '/pos/login';
 
   // Seller setup — store-picker + first-store creation flow.
