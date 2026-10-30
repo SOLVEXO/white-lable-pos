@@ -8,6 +8,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'dart:io';
 
+import 'package:solvexo_pos/app/data/local/idempotency_intent_store.dart';
 import 'package:solvexo_pos/app/data/local/pending_sale_local_store.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/network/api_constaints.dart';
@@ -22,9 +23,12 @@ import 'package:get/get.dart' hide Response, FormData, MultipartFile;
 typedef PagedResult<T> = ({List<T> items, int total, int totalPages, bool hasMore});
 
 class PosRepository {
-  PosRepository({BaseClient? client}) : _client = client ?? BaseClient();
+  PosRepository({BaseClient? client, IdempotencyIntentStore? intents})
+      : _client = client ?? BaseClient(),
+        _intents = intents ?? IdempotencyIntentStore.instance;
 
   final BaseClient _client;
+  final IdempotencyIntentStore _intents;
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -82,6 +86,30 @@ class PosRepository {
   Future<Map<String, dynamic>> _employeeAuthHeaders() async {
     final token = await AppPreferences.getPosEmployeeToken();
     return token != null ? {'x-pos-employee-token': token} : {};
+  }
+
+  /// Headers for a mutating POS call: the employee token plus the
+  /// `Idempotency-Key` for this user intent (see [IdempotencyIntentStore]).
+  Future<Map<String, dynamic>> _writeHeaders(String idempotencyKey) async => {
+        ...await _employeeAuthHeaders(),
+        'Idempotency-Key': idempotencyKey,
+      };
+
+  /// True when a failed request is a *definite* rejection — the server looked
+  /// at it and said no (validation, forbidden, not found, plan inactive, …) —
+  /// so the intent is over and its key can be dropped. Everything else
+  /// (no response, timeouts, 5xx, 408/409/429) is ambiguous: the server may
+  /// or may not have acted, so the SAME key must be reused on the retry.
+  bool _isFinalFailure(DioException e) {
+    final s = e.response?.statusCode;
+    return s != null && s >= 400 && s < 500 && s != 408 && s != 409 && s != 429;
+  }
+
+  /// The backend's machine-readable `code` (e.g. `POS_PLAN_REQUIRED`), if any.
+  String? _dioCode(DioException e) {
+    final data = e.response?.data;
+    if (data is Map) return data['code'] as String?;
+    return null;
   }
 
   // ── PIN login ────────────────────────────────────────────────────────────
@@ -500,28 +528,36 @@ class PosRepository {
     String? shiftId,
     required double openingCash,
   }) async {
+    final payload = {
+      'storeId': storeId,
+      'registerId': registerId,
+      'employeeId': employeeId,
+      if (shiftId != null && shiftId.isNotEmpty) 'shiftId': shiftId,
+      'openingCash': openingCash,
+    };
+    final fp = IdempotencyIntentStore.fingerprint('openSession', payload);
+    var settled = false;
     try {
       final res = await _client.post(
         ApiConstants.posSessionsOpen,
-        data: {
-          'storeId': storeId,
-          'registerId': registerId,
-          'employeeId': employeeId,
-          if (shiftId != null && shiftId.isNotEmpty) 'shiftId': shiftId,
-          'openingCash': openingCash,
-        },
+        data: payload,
         requiresAuth: true,
+        headers: await _writeHeaders(await _intents.keyFor(fp)),
       );
+      settled = true;
       final data = _data(res) as Map<String, dynamic>?;
       if (data != null) return (success: true, session: PosSessionModel.fromJson(data), message: null);
       return (success: false, session: null, message: res.data['message'] as String?);
     } on DioException catch (e) {
+      settled = _isFinalFailure(e);
       _logDioError('openSession', e);
       DioExceptionHandler.handleDioException(e, showToast: false);
       return (success: false, session: null, message: _dioMessage(e));
     } catch (e) {
       debugPrint('❌ openSession: $e');
       return (success: false, session: null, message: null);
+    } finally {
+      if (settled) await _intents.release(fp);
     }
   }
 
@@ -529,22 +565,30 @@ class PosRepository {
     required String sessionId,
     required double closingCash,
   }) async {
+    final payload = {'sessionId': sessionId, 'closingCash': closingCash};
+    final fp = IdempotencyIntentStore.fingerprint('closeSession', payload);
+    var settled = false;
     try {
       final res = await _client.post(
         ApiConstants.posSessionsClose,
-        data: {'sessionId': sessionId, 'closingCash': closingCash},
+        data: payload,
         requiresAuth: true,
+        headers: await _writeHeaders(await _intents.keyFor(fp)),
       );
+      settled = true;
       final data = _data(res) as Map<String, dynamic>?;
       if (data != null) return (success: true, session: PosSessionModel.fromJson(data), message: null);
       return (success: false, session: null, message: res.data['message'] as String?);
     } on DioException catch (e) {
+      settled = _isFinalFailure(e);
       _logDioError('closeSession', e);
       DioExceptionHandler.handleDioException(e, showToast: false);
       return (success: false, session: null, message: _dioMessage(e));
     } catch (e) {
       debugPrint('❌ closeSession: $e');
       return (success: false, session: null, message: null);
+    } finally {
+      if (settled) await _intents.release(fp);
     }
   }
 
@@ -635,18 +679,23 @@ class PosRepository {
     required String reason,
     required String employeeId,
   }) async {
+    final payload = {'type': type, 'amount': amount, 'reason': reason, 'employeeId': employeeId};
+    final fp = IdempotencyIntentStore.fingerprint('cashAdjustment:$sessionId', payload);
+    var settled = false;
     try {
       final res = await _client.post(
         ApiConstants.posSessionCashAdjustment(sessionId),
-        data: {'type': type, 'amount': amount, 'reason': reason, 'employeeId': employeeId},
+        data: payload,
         requiresAuth: true,
-        headers: await _employeeAuthHeaders(),
+        headers: await _writeHeaders(await _intents.keyFor(fp)),
       );
+      settled = true;
       final data = _data(res) as Map<String, dynamic>?;
       if (data != null) return data;
       ToastUtil.showToast(res.data['message'] as String? ?? 'Failed to record cash movement');
       return null;
     } on DioException catch (e) {
+      settled = _isFinalFailure(e);
       _logDioError('cashAdjustment', e);
       DioExceptionHandler.handleDioException(e);
       return null;
@@ -654,6 +703,8 @@ class PosRepository {
       debugPrint('❌ cashAdjustment: $e');
       ToastUtil.showToast('Failed to record cash movement.');
       return null;
+    } finally {
+      if (settled) await _intents.release(fp);
     }
   }
 
@@ -774,7 +825,7 @@ class PosRepository {
     required String status, // "completed" | "held"
     String? idempotencyKey,
   }) async {
-    final payload = {
+    final payload = <String, dynamic>{
       'storeId': storeId,
       'sessionId': sessionId,
       'registerId': registerId,
@@ -787,15 +838,22 @@ class PosRepository {
       if (customerId != null) 'customerId': customerId,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       'status': status,
-      if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
     };
+    // The key belongs to this checkout *intent*: the same cart retried after a
+    // timeout (or after an app restart) reuses it; the caller no longer mints
+    // one per tap. See IdempotencyIntentStore.
+    final fp = IdempotencyIntentStore.fingerprint('createSale', payload);
+    final key = idempotencyKey ?? await _intents.keyFor(fp);
+    payload['idempotencyKey'] = key;
+    var settled = false;
     try {
       final res = await _client.post(
         ApiConstants.posSales,
         data: payload,
         requiresAuth: true,
-        headers: await _employeeAuthHeaders(),
+        headers: await _writeHeaders(key),
       );
+      settled = true;
       final data = _data(res) as Map<String, dynamic>?;
       if (data != null) {
         return (success: true, sale: PosSaleModel.fromJson(data), message: null, queued: false);
@@ -803,45 +861,57 @@ class PosRepository {
       return (success: false, sale: null, message: res.data['message'] as String?, queued: false);
     } on DioException catch (e) {
       _logDioError('createSale', e);
-      if (_isConnectivityError(e) && Get.isRegistered<PendingSaleSyncService>()) {
-        // No route to the server at all — save it locally instead of losing
-        // the sale, keyed by the same idempotencyKey the backend already
-        // dedupes on, so the eventual sync can't double-record it.
-        final queueId = idempotencyKey ?? '$employeeId-${DateTime.now().microsecondsSinceEpoch}';
-        await Get.find<PendingSaleSyncService>().enqueue(queueId, payload);
+      if (!_isFinalFailure(e) && Get.isRegistered<PendingSaleSyncService>()) {
+        // The outcome is unknown (no route to the server, a timeout after the
+        // request was sent, a 5xx, or "already in progress"): the sale may
+        // already exist server-side. Persist it locally under the SAME key
+        // and let the sync replay it — the backend returns the original sale
+        // if it was recorded and creates it exactly once if it wasn't, so
+        // the cashier is never asked to ring it up a second time.
+        final sync = Get.find<PendingSaleSyncService>();
+        await sync.enqueue(key, payload);
+        await _intents.release(fp); // the queue owns the key now
+        sync.scheduleSync();
         return (success: false, sale: null, message: null, queued: true);
       }
+      settled = _isFinalFailure(e);
       DioExceptionHandler.handleDioException(e, showToast: false);
       return (success: false, sale: null, message: _dioMessage(e), queued: false);
     } catch (e) {
       debugPrint('❌ createSale: $e');
       return (success: false, sale: null, message: null, queued: false);
+    } finally {
+      if (settled) await _intents.release(fp);
     }
   }
 
   /// Resubmits a previously-queued sale payload as-is. Used only by
   /// [PendingSaleSyncService] once connectivity returns — see
   /// [PendingSaleLocalStore] for what's stored.
-  Future<({bool success, bool connectivityError, String? message})> submitRawSale(
+  Future<({bool success, bool connectivityError, bool retryable, String? message, String? code})> submitRawSale(
     Map<String, dynamic> payload,
   ) async {
     try {
+      final key = payload['idempotencyKey'] as String?;
       final res = await _client.post(
         ApiConstants.posSales,
         data: payload,
         requiresAuth: true,
-        headers: await _employeeAuthHeaders(),
+        headers: key != null ? await _writeHeaders(key) : await _employeeAuthHeaders(),
       );
-      if (_ok(res)) return (success: true, connectivityError: false, message: null);
-      return (success: false, connectivityError: false, message: res.data['message'] as String?);
+      if (_ok(res)) return (success: true, connectivityError: false, retryable: false, message: null, code: null);
+      return (success: false, connectivityError: false, retryable: false, message: res.data['message'] as String?, code: null);
     } on DioException catch (e) {
       _logDioError('submitRawSale', e);
       final connectivityError = _isConnectivityError(e);
-      if (!connectivityError) DioExceptionHandler.handleDioException(e, showToast: false);
-      return (success: false, connectivityError: connectivityError, message: _dioMessage(e));
+      // retryable = outcome still unknown (connectivity, timeouts, 5xx, 409 in-progress): keep the
+      // queued sale and replay it with the same key. Only a definite rejection is a final failure.
+      final retryable = !_isFinalFailure(e);
+      if (!retryable) DioExceptionHandler.handleDioException(e, showToast: false);
+      return (success: false, connectivityError: connectivityError, retryable: retryable, message: _dioMessage(e), code: _dioCode(e));
     } catch (e) {
       debugPrint('❌ submitRawSale: $e');
-      return (success: false, connectivityError: false, message: null);
+      return (success: false, connectivityError: false, retryable: true, message: null, code: null);
     }
   }
 
@@ -931,28 +1001,35 @@ class PosRepository {
     double? tax,
     String? notes,
   }) async {
+    final payload = {
+      'paymentMethod': paymentMethod,
+      if (discount != null) 'discount': discount,
+      if (tax != null) 'tax': tax,
+      if (notes != null) 'notes': notes,
+    };
+    final fp = IdempotencyIntentStore.fingerprint('completeSale:$saleId', payload);
+    var settled = false;
     try {
       final res = await _client.post(
         ApiConstants.posSaleComplete(saleId),
-        data: {
-          'paymentMethod': paymentMethod,
-          if (discount != null) 'discount': discount,
-          if (tax != null) 'tax': tax,
-          if (notes != null) 'notes': notes,
-        },
+        data: payload,
         requiresAuth: true,
-        headers: await _employeeAuthHeaders(),
+        headers: await _writeHeaders(await _intents.keyFor(fp)),
       );
+      settled = true;
       final data = _data(res) as Map<String, dynamic>?;
       if (data != null) return (success: true, sale: PosSaleModel.fromJson(data), message: null);
       return (success: false, sale: null, message: res.data['message'] as String?);
     } on DioException catch (e) {
+      settled = _isFinalFailure(e);
       _logDioError('completeSale', e);
       DioExceptionHandler.handleDioException(e, showToast: false);
       return (success: false, sale: null, message: _dioMessage(e));
     } catch (e) {
       debugPrint('❌ completeSale: $e');
       return (success: false, sale: null, message: null);
+    } finally {
+      if (settled) await _intents.release(fp);
     }
   }
 
@@ -1013,15 +1090,19 @@ class PosRepository {
     String saleId, {
     List<Map<String, dynamic>>? items,
   }) async {
+    final payload = {
+      if (items != null && items.isNotEmpty) 'items': items,
+    };
+    final fp = IdempotencyIntentStore.fingerprint('refundSale:$saleId', payload);
+    var settled = false;
     try {
       final res = await _client.post(
         ApiConstants.posSaleRefund(saleId),
-        data: {
-          if (items != null && items.isNotEmpty) 'items': items,
-        },
+        data: payload,
         requiresAuth: true,
-        headers: await _employeeAuthHeaders(),
+        headers: await _writeHeaders(await _intents.keyFor(fp)),
       );
+      settled = true;
       if (_ok(res)) {
         final data = res.data['data'] as Map<String, dynamic>?;
         return (
@@ -1033,6 +1114,7 @@ class PosRepository {
       }
       return (success: false, refundedAmount: null, newStatus: null, message: res.data['message'] as String?);
     } on DioException catch (e) {
+      settled = _isFinalFailure(e);
       _logDioError('refundSale', e);
       DioExceptionHandler.handleDioException(e);
       return (success: false, refundedAmount: null, newStatus: null, message: null);
@@ -1040,25 +1122,32 @@ class PosRepository {
       debugPrint('❌ refundSale: $e');
       ToastUtil.showToast('Could not process refund.');
       return (success: false, refundedAmount: null, newStatus: null, message: null);
+    } finally {
+      if (settled) await _intents.release(fp);
     }
   }
 
   /// Authorization comes from the current employee's signed token — see
   /// [refundSale]'s doc comment.
   Future<bool> voidSale(String saleId, {String? reason}) async {
+    final payload = {
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+    };
+    final fp = IdempotencyIntentStore.fingerprint('voidSale:$saleId', payload);
+    var settled = false;
     try {
       final res = await _client.post(
         ApiConstants.posSaleVoid(saleId),
-        data: {
-          if (reason != null && reason.isNotEmpty) 'reason': reason,
-        },
+        data: payload,
         requiresAuth: true,
-        headers: await _employeeAuthHeaders(),
+        headers: await _writeHeaders(await _intents.keyFor(fp)),
       );
+      settled = true;
       if (_ok(res)) return true;
       ToastUtil.showToast(res.data['message'] as String? ?? 'Failed to void sale');
       return false;
     } on DioException catch (e) {
+      settled = _isFinalFailure(e);
       _logDioError('voidSale', e);
       DioExceptionHandler.handleDioException(e);
       return false;
@@ -1066,6 +1155,8 @@ class PosRepository {
       debugPrint('❌ voidSale: $e');
       ToastUtil.showToast('Failed to void sale.');
       return false;
+    } finally {
+      if (settled) await _intents.release(fp);
     }
   }
 

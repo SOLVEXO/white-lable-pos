@@ -494,12 +494,11 @@ class PosHomeController extends GetxController {
         customerId: selectedCustomer.value?.id,
         notes: _buildNotes(),
         status: 'completed',
-        idempotencyKey: _newIdempotencyKey(),
       );
       if (result.queued) {
         clearSale();
         Get.back(); // close cart sheet
-        CustomAppSnackbar.warning('No connection — sale saved and will sync automatically.');
+        CustomAppSnackbar.warning('Sale saved on this device and will sync automatically — do not ring it up again.');
         return;
       }
       if (!result.success) {
@@ -539,12 +538,11 @@ class PosHomeController extends GetxController {
         customerId: selectedCustomer.value?.id,
         notes: _buildNotes(),
         status: 'held',
-        idempotencyKey: _newIdempotencyKey(),
       );
       if (result.queued) {
         clearSale();
         Get.back();
-        CustomAppSnackbar.warning('No connection — held sale saved and will sync automatically.');
+        CustomAppSnackbar.warning('Held sale saved on this device and will sync automatically.');
         return;
       }
       if (!result.success) {
@@ -558,9 +556,6 @@ class PosHomeController extends GetxController {
       isChargingOrHolding.value = false;
     }
   }
-
-  String _newIdempotencyKey() =>
-      '${employeeId.value}-${DateTime.now().microsecondsSinceEpoch}';
 
   // ── Held sales ────────────────────────────────────────────────────────────
   void openHeldSales() => Get.toNamed(Routes.posHeldSales);
@@ -707,7 +702,7 @@ class _VariantPickerSheet extends StatelessWidget {
           const SizedBox(height: 12),
           ...product.variants.map(
             (v) => GestureDetector(
-              onTap: v.stock > 0
+              onTap: v.isAvailable
                   ? () {
                       controller.addToCart(product, v);
                       Get.back();
@@ -732,14 +727,14 @@ class _VariantPickerSheet extends StatelessWidget {
                         children: [
                           CustomText(
                             text: v.label,
-                            color: v.stock > 0 ? kPosText : kPosSubText,
+                            color: v.isAvailable ? kPosText : kPosSubText,
                             fontWeight: FontWeight.w600,
                           ),
                           CustomText(
-                            text: v.stock > 0
-                                ? '${v.stock} in stock'
-                                : 'Out of stock',
-                            color: v.stock > 0 ? kPosSubText : kPosRed,
+                            text: v.unlimitedStock
+                                ? 'Unlimited stock'
+                                : (v.stock > 0 ? '${v.stock} in stock' : 'Out of stock'),
+                            color: v.isAvailable ? kPosSubText : kPosRed,
                             fontSize: 12,
                           ),
                         ],

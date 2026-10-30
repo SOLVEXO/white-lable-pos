@@ -36,9 +36,15 @@ class FakePendingSaleSyncService extends PendingSaleSyncService {
   Future<void> enqueue(String id, Map<String, dynamic> payload) async {
     enqueued.add(MapEntry(id, payload));
   }
+
+  int scheduled = 0;
+
+  @override
+  void scheduleSync({Duration delay = const Duration(seconds: 5)}) => scheduled++;
 }
 
-Response _res(dynamic data) => Response(data: data, requestOptions: RequestOptions(path: ''));
+Response _res(dynamic data, {int? statusCode}) =>
+    Response(data: data, statusCode: statusCode, requestOptions: RequestOptions(path: ''));
 
 Map<String, dynamic> _saleJson({String status = 'completed'}) => {
       '_id': 'sale-1',
@@ -323,7 +329,7 @@ void main() {
           )).thenThrow(DioException(
         requestOptions: RequestOptions(path: ''),
         type: DioExceptionType.badResponse,
-        response: _res({'message': 'Validation failed'}),
+        response: _res({'message': 'Validation failed'}, statusCode: 400),
       ));
 
       final result = await repo.createSale(

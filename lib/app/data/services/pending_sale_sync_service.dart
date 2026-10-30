@@ -25,6 +25,7 @@ class PendingSaleSyncService extends GetxController {
   final RxInt pendingCount = 0.obs;
 
   Worker? _onlineWorker;
+  Timer? _retryTimer;
   bool _syncing = false;
 
   Future<void> init() async {
@@ -43,13 +44,25 @@ class PendingSaleSyncService extends GetxController {
     await _refreshCount();
   }
 
+  /// Schedules one sync attempt shortly from now (replacing any pending one).
+  /// Used after a sale is queued while the device is *online* — e.g. the request
+  /// timed out or the server answered 5xx — where no reconnect event will ever
+  /// fire to trigger a drain.
+  void scheduleSync({Duration delay = const Duration(seconds: 5)}) {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(delay, () => unawaited(syncNow()));
+  }
+
   /// Attempts to resubmit every still-pending sale, oldest first. Stops the
-  /// pass (rather than skipping ahead) the moment a submission fails for
-  /// connectivity reasons again — the rest would fail identically, and
-  /// they'll all get another attempt on the next reconnect.
+  /// pass (rather than skipping ahead) the moment a submission's outcome is
+  /// still unknown (connectivity, timeout, 5xx, "in progress") — the rest
+  /// would fail identically; they're retried on the next reconnect or on the
+  /// short retry scheduled below. Every replay carries the sale's original
+  /// idempotency key, so retrying is always safe.
   Future<void> syncNow() async {
     if (_syncing) return;
     _syncing = true;
+    var unresolved = false;
     try {
       final pending = await _store.getAll();
       for (final record in pending) {
@@ -57,7 +70,8 @@ class PendingSaleSyncService extends GetxController {
         final result = await _posRepo.submitRawSale(record.payload);
         if (result.success) {
           await _store.remove(record.id);
-        } else if (result.connectivityError) {
+        } else if (result.connectivityError || result.retryable) {
+          unresolved = true;
           break;
         } else {
           // A real server rejection (e.g. the session/register this sale
@@ -69,6 +83,8 @@ class PendingSaleSyncService extends GetxController {
     } finally {
       _syncing = false;
       await _refreshCount();
+      final online = !Get.isRegistered<NetworkStatusService>() || Get.find<NetworkStatusService>().isOnline.value;
+      if (unresolved && online) scheduleSync(delay: const Duration(seconds: 30));
     }
   }
 
@@ -78,6 +94,7 @@ class PendingSaleSyncService extends GetxController {
 
   @override
   void onClose() {
+    _retryTimer?.cancel();
     _onlineWorker?.dispose();
     super.onClose();
   }
