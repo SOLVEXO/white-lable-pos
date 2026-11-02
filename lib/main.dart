@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:solvexo_pos/app/components/network_status_banner.dart';
 import 'package:solvexo_pos/app/data/repositories/auth_repository.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
 import 'package:solvexo_pos/app/data/services/idle_lock_service.dart';
 import 'package:solvexo_pos/config/app_brand.dart';
+import 'package:solvexo_pos/config/app_env.dart';
+import 'package:solvexo_pos/config/telemetry.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
 import 'package:solvexo_pos/app/modules/pos_device/views/pos_lock_overlay.dart';
@@ -20,8 +23,26 @@ import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 
-void main() async {
+void main() {
+  // Release builds: no print()/debugPrint output (it can carry request data) and every uncaught error goes to Crashlytics, scrubbed.
+  runZonedGuarded(
+    () => _bootstrap(),
+    (error, stack) => Telemetry.record(error, stack, fatal: true),
+    zoneSpecification: kReleaseMode ? ZoneSpecification(print: (self, parent, zone, line) {}) : null,
+  );
+}
+
+Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
+
+  // A release build never starts against a missing, non-https or local backend.
+  final envProblem = AppEnv.validate(release: kReleaseMode);
+  if (envProblem != null) {
+    runApp(_ConfigErrorApp(message: envProblem));
+    return;
+  }
+
   DioService.onForceLogout = () {
     if (Get.currentRoute != Routes.posLogin) {
       Get.offAllNamed(Routes.posLogin);
@@ -38,6 +59,8 @@ void main() async {
   };
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Telemetry.init();
+  Telemetry.installHandlers();
 
   await SharedPreferences.getInstance();
   // Warms AppPreferences' sync in-memory cache so PosAccessMiddleware can
@@ -106,4 +129,16 @@ class MyApp extends StatelessWidget {
       },
     );
   }
+}
+
+/// Shown instead of the app when the build's environment configuration is unacceptable (see AppEnv.validate).
+class _ConfigErrorApp extends StatelessWidget {
+  const _ConfigErrorApp({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(body: Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Build configuration error\n\n$message', textAlign: TextAlign.center)))),
+      );
 }

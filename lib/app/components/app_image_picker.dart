@@ -64,11 +64,8 @@ class AppImagePicker {
   // ── Pick methods ────────────────────────────────────────────────────────────
 
   static Future<File?> _fromGallery() async {
-    // iOS: image_picker handles its own system permission prompt
-    if (!Platform.isAndroid || await _checkAndroid(_galleryPermission())) {
-      return _pickImage(ImageSource.gallery);
-    }
-    return null;
+    // The system photo picker needs no permission on either platform (the app never browses the library itself).
+    return _pickImage(ImageSource.gallery);
   }
 
   static Future<File?> _fromCamera() async {
@@ -95,15 +92,6 @@ class AppImagePicker {
   }
 
   // ── Android permission helpers ──────────────────────────────────────────────
-
-  /// Returns the correct Android gallery permission based on OS version.
-  /// Android 13+ (API 33+): READ_MEDIA_IMAGES
-  /// Android < 13          : READ_EXTERNAL_STORAGE
-  static Permission _galleryPermission() {
-    // permission_handler maps Permission.photos to READ_MEDIA_IMAGES on
-    // Android 13+ and READ_EXTERNAL_STORAGE on older versions automatically.
-    return Permission.photos;
-  }
 
   /// Full Android permission lifecycle.
   /// Returns true if permission is granted and we can proceed.
@@ -134,7 +122,7 @@ class AppImagePicker {
   }
 
   static String _permissionLabel(Permission p) =>
-      p == Permission.camera ? 'Camera' : 'Photo Library';
+      p == Permission.camera ? 'Camera' : 'Permission';
 
   // ── Dialogs ─────────────────────────────────────────────────────────────────
 

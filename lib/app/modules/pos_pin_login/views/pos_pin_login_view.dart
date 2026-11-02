@@ -324,8 +324,9 @@ class _PinKeypad extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: row.map((key) {
-                    if (key.isEmpty)
+                    if (key.isEmpty) {
                       return const SizedBox(width: 80, height: 72);
+                    }
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       child: _KeyButton(

@@ -224,7 +224,8 @@ class PosSaleDetailController extends GetxController {
     try {
       final error = await _printerService.printReceipt(receipt: _receipt(s, asciiSafeMoney: true));
       if (error != null) {
-        CustomAppSnackbar.error(error);
+        // The receipt is never lost: offer the PDF/share route right away.
+        CustomAppSnackbar.error('$error You can also share it as PDF.');
       } else {
         CustomAppSnackbar.success('Receipt printed.');
       }

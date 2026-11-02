@@ -6,7 +6,6 @@ import 'package:solvexo_pos/app/components/custom_bottom_sheet.dart';
 import 'package:solvexo_pos/app/components/custom_divider.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 // import 'package:url_launcher/url_launcher.dart';
@@ -245,24 +244,5 @@ class Util {
     const suffixes = ["bytes", "kb", "mb", "gb", "tb"];
     var i = (log(bytes) / log(1024)).floor();
     return ((bytes / pow(1024, i)).toStringAsFixed(decimals)) + suffixes[i];
-  }
-
-  static Future<File?> filePicker() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      allowMultiple: false,
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'pdf', 'doc', 'jpeg', 'png', 'txt', 'docx'],
-    );
-
-    if (result != null) {
-      File file = File(result.files.single.path!);
-      // Util().upload(file);
-      debugPrint("File ${getFileSizeString(bytes: file.lengthSync())}");
-      return file;
-    } else {
-      return null;
-
-      // User canceled the picker
-    }
   }
 }

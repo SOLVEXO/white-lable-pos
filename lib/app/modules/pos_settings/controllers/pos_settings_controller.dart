@@ -18,6 +18,7 @@ import 'package:solvexo_pos/app/data/services/owner_gate.dart';
 import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_printer_picker_sheet.dart';
+import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_printer_settings_sheet.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_icons.dart';
@@ -202,6 +203,12 @@ class PosSettingsController extends GetxController {
               ? _printerService.savedPrinterName.value
               : 'Not connected',
           onTap: showPrinterPicker,
+        ),
+        PosSettingsTile(
+          emoji: AppIcons.settingIcon,
+          title: 'Printer settings',
+          trailing: '${_printerService.paperMm.value} mm · ${_printerService.autoPrint.value ? 'auto-print' : 'manual'}',
+          onTap: showPrinterSettings,
         ),
       ],
     ),
@@ -424,6 +431,15 @@ class PosSettingsController extends GetxController {
     );
   }
 
+  void showPrinterSettings() {
+    Get.bottomSheet(
+      PosPrinterSettingsSheet(service: _printerService, canEdit: isManager),
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      isScrollControlled: true,
+    );
+  }
+
   void showPrinterPicker() {
     Get.bottomSheet(
       PosPrinterPickerSheet(service: _printerService),
@@ -542,7 +558,7 @@ class PosSettingsController extends GetxController {
     preCloseReport.value = report;
 
     final ctx = Get.context;
-    if (ctx == null) return;
+    if (ctx == null || !ctx.mounted) return;
     closingCashController.text = '';
     showDialog(
       context: ctx,

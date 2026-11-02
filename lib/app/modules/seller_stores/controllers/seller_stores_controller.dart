@@ -180,8 +180,9 @@ class SellerStoresController extends GetxController {
     if (ids.isEmpty) return;
     final results = await Future.wait(ids.map(_subscriptionRepo.getStatus));
     for (var i = 0; i < stores.length; i++) {
-      if (stores[i].id != ids[i])
+      if (stores[i].id != ids[i]) {
         continue; // list changed underneath us — skip stale write
+      }
       stores[i] = stores[i].copyWith(posSubscriptionStatus: results[i].status);
     }
   }

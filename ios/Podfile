@@ -1,5 +1,4 @@
-# google_maps_flutter_ios (pulled in transitively via the shared book_store_app
-# code) requires iOS 14+ — matches the buyer app's own Podfile.
+# Minimum iOS version (must match IPHONEOS_DEPLOYMENT_TARGET in Runner.xcodeproj).
 platform :ios, '14.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.

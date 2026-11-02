@@ -4,6 +4,7 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -14,9 +15,33 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// A release build (assemble/bundle/package ...Release) must be signed. Fail EARLY with an actionable message instead of
+// Gradle's cryptic "null cannot be cast" when key.properties is absent or incomplete. (Debug builds don't need it.)
+gradle.taskGraph.whenReady {
+    val releaseRequested = allTasks.any {
+        val n = it.name
+        (n.startsWith("assemble") || n.startsWith("bundle") || n.startsWith("package")) && n.endsWith("Release")
+    }
+    if (releaseRequested) {
+        if (!keystorePropertiesFile.exists()) {
+            throw GradleException(
+                "Release signing is not configured: android/key.properties is missing.\n" +
+                "Create it (it is git-ignored) with:\n  storePassword=...\n  keyPassword=...\n  keyAlias=...\n  storeFile=/absolute/path/to/upload-keystore.jks\n" +
+                "See docs/store_submission_checklist.md (\"Android release signing\")."
+            )
+        }
+        val missing = listOf("storePassword", "keyPassword", "keyAlias", "storeFile").filter { keystoreProperties[it] == null }
+        if (missing.isNotEmpty()) throw GradleException("android/key.properties is missing: " + missing.joinToString(", "))
+        if (!file(keystoreProperties["storeFile"] as String).exists()) {
+            throw GradleException("android/key.properties: storeFile does not exist: " + keystoreProperties["storeFile"])
+        }
+    }
+}
+
 android {
     namespace = "com.solvexo.solvexo_pos"
-    compileSdk = flutter.compileSdkVersion
+    // Google Play: new apps and updates must target Android 16 (API 36) from 31 Aug 2026.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -33,17 +58,20 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+            // Values are validated above (before any release task runs); a debug build never reads them.
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+                storeFile = (keystoreProperties["storeFile"] as String?)?.let { file(it) }
+                storePassword = keystoreProperties["storePassword"] as String?
+            }
         }
     }
 
     defaultConfig {
         applicationId = "com.solvexo.solvexo_pos"
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -57,6 +85,10 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
+            // Upload native symbols + mapping so Crashlytics can de-obfuscate release crashes.
+            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+                mappingFileUploadEnabled = true
+            }
         }
     }
 }

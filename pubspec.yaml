@@ -29,7 +29,6 @@ dependencies:
   permission_handler: ^12.0.1
   cached_network_image: ^3.4.1
   http_parser: ^4.1.2
-  file_picker: ^10.3.7
   audioplayers: ^6.6.0
   # Receipt PDF generation (Phase 1) — no printer hardware integration exists
   # yet, so receipts are scoped to in-app + shareable PDF, per the Phase 1
@@ -69,6 +68,7 @@ dependencies:
   # opened in-app rather than a native payment sheet, same pattern as the
   # buyer app's gateway_payment flow. Version matches solvexo-app's pubspec.
   cryptography: ^2.9.0
+  firebase_crashlytics: ^4.3.10
 
 dev_dependencies:
   flutter_test:
@@ -78,14 +78,28 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   mocktail: ^1.0.4
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.6
   sqflite_common_ffi: ^2.3.7+1
 
+# Icons + native splash are generated from ONE source: assets/icon/app_icon.png (1024x1024, opaque, full-bleed).
+# To rebrand: replace assets/icon/app_icon.png (and app_icon_foreground.png for the Android adaptive icon), then run
+#   dart run flutter_launcher_icons && dart run flutter_native_splash:create
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo.png"
-  remove_alpha_ios: true       # iOS App Store requires no transparency
-  min_sdk_android: 21
+  image_path: "assets/icon/app_icon.png"
+  remove_alpha_ios: true       # App Store icons must have no transparency
+  min_sdk_android: 24
+  adaptive_icon_background: "#F06839"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+flutter_native_splash:
+  color: "#F06839"
+  image: assets/icon/splash_logo.png
+  android_12:
+    color: "#F06839"
+    image: assets/icon/splash_logo.png
+  fullscreen: false
 
 flutter:
   uses-material-design: true
@@ -93,6 +107,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/icon/
     - assets/app_fonts/
     - assets/sounds/
 

@@ -115,31 +115,6 @@ class SellerPosManagementView extends StatelessWidget {
   }
 }
 
-class _RefreshButton extends StatelessWidget {
-  final SellerPosManagementController c;
-  const _RefreshButton({required this.c});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.primaryColor.withOpacity(0.1),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: c.refreshData,
-        child: Padding(
-          padding: const EdgeInsets.all(9),
-          child: Icon(
-            Icons.refresh_rounded,
-            color: AppColors.primaryColor,
-            size: 20,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // A two-up section grid on wide screens, stacked single column on phones.
 class _ResponsiveSectionGrid extends StatelessWidget {
   final bool isDesktop;

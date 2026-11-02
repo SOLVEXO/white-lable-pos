@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and lower (android:fullBackupContent). Nothing this app stores on the device is restorable:
+     the offline sale queue is AES-GCM encrypted with a Keystore key that does NOT travel with a backup, so a restored
+     queue would be unreadable ciphertext; the device token/credentials live in Keystore-backed secure storage and a
+     registered device must be set up again on a new phone; caches are rebuilt from the server. -->
+<full-backup-content>
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="external" path="." />
+    <exclude domain="root" path="." />
+</full-backup-content>

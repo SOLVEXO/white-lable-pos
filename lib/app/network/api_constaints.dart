@@ -1,12 +1,8 @@
+import 'package:solvexo_pos/config/app_env.dart';
+
 class ApiConstants {
-  // Phase 6 (white-label build/identity separation): each app (buyer, POS)
-  // can independently target dev/staging/prod without touching this shared
-  // file — pass `--dart-define=API_BASE_URL=...` to `flutter run`/`build`.
-  // Omitting it keeps today's behavior (staging) unchanged for both apps.
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://api.solvexo.store',
-  );
+  // Injected at build time (see lib/config/app_env.dart); never hardcoded.
+  static const String baseUrl = AppEnv.apiBaseUrl;
 
   static const String apiPrefix = "$baseUrl/api";
 

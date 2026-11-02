@@ -69,8 +69,8 @@ class _PosPrinterPickerSheetState extends State<PosPrinterPickerSheet> {
             fontWeight: FontWeight.w600,
           ),
           const SizedBox(height: 4),
-          const CustomText(
-            text: 'Pair the printer in your device\'s Bluetooth settings first, then pick it here.',
+          CustomText(
+            text: ThermalPrinterService.platformNote,
             fontSize: AppFontSize.tiny,
             color: AppColors.grey,
           ),

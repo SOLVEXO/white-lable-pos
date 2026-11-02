@@ -1,3 +1,5 @@
+import 'package:solvexo_pos/utils/receipt_data.dart';
+import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/data/local/idempotency_intent_store.dart';
 import 'package:solvexo_pos/app/data/local/pos_local_caches.dart';
 import 'package:solvexo_pos/utils/money.dart';
@@ -791,6 +793,7 @@ class PosHomeController extends GetxController {
       if (result.queued) {
         clearSale();
         Get.back(); // close cart sheet
+        _afterSalePrint(null, hadCash: _paidWithCash(pay));
         CustomAppSnackbar.warning('Sale saved on this device and will sync automatically — do not ring it up again.');
         return;
       }
@@ -808,12 +811,27 @@ class PosHomeController extends GetxController {
         }
         return;
       }
+      final soldSale = result.sale;
       clearSale();
       Get.back(); // close cart sheet
       CustomAppSnackbar.success('Sale completed!');
+      if (soldSale != null) {
+        _afterSalePrint(ReceiptData.fromSale(soldSale, settings.value, isCopy: false, asciiSafeMoney: true), hadCash: _paidWithCash(pay));
+      }
     } finally {
       isChargingOrHolding.value = false;
     }
+  }
+
+  bool _paidWithCash(({List<Map<String, dynamic>>? payments, double? amountTendered, String? reference, String method}) pay) =>
+      pay.payments != null ? pay.payments!.any((p) => p['method'] == PosPaymentMethod.cash) : pay.method == PosPaymentMethod.cash;
+
+  /// Auto-print + cash-drawer kick. Fire-and-forget: the sale is already saved, a printer problem only produces a notice.
+  void _afterSalePrint(ReceiptData? receipt, {required bool hadCash}) {
+    if (!Get.isRegistered<ThermalPrinterService>()) return;
+    final printer = Get.find<ThermalPrinterService>();
+    printer.onBackgroundFailure ??= (m) => CustomAppSnackbar.warning('$m (Reprint or share it from Orders.)');
+    printer.afterSale(receipt: receipt, hadCash: hadCash);
   }
 
   /// Takes the server's current unit prices and tax rate into the cart/settings so the on-screen numbers equal its.

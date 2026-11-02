@@ -1,4 +1,5 @@
 import 'package:solvexo_pos/app/data/services/owner_session.dart';
+import 'package:solvexo_pos/config/telemetry.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/util.dart';
 import 'package:dio/dio.dart';
@@ -74,6 +75,8 @@ class DioService {
           // (`requiresAuth: true`). A 401 from an unauthenticated request
           // like login/register just means "wrong credentials" and must be
           // returned to the caller normally, not treated as a session drop.
+          final status = e.response?.statusCode;
+          if (status == null || status >= 500) Telemetry.recordHttp(e.requestOptions.method, e.requestOptions.path, status);
           final requiresAuth = e.requestOptions.extra['requiresAuth'] ?? false;
           final body = e.response?.data;
           if (e.response?.statusCode == 403 && body is Map && body['code'] == 'POS_LEGACY_AUTH_DISABLED') {
