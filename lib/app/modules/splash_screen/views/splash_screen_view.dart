@@ -102,17 +102,14 @@ class SplashScreenView extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           // Brand name
-                          Obx(
-                            () => CustomText(
-                              text:
-                                  '${AppBrand.appName} POS',
-                              textAlign: TextAlign.center,
-                              color: AppColors.white,
-                              fontFamily: AppTextStyles.headingFontFamily,
-                              fontSize: AppFontSize.large,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.5,
-                            ),
+                          CustomText(
+                            text: AppBrand.posName,
+                            textAlign: TextAlign.center,
+                            color: AppColors.white,
+                            fontFamily: AppTextStyles.headingFontFamily,
+                            fontSize: AppFontSize.large,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
                           ),
 
                           SizedBox(height: BaseSpacing.xxs + 2),
