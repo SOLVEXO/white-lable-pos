@@ -62,7 +62,6 @@ void main() {
     c.noteController.dispose();
     c.customerController.dispose();
     c.discountController.dispose();
-    c.taxController.dispose();
     c.tenderedController.dispose();
     c.paymentReferenceController.dispose();
     c.productScrollController.dispose();

@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_split_payment_section.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/components/custom_text_field.dart';
@@ -209,15 +210,17 @@ class _CartFooter extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: CustomTextField(
-                controller: c.taxController,
-                hintText: 'Tax (%)',
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                fillColor: AppColors.background,
-                onChanged: (_) => c.cartItems.refresh(),
-                prefixIcon: const Icon(Icons.percent_rounded,
-                    color: AppColors.iosGrey, size: 18),
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.lightGrey2)),
+                alignment: Alignment.centerLeft,
+                // The store's tax rate (Settings) — the server applies the same rate, so it isn't editable per sale.
+                child: Row(children: [
+                  const Icon(Icons.percent_rounded, color: AppColors.iosGrey, size: 18),
+                  const SizedBox(width: 8),
+                  CustomText(text: 'Tax ${c.taxLabel}', fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
+                ]),
               ),
             ),
           ]),
@@ -273,7 +276,18 @@ class _CartFooter extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // ── Payment selector ─────────────────────────────────────
+          // ── Payment: single method, or split tender ───────────────
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: c.toggleSplitPayment,
+              icon: Icon(c.isSplitPayment.value ? Icons.call_merge_rounded : Icons.call_split_rounded, size: 18),
+              label: Text(c.isSplitPayment.value ? 'Single payment' : 'Split payment'),
+            ),
+          ),
+          if (c.isSplitPayment.value)
+            PosSplitPaymentSection(c: c)
+          else
           Row(
             children: PosPaymentMethod.all.map((method) {
               final isSelected = c.selectedPayment.value == method;
@@ -322,7 +336,7 @@ class _CartFooter extends StatelessWidget {
           ),
 
           // ── Cash tendered / change due ────────────────────────────
-          if (c.selectedPayment.value == PosPaymentMethod.cash) ...[
+          if (!c.isSplitPayment.value && c.selectedPayment.value == PosPaymentMethod.cash) ...[
             const SizedBox(height: 10),
             CustomTextField(
               controller: c.tenderedController,
@@ -354,11 +368,11 @@ class _CartFooter extends StatelessWidget {
           ],
 
           // ── Bank / Other reference ────────────────────────────────
-          if (c.selectedPayment.value == PosPaymentMethod.other) ...[
+          if (!c.isSplitPayment.value && c.selectedPayment.value != PosPaymentMethod.cash) ...[
             const SizedBox(height: 10),
             CustomTextField(
               controller: c.paymentReferenceController,
-              hintText: 'Reference / transaction # (optional)',
+              hintText: c.selectedPayment.value == PosPaymentMethod.card ? 'Card auth code (optional)' : 'Reference / transaction # (optional)',
               fillColor: AppColors.background,
               prefixIcon: const Icon(Icons.notes_outlined, color: AppColors.iosGrey, size: 18),
             ),
@@ -425,8 +439,10 @@ class _CartFooter extends StatelessWidget {
                       : CustomText(
                           text: !c.hasItems
                               ? 'Add items'
+                              : c.isDiscountInvalid
+                                  ? 'Discount too large'
                               : c.isCashUnderTendered
-                                  ? 'Enter full amount'
+                                  ? (c.isSplitPayment.value ? 'Payments short' : 'Enter full amount')
                                   : 'Charge ${Money.format(c.total)}',
                           color: AppColors.white,
                           fontSize: AppFontSize.verySmall,

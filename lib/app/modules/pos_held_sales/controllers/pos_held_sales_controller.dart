@@ -71,7 +71,11 @@ class PosHeldSalesController extends GetxController {
         return;
       }
       heldSales.remove(sale);
-      CustomAppSnackbar.success('Sale completed!');
+      // The server re-prices a held sale at completion (current tax rate), so say what was actually charged.
+      final charged = result.sale?.total ?? sale.total;
+      CustomAppSnackbar.success(charged == sale.total
+          ? 'Sale completed!'
+          : 'Sale completed — charged ${Money.format(charged)} (was ${Money.format(sale.total)} when held).');
     } finally {
       processingId.value = '';
     }

@@ -282,6 +282,9 @@ void main() {
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
           paymentMethod: any(named: 'paymentMethod'),
+          payments: any(named: 'payments'),
+          amountTendered: any(named: 'amountTendered'),
+          paymentReference: any(named: 'paymentReference'),
           customerName: any(named: 'customerName'),
           customerId: any(named: 'customerId'),
           notes: any(named: 'notes'),
@@ -369,10 +372,8 @@ void main() {
       find.byWidgetPredicate((w) => w is TextFormField && w.controller == homeController.discountController),
       '2',
     );
-    await tester.enterText(
-      find.byWidgetPredicate((w) => w is TextFormField && w.controller == homeController.taxController),
-      '5',
-    );
+    // tax is the store's rate from POS settings now (not typed per sale) — set it the way settings loading does
+    homeController.settings.value = PosSettingsModel(storeId: 'store-1', taxRate: 0.05);
     await tester.pump(const Duration(milliseconds: 300));
     expect(homeController.discountValue, 2.0, reason: 'flat \$2 discount');
     expect(homeController.taxValue, closeTo(0.90, 0.001), reason: '5% tax on the post-discount \$18');
@@ -400,6 +401,9 @@ void main() {
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
           paymentMethod: any(named: 'paymentMethod'),
+          payments: any(named: 'payments'),
+          amountTendered: any(named: 'amountTendered'),
+          paymentReference: any(named: 'paymentReference'),
           customerName: any(named: 'customerName'),
           customerId: any(named: 'customerId'),
           notes: any(named: 'notes'),

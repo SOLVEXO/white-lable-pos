@@ -75,7 +75,6 @@ void main() {
     c.noteController.dispose();
     c.customerController.dispose();
     c.discountController.dispose();
-    c.taxController.dispose();
     c.tenderedController.dispose();
     c.paymentReferenceController.dispose();
     c.productScrollController.dispose();
@@ -112,6 +111,9 @@ void main() {
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
           paymentMethod: any(named: 'paymentMethod'),
+          payments: any(named: 'payments'),
+          amountTendered: any(named: 'amountTendered'),
+          paymentReference: any(named: 'paymentReference'),
           customerName: any(named: 'customerName'),
           customerId: any(named: 'customerId'),
           notes: any(named: 'notes'),
@@ -132,6 +134,9 @@ void main() {
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
           paymentMethod: any(named: 'paymentMethod'),
+          payments: any(named: 'payments'),
+          amountTendered: any(named: 'amountTendered'),
+          paymentReference: any(named: 'paymentReference'),
           customerName: any(named: 'customerName'),
           customerId: any(named: 'customerId'),
           notes: any(named: 'notes'),
@@ -154,6 +159,9 @@ void main() {
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
           paymentMethod: any(named: 'paymentMethod'),
+          payments: any(named: 'payments'),
+          amountTendered: any(named: 'amountTendered'),
+          paymentReference: any(named: 'paymentReference'),
           customerName: any(named: 'customerName'),
           customerId: any(named: 'customerId'),
           notes: any(named: 'notes'),
@@ -174,6 +182,9 @@ void main() {
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
           paymentMethod: any(named: 'paymentMethod'),
+          payments: any(named: 'payments'),
+          amountTendered: any(named: 'amountTendered'),
+          paymentReference: any(named: 'paymentReference'),
           customerName: any(named: 'customerName'),
           customerId: any(named: 'customerId'),
           notes: any(named: 'notes'),
@@ -196,6 +207,9 @@ void main() {
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
           paymentMethod: any(named: 'paymentMethod'),
+          payments: any(named: 'payments'),
+          amountTendered: any(named: 'amountTendered'),
+          paymentReference: any(named: 'paymentReference'),
           customerName: any(named: 'customerName'),
           customerId: any(named: 'customerId'),
           notes: any(named: 'notes'),
@@ -228,6 +242,9 @@ void main() {
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
           paymentMethod: any(named: 'paymentMethod'),
+          payments: any(named: 'payments'),
+          amountTendered: any(named: 'amountTendered'),
+          paymentReference: any(named: 'paymentReference'),
           customerName: any(named: 'customerName'),
           customerId: any(named: 'customerId'),
           notes: any(named: 'notes'),
@@ -249,6 +266,9 @@ void main() {
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
           paymentMethod: any(named: 'paymentMethod'),
+          payments: any(named: 'payments'),
+          amountTendered: any(named: 'amountTendered'),
+          paymentReference: any(named: 'paymentReference'),
           customerName: any(named: 'customerName'),
           customerId: any(named: 'customerId'),
           notes: any(named: 'notes'),

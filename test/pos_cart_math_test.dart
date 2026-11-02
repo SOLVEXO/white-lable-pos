@@ -4,6 +4,7 @@
 // controller is constructed directly (no Get.put/onInit) and exercised
 // without any network/SharedPreferences access.
 
+import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +27,8 @@ PosProductModel _product({required String id, required double price, int stock =
   );
 }
 
+PosSettingsModel _settings(double rate) => PosSettingsModel(storeId: 's1', taxRate: rate);
+
 void main() {
   late PosHomeController c;
 
@@ -40,7 +43,6 @@ void main() {
     c.noteController.dispose();
     c.customerController.dispose();
     c.discountController.dispose();
-    c.taxController.dispose();
     c.tenderedController.dispose();
     c.paymentReferenceController.dispose();
     c.productScrollController.dispose();
@@ -88,7 +90,7 @@ void main() {
     test('tax applies to the post-discount amount', () {
       c.cartItems.add(CartItem(product: _product(id: 'a', price: 100.0), qty: 1));
       c.discountController.text = '10'; // flat $10 off -> $90 taxable
-      c.taxController.text = '10'; // 10%
+      c.settings.value = _settings(0.10); // the STORE's tax rate (not typed per sale)
       expect(c.taxValue, 9.0);
       expect(c.total, 99.0); // 100 - 10 + 9
     });
@@ -96,7 +98,6 @@ void main() {
     test('total is never negative even with a large discount and no tax', () {
       c.cartItems.add(CartItem(product: _product(id: 'a', price: 30.0), qty: 1));
       c.discountController.text = '30';
-      c.taxController.text = '0';
       expect(c.total, 0.0);
     });
   });

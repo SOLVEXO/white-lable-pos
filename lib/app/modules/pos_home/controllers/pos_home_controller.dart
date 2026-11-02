@@ -1,6 +1,6 @@
 import 'package:solvexo_pos/utils/money.dart';
+import 'package:solvexo_pos/utils/pos_totals.dart';
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
@@ -132,7 +132,6 @@ class PosHomeController extends GetxController {
   final TextEditingController discountController = TextEditingController(
     text: '0',
   );
-  final TextEditingController taxController = TextEditingController(text: '0');
   final RxBool isPercentDiscount = false.obs;
 
   // ── Payment ───────────────────────────────────────────────────────────────
@@ -175,23 +174,28 @@ class PosHomeController extends GetxController {
   }
 
   double get _rawDiscountInput => double.tryParse(discountController.text) ?? 0.0;
-  double get _taxRate => (double.tryParse(taxController.text) ?? 0.0) / 100.0;
 
-  double get subtotal => cartItems.fold(0.0, (sum, i) => sum + i.lineTotal);
+  /// The store's tax rate from POS settings (0.08 = 8%). NOT typed by the cashier — the server applies the same
+  /// rate and ignores any client tax, so a cashier-editable field would be a lie.
+  double get taxRate => settings.value?.taxRate ?? 0.0;
+  String get taxLabel => settings.value?.taxRatePercentLabel ?? '0%';
 
-  /// Converts a percentage input to an absolute amount (the backend's
-  /// `discount` field is always a flat number — see Phase 1 plan), then
-  /// clamps so a discount can never exceed the subtotal and drive the total
-  /// negative.
-  double get discountValue {
-    final amount = isPercentDiscount.value
-        ? subtotal * (_rawDiscountInput / 100.0)
-        : _rawDiscountInput;
-    return amount.clamp(0.0, subtotal);
-  }
+  /// Cart pricing exactly as the server will compute it (see PosTotals). Display only — the server decides.
+  PosTotals get totals => PosTotals.compute(
+        [for (final i in cartItems) (price: i.unitPrice, qty: i.quantity.value)],
+        exponent: Money.exponent,
+        percentDiscount: isPercentDiscount.value,
+        discountInput: _rawDiscountInput,
+        taxRate: taxRate,
+      );
 
-  double get taxValue => ((subtotal - discountValue) * _taxRate).clamp(0.0, double.infinity);
-  double get total => (subtotal - discountValue + taxValue).clamp(0.0, double.infinity);
+  double get subtotal => totals.subtotal;
+  double get discountValue => totals.discount;
+  double get taxValue => totals.tax;
+  double get total => totals.total;
+
+  /// The discount asked for is more than the subtotal — the server rejects it, so Charge/Hold are blocked.
+  bool get isDiscountInvalid => totals.discountExceedsSubtotal;
 
   int get itemCount => cartItems.fold(0, (sum, i) => sum + i.quantity.value);
   bool get hasItems => cartItems.isNotEmpty;
@@ -201,22 +205,70 @@ class PosHomeController extends GetxController {
     cartItems.refresh();
   }
 
-  // ── Cash tendered / change ───────────────────────────────────────────────
-  // Not sent to the backend (the sale schema has no tendered/change field) —
-  // purely a cashier-facing convenience computed and shown at checkout time.
+  // ── Payment (single or split tender) ──────────────────────────────────────────
+  // The server validates all of this again (card/other can't exceed the total, cash may exceed → change); the
+  // checks here only tell the cashier what the server will accept.
+  final RxBool isSplitPayment = false.obs;
+  final RxList<SplitPaymentLine> splitLines = <SplitPaymentLine>[].obs;
+
   double get tenderedAmount => double.tryParse(tenderedController.text) ?? 0.0;
-  double get changeDue =>
-      selectedPayment.value == PosPaymentMethod.cash ? math.max(0.0, tenderedAmount - total) : 0.0;
-  bool get isCashUnderTendered =>
-      selectedPayment.value == PosPaymentMethod.cash && hasItems && tenderedAmount < total;
+
+  /// The tenders as entered: one line (cash = what was handed over; card/other = the whole total) or the split rows.
+  List<PosPaymentEntry> get paymentEntries {
+    if (isSplitPayment.value) {
+      return [
+        for (final l in splitLines)
+          if (l.amountValue > 0) PosPaymentEntry(l.method.value, l.amountValue),
+      ];
+    }
+    final method = selectedPayment.value;
+    return [PosPaymentEntry(method, method == PosPaymentMethod.cash ? tenderedAmount : total)];
+  }
+
+  PosPaymentCheck get paymentCheck => PosPaymentCheck.evaluate(total, paymentEntries, exponent: Money.exponent);
+
+  double get changeDue => paymentCheck.change;
+  bool get isCashUnderTendered => hasItems && !paymentCheck.covered && !paymentCheck.nonCashExceedsTotal;
+
+  void toggleSplitPayment() {
+    isSplitPayment.toggle();
+    if (isSplitPayment.value && splitLines.isEmpty) {
+      splitLines.add(SplitPaymentLine(PosPaymentMethod.card));
+      splitLines.add(SplitPaymentLine(PosPaymentMethod.cash));
+    }
+    cartItems.refresh();
+  }
+
+  void addSplitLine() {
+    if (splitLines.length >= 8) return;
+    splitLines.add(SplitPaymentLine(PosPaymentMethod.cash));
+  }
+
+  void removeSplitLine(int index) {
+    if (splitLines.length <= 1 || index < 0 || index >= splitLines.length) return;
+    splitLines.removeAt(index).dispose();
+    cartItems.refresh();
+  }
+
+  /// Puts what is still owed into a split row (card/other: the remainder; cash: what's left to hand over).
+  void fillRemaining(int index) {
+    final others = [
+      for (var i = 0; i < splitLines.length; i++)
+        if (i != index && splitLines[i].amountValue > 0) PosPaymentEntry(splitLines[i].method.value, splitLines[i].amountValue),
+    ];
+    final left = PosPaymentCheck.evaluate(total, others, exponent: Money.exponent).shortBy;
+    splitLines[index].amount.text = Money.plain(left);
+    cartItems.refresh();
+  }
 
   /// Mirrors the backend's real, token-verified discount gate (createSale/
   /// completeSale/editHeldSaleItems all reject discount>0 without a
   /// verified manager token) — client-side so a cashier gets a clear
   /// message instead of a 403 after filling out the whole cart.
-  bool get isDiscountBlocked => discountValue > 0 && !isManager.value;
+  bool get isDiscountBlocked => _rawDiscountInput > 0 && !isManager.value;
 
-  bool get canCharge => hasItems && !isCashUnderTendered && !isDiscountBlocked && !PosEntitlementService.isRestricted;
+  bool get canCharge =>
+      hasItems && paymentCheck.covered && !isDiscountBlocked && !isDiscountInvalid && !PosEntitlementService.isRestricted;
 
   int cartQtyFor(PosProductModel p, [PosProductVariant? v]) {
     final key = v != null ? '${p.productId}_${v.variantId}' : p.productId;
@@ -264,9 +316,11 @@ class PosHomeController extends GetxController {
     noteController.dispose();
     customerController.dispose();
     discountController.dispose();
-    taxController.dispose();
     tenderedController.dispose();
     paymentReferenceController.dispose();
+    for (final l in splitLines) {
+      l.dispose();
+    }
     super.onClose();
   }
 
@@ -406,24 +460,42 @@ class PosHomeController extends GetxController {
     customerController.clear();
     selectedCustomer.value = null;
     discountController.text = '0';
-    taxController.text = '0';
     isPercentDiscount.value = false;
     tenderedController.clear();
     paymentReferenceController.clear();
     selectedPayment.value = PosPaymentMethod.cash;
+    isSplitPayment.value = false;
+    for (final l in splitLines) {
+      l.dispose();
+    }
+    splitLines.clear();
   }
 
-  /// Prepends the "Bank / Other" reference (if any) to the free-text notes
-  /// sent to the backend — there's no dedicated payment-reference field on
-  /// the sale schema, so this rides in `notes` instead of inventing one.
-  String _buildNotes() {
-    final base = noteController.text.trim();
-    if (selectedPayment.value == PosPaymentMethod.other &&
-        paymentReferenceController.text.trim().isNotEmpty) {
-      final ref = 'Ref: ${paymentReferenceController.text.trim()}';
-      return base.isEmpty ? ref : '$ref | $base';
+  /// Free-text note for the sale. (The card auth code / bank reference now travels on the payment line itself.)
+  String _buildNotes() => noteController.text.trim();
+
+  /// What goes to the server for the tenders: split rows as `payments`, or the single method with the
+  /// cash handed over / the card or bank reference.
+  ({List<Map<String, dynamic>>? payments, double? amountTendered, String? reference, String method}) _paymentPayload() {
+    if (isSplitPayment.value) {
+      final lines = [
+        for (final l in splitLines)
+          if (l.amountValue > 0)
+            {
+              'method': l.method.value,
+              'amount': l.amountValue,
+              if (l.method.value != PosPaymentMethod.cash && l.reference.text.trim().isNotEmpty) 'reference': l.reference.text.trim(),
+            },
+      ];
+      return (payments: lines, amountTendered: null, reference: null, method: splitLines.first.method.value);
     }
-    return base;
+    final method = selectedPayment.value;
+    return (
+      payments: null,
+      amountTendered: method == PosPaymentMethod.cash ? tenderedAmount : null,
+      reference: method == PosPaymentMethod.cash ? null : paymentReferenceController.text.trim(),
+      method: method,
+    );
   }
 
   // ── Customer picker ───────────────────────────────────────────────────────
@@ -476,6 +548,11 @@ class PosHomeController extends GetxController {
       CustomAppSnackbar.warning('Only managers can apply a discount.');
       return;
     }
+    if (isDiscountInvalid) {
+      CustomAppSnackbar.warning('The discount cannot be more than the subtotal.');
+      return;
+    }
+    final pay = _paymentPayload();
     isChargingOrHolding.value = true;
     try {
       final result = await _posRepo.createSale(
@@ -487,7 +564,10 @@ class PosHomeController extends GetxController {
         discountType: isPercentDiscount.value ? 'percent' : 'amount',
         discountValue: _rawDiscountInput,
         clientTotal: total,
-        paymentMethod: selectedPayment.value,
+        paymentMethod: pay.method,
+        payments: pay.payments,
+        amountTendered: pay.amountTendered,
+        paymentReference: pay.reference,
         customerName: customerController.text.trim().isEmpty
             ? 'Walk-in'
             : customerController.text.trim(),
@@ -503,6 +583,12 @@ class PosHomeController extends GetxController {
       }
       if (!result.success) {
         CustomAppSnackbar.error(_friendlyError(result.message ?? ''));
+        // The server priced it differently (tax rate / price changed since this device loaded): reload so the
+        // cashier sees the current figures instead of retrying a number that will be refused again.
+        if ((result.message ?? '').toLowerCase().contains('does not match')) {
+          await _loadSettings();
+          await _loadProducts();
+        }
         return;
       }
       clearSale();
@@ -661,6 +747,9 @@ class PosHomeController extends GetxController {
     if (lower.contains('stock') || lower.contains('insufficient')) {
       return 'One or more items are out of stock.';
     }
+    if (lower.contains('does not match')) return 'Prices or tax changed — the total was refreshed. Please review and charge again.';
+    if (lower.contains('cannot be more than') || lower.contains('exceed')) return 'The discount or payment is more than allowed. Please check the amounts.';
+    if (lower.contains('do not cover') || lower.contains('payments')) return 'The payments do not cover the total.';
     if (lower.contains('held') && lower.contains('open')) {
       return 'Cannot close register: there are held sales pending.';
     }
@@ -754,5 +843,21 @@ class _VariantPickerSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// One row of a split-tender payment being entered. For cash [amount] is what the customer hands over.
+class SplitPaymentLine {
+  SplitPaymentLine(String method) : method = method.obs;
+
+  final RxString method;
+  final TextEditingController amount = TextEditingController();
+  final TextEditingController reference = TextEditingController();
+
+  double get amountValue => double.tryParse(amount.text.trim()) ?? 0.0;
+
+  void dispose() {
+    amount.dispose();
+    reference.dispose();
   }
 }
