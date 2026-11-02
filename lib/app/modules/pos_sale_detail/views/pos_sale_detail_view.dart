@@ -263,12 +263,39 @@ class _TotalsCard extends StatelessWidget {
       child: Column(children: [
         _row('Subtotal', sale.subtotal),
         if (sale.discount > 0) _row('Discount', -sale.discount, color: AppColors.green2),
-        if (sale.tax > 0) _row('Tax', sale.tax),
+        if (sale.tax > 0)
+          _row(sale.taxRate != null ? 'Tax (${(sale.taxRate! * 100).toStringAsFixed((sale.taxRate! * 100) % 1 == 0 ? 0 : 2)}%)' : 'Tax', sale.tax),
         const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.lightGrey2)),
         _row('Total', sale.total, bold: true),
+        if (!sale.isHeld) ...[
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.lightGrey2)),
+          // one row per tender (split payments show each); cash also shows what was handed over
+          for (final p in sale.paymentLines) ...[
+            _row(PosPaymentMethodLabel.of(p.method), p.amount),
+            if (p.tendered != null && p.tendered! > p.amount) _note('Tendered ${_m(p.tendered!)}'),
+            if ((p.reference ?? '').isNotEmpty) _note('Ref ${p.reference}'),
+          ],
+          if (sale.changeGiven > 0) _row('Change given', sale.changeGiven),
+        ],
+        if (sale.refunds.isNotEmpty || sale.refundedAmount > 0) ...[
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.lightGrey2)),
+          for (final r in sale.refunds)
+            _row(r.kind == 'full' ? 'Refund' : 'Partial refund', -r.amount, color: AppColors.red),
+          if (sale.refunds.isEmpty) _row('Refunded', -sale.refundedAmount, color: AppColors.red),
+          for (final r in sale.refunds)
+            if (r.tenders.isNotEmpty) _note('Returned to ${r.tenders.map((t) => PosPaymentMethodLabel.of(t.method)).join(' + ')}'),
+        ],
       ]),
     );
   }
+
+  /// Always in the SALE's own currency and decimals (a sale made in another currency/exponent keeps its own).
+  String _m(double v) => Money.format(v, currency: sale.currency, exponent: sale.currencyExponent);
+
+  Widget _note(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Align(alignment: Alignment.centerRight, child: CustomText(text: text, fontSize: AppFontSize.tiny, color: AppColors.iosGrey)),
+      );
 
   Widget _row(String label, double amount, {Color? color, bool bold = false}) {
     return Padding(
@@ -277,7 +304,7 @@ class _TotalsCard extends StatelessWidget {
         CustomText(text: label, fontSize: AppFontSize.verySmall, fontWeight: bold ? FontWeight.bold : FontWeight.w400, color: AppColors.black2),
         const Spacer(),
         CustomText(
-          text: Money.format(amount),
+          text: _m(amount),
           fontSize: bold ? AppFontSize.small2 : AppFontSize.verySmall,
           fontWeight: bold ? FontWeight.bold : FontWeight.w600,
           color: color ?? AppColors.black2,
@@ -385,4 +412,9 @@ class _ActionButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Display label for a tender method (cash / card / other).
+class PosPaymentMethodLabel {
+  static String of(String method) => switch (method) { 'cash' => 'Cash', 'card' => 'Card', _ => 'Bank / Other' };
 }

@@ -9,6 +9,7 @@ PosTotals t(List<(double, int)> lines, {required int exp, bool pct = false, doub
     PosTotals.compute([for (final l in lines) (price: l.$1, qty: l.$2)], exponent: exp, percentDiscount: pct, discountInput: disc, taxRate: tax);
 
 void main() {
+  refundTests();
   group('Money', () {
     test('rounds half away from zero without float noise', () {
       expect(Money.round(1.005, 2), 1.01);
@@ -116,5 +117,17 @@ void main() {
       final r = PosPaymentCheck.evaluate(1000, [const PosPaymentEntry('card', 600.4), const PosPaymentEntry('cash', 400)], exponent: 0);
       expect(r.covered, isTrue);
     });
+  });
+}
+
+void refundTests() {
+  group('posPartialRefundAmount — same as the server', () {
+    double r({required int qty, double already = 0, bool completes = false, int exp = 2, double subtotal = 30, double total = 29.16, double price = 10}) =>
+        posPartialRefundAmount(subtotal: subtotal, total: total, alreadyRefunded: already, lines: [(price: price, qty: qty)], completesSale: completes, exponent: exp);
+    test('one of three units returns a third of what was paid (discount + tax pro-rated)', () => expect(r(qty: 1), 9.72));
+    test('the last refund is the exact remainder', () => expect(r(qty: 1, already: 19.44, completes: true), 9.72));
+    test('never more than is left', () => expect(r(qty: 3, already: 25), 4.16));
+    test('JPY stays whole yen', () => expect(r(qty: 1, subtotal: 1500, total: 1650, price: 500, exp: 0), 550));
+    test('zero subtotal refunds nothing', () => expect(r(qty: 1, subtotal: 0, total: 0, price: 0), 0));
   });
 }

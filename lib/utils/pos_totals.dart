@@ -108,3 +108,29 @@ class PosPaymentCheck {
     );
   }
 }
+
+/// What refunding some units of a sale returns — the same rule as the server: each line's share of what the
+/// customer actually PAID (net of the sale discount, including tax: `price × qty × total ÷ subtotal`), rounded to
+/// the currency exponent; if the refund returns the last of the goods it is the exact remainder
+/// (`total − alreadyRefunded`) so rounding never leaves a stray minor unit. Display only — the server computes it.
+double posPartialRefundAmount({
+  required double subtotal,
+  required double total,
+  required double alreadyRefunded,
+  required List<({double price, int qty})> lines,
+  required bool completesSale,
+  required int exponent,
+}) {
+  final totalM = Money.toMinor(total, exponent);
+  final remainingM = (totalM - Money.toMinor(alreadyRefunded, exponent)).clamp(0, 1 << 52);
+  if (completesSale) return Money.fromMinor(remainingM, exponent);
+  final subtotalM = Money.toMinor(subtotal, exponent);
+  if (subtotalM <= 0) return 0;
+  var share = 0;
+  for (final l in lines) {
+    final x = Money.toMinor(l.price * l.qty, exponent) * totalM / subtotalM;
+    final r = double.parse(x.abs().toStringAsPrecision(15)).roundToDouble();
+    share += (x < 0 ? -r : r).toInt();
+  }
+  return Money.fromMinor(share > remainingM ? remainingM : share, exponent);
+}

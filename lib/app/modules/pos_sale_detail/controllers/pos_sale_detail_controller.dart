@@ -1,3 +1,5 @@
+import 'package:solvexo_pos/utils/pos_totals.dart';
+import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'dart:typed_data';
 
@@ -69,17 +71,27 @@ class PosSaleDetailController extends GetxController {
     }
   }
 
+  /// What the server will refund for the selected units: their share of what was paid (discount and tax
+  /// pro-rated), not the sticker price. Display only — the server computes the real amount.
   double get selectedRefundAmount {
     final s = sale.value;
     if (s == null) return 0;
-    var total = 0.0;
+    final lines = <({double price, int qty})>[];
+    var completes = true;
     for (final item in s.items) {
-      final qty = refundSelection[item.saleItemId];
-      if (qty != null && item.qty > 0) {
-        total += (item.lineTotal / item.qty) * qty;
-      }
+      final qty = refundSelection[item.saleItemId] ?? 0;
+      if (qty > 0) lines.add((price: item.price, qty: qty));
+      if (item.refundedQty + qty < item.qty) completes = false;
     }
-    return total;
+    if (lines.isEmpty) return 0;
+    return posPartialRefundAmount(
+      subtotal: s.subtotal,
+      total: s.total,
+      alreadyRefunded: s.refundedAmount,
+      lines: lines,
+      completesSale: completes,
+      exponent: s.currencyExponent,
+    );
   }
 
   Future<void> refundFull() async {
@@ -149,26 +161,14 @@ class PosSaleDetailController extends GetxController {
     }
   }
 
+  /// A reprint/copy of the sale's receipt, rendered from the single [ReceiptData] model.
+  ReceiptData _receipt(PosSaleModel s, {bool asciiSafeMoney = false}) =>
+      ReceiptData.fromSale(s, _settings, isCopy: true, asciiSafeMoney: asciiSafeMoney);
+
   void shareReceipt() {
     final s = sale.value;
     if (s == null) return;
-    final sym = currencySymbol.value;
-    final buffer = StringBuffer()
-      ..writeln('Receipt ${s.saleNumber.isNotEmpty ? s.saleNumber : s.id}')
-      ..writeln(s.createdAt.toLocal().toString())
-      ..writeln('-' * 28);
-    for (final item in s.items) {
-      buffer.writeln('${item.name} x${item.qty}  ${Money.format(item.lineTotal)}');
-    }
-    buffer
-      ..writeln('-' * 28)
-      ..writeln('Subtotal: ${Money.format(s.subtotal)}')
-      ..writeln('Discount: -${Money.format(s.discount)}')
-      ..writeln('Tax: +${Money.format(s.tax)}')
-      ..writeln('Total: ${Money.format(s.total)}')
-      ..writeln('Payment: ${s.paymentMethod}')
-      ..writeln('Customer: ${s.customerName}');
-    SharePlus.instance.share(ShareParams(text: buffer.toString(), subject: 'Receipt ${s.saleNumber}'));
+    SharePlus.instance.share(ShareParams(text: _receipt(s).toPlainText(), subject: 'Receipt ${s.saleNumber}'));
   }
 
   /// Shareable PDF receipt — kept alongside [shareReceipt] and
@@ -179,11 +179,7 @@ class PosSaleDetailController extends GetxController {
     if (s == null) return;
     isExportingPdf.value = true;
     try {
-      final bytes = await ReceiptPdfBuilder.build(
-        sale: s,
-        currencySymbol: currencySymbol.value,
-        settings: _settings,
-      );
+      final bytes = await ReceiptPdfBuilder.build(data: _receipt(s));
       final file = XFile.fromData(
         Uint8List.fromList(bytes),
         name: 'receipt-${s.saleNumber.isNotEmpty ? s.saleNumber : s.id}.pdf',
@@ -209,11 +205,7 @@ class PosSaleDetailController extends GetxController {
     }
     isPrinting.value = true;
     try {
-      final error = await _printerService.printReceipt(
-        sale: s,
-        currencySymbol: currencySymbol.value,
-        settings: _settings,
-      );
+      final error = await _printerService.printReceipt(receipt: _receipt(s, asciiSafeMoney: true));
       if (error != null) {
         CustomAppSnackbar.error(error);
       } else {

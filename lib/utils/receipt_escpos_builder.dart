@@ -1,85 +1,68 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
-import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
-import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
+import 'package:solvexo_pos/utils/receipt_data.dart';
 
-/// Builds the same receipt content as [ReceiptPdfBuilder], but as raw
-/// ESC/POS command bytes for a thermal printer instead of a PDF. Kept as a
-/// separate builder (not a shared formatter) since the two targets differ
-/// enough — fixed-width columns and cut commands here vs. a page layout
-/// there — that sharing code would mean threading print-target-specific
-/// branches through one method.
+/// Renders a [ReceiptData] as raw ESC/POS bytes for a thermal printer. Build the data with
+/// `asciiSafeMoney: true` (amounts as `JPY 1,234`, not `¥1,234`) — printers can't print most currency symbols —
+/// and text is additionally reduced to what the default code page can print.
 class ReceiptEscPosBuilder {
-  static Future<List<int>> build({
-    required PosSaleModel sale,
-    required String currencySymbol,
-    PosSettingsModel? settings,
-    PaperSize paperSize = PaperSize.mm80,
-  }) async {
+  /// Latin-1 only; anything else becomes '?' instead of crashing the print or printing garbage.
+  static String _printable(String s) => s.replaceAll('×', 'x').runes.map((r) => r < 256 ? String.fromCharCode(r) : '?').join();
+
+  static Future<List<int>> build({required ReceiptData data, PaperSize paperSize = PaperSize.mm80}) async {
     final profile = await CapabilityProfile.load();
-    final generator = Generator(paperSize, profile);
+    final g = Generator(paperSize, profile);
     final bytes = <int>[];
-    String money(double v) => '$currencySymbol${v.toStringAsFixed(2)}';
 
     void row(String label, String value, {bool bold = false}) {
-      bytes.addAll(generator.row([
-        PosColumn(text: label, width: 7, styles: PosStyles(bold: bold)),
-        PosColumn(
-          text: value,
-          width: 5,
-          styles: PosStyles(bold: bold, align: PosAlign.right),
-        ),
+      bytes.addAll(g.row([
+        PosColumn(text: _printable(label), width: 7, styles: PosStyles(bold: bold)),
+        PosColumn(text: _printable(value), width: 5, styles: PosStyles(bold: bold, align: PosAlign.right)),
       ]));
     }
 
-    bytes.addAll(generator.reset());
+    void center(String t, {bool bold = false, PosTextSize size = PosTextSize.size1}) =>
+        bytes.addAll(g.text(_printable(t), styles: PosStyles(align: PosAlign.center, bold: bold, height: size, width: size)));
 
-    if ((settings?.businessName ?? '').isNotEmpty) {
-      bytes.addAll(generator.text(
-        settings!.businessName!,
-        styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2),
-      ));
+    bytes.addAll(g.reset());
+    if (data.banner != null) center('*** ${data.banner} ***', bold: true, size: PosTextSize.size2);
+    if (data.isCopy) center('COPY', bold: true);
+    if (data.businessName != null) center(data.businessName!, bold: true, size: PosTextSize.size2);
+    if (data.header != null) center(data.header!);
+    if (data.address != null) center(data.address!);
+    if (data.taxId != null) center(data.taxId!);
+    center('Receipt ${data.receiptNumber}', bold: true);
+    center(data.dateText);
+    if (data.cashier != null) center('Cashier: ${data.cashier}');
+    bytes.addAll(g.hr());
+
+    for (final l in data.lines) {
+      row(l.name, l.total);
+      bytes.addAll(g.text(_printable('  ${l.qtyAndPrice}${l.note != null ? '  (${l.note})' : ''}')));
     }
-    if ((settings?.receiptHeader ?? '').isNotEmpty) {
-      bytes.addAll(generator.text(
-        settings!.receiptHeader!,
-        styles: const PosStyles(align: PosAlign.center),
-      ));
+    bytes.addAll(g.hr());
+
+    row('Subtotal', data.subtotal);
+    if (data.discount != null) row(data.discountLabel ?? 'Discount', data.discount!);
+    if (data.tax != null) row(data.taxLabel ?? 'Tax', data.tax!);
+    bytes.addAll(g.emptyLines(1));
+    row('TOTAL', data.total, bold: true);
+    bytes.addAll(g.emptyLines(1));
+    for (final p in data.payments) {
+      row(p.label, p.amount);
+      if (p.detail != null) bytes.addAll(g.text(_printable('  ${p.detail}')));
     }
-    bytes.addAll(generator.text(
-      sale.saleNumber.isNotEmpty ? sale.saleNumber : sale.id,
-      styles: const PosStyles(align: PosAlign.center, bold: true),
-    ));
-    bytes.addAll(generator.text(
-      sale.createdAt.toLocal().toString(),
-      styles: const PosStyles(align: PosAlign.center),
-    ));
-    bytes.addAll(generator.hr());
-
-    for (final item in sale.items) {
-      row('${item.name} x${item.qty}', money(item.lineTotal));
+    if (data.change != null) row('Change', data.change!);
+    for (final r in data.refunds) {
+      row(r.label, r.amount);
     }
-    bytes.addAll(generator.hr());
+    row('Customer', data.customer);
 
-    row('Subtotal', money(sale.subtotal));
-    if (sale.discount > 0) row('Discount', '-${money(sale.discount)}');
-    if (sale.tax > 0) row('Tax', '+${money(sale.tax)}');
-    bytes.addAll(generator.emptyLines(1));
-    row('Total', money(sale.total), bold: true);
-    bytes.addAll(generator.emptyLines(1));
-    row('Payment', sale.paymentMethod.toUpperCase());
-    row('Customer', sale.customerName.isEmpty ? 'Walk-in' : sale.customerName);
-    if (sale.refundedAmount > 0) row('Refunded', money(sale.refundedAmount));
-
-    if ((settings?.receiptFooter ?? '').isNotEmpty) {
-      bytes.addAll(generator.hr());
-      bytes.addAll(generator.text(
-        settings!.receiptFooter!,
-        styles: const PosStyles(align: PosAlign.center),
-      ));
+    if (data.footer != null) {
+      bytes.addAll(g.hr());
+      center(data.footer!);
     }
-
-    bytes.addAll(generator.feed(2));
-    bytes.addAll(generator.cut());
+    bytes.addAll(g.feed(2));
+    bytes.addAll(g.cut());
     return bytes;
   }
 }

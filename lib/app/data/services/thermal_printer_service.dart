@@ -1,8 +1,7 @@
+import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:get/get.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
-import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
-import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/receipt_escpos_builder.dart';
 
@@ -55,9 +54,7 @@ class ThermalPrinterService extends GetxController {
   /// Returns a message on failure (no saved printer, connect failed, or
   /// the write itself failed) or null on success.
   Future<String?> printReceipt({
-    required PosSaleModel sale,
-    required String currencySymbol,
-    PosSettingsModel? settings,
+    required ReceiptData receipt,
     PaperSize paperSize = PaperSize.mm80,
   }) async {
     final address = savedPrinterAddress.value;
@@ -67,12 +64,7 @@ class ThermalPrinterService extends GetxController {
     if (!connected) return 'Could not connect to the printer. Make sure it\'s on and in range.';
 
     try {
-      final bytes = await ReceiptEscPosBuilder.build(
-        sale: sale,
-        currencySymbol: currencySymbol,
-        settings: settings,
-        paperSize: paperSize,
-      );
+      final bytes = await ReceiptEscPosBuilder.build(data: receipt, paperSize: paperSize);
       final sent = await PrintBluetoothThermal.writeBytes(bytes);
       return sent ? null : 'Printer accepted the connection but rejected the print job.';
     } finally {

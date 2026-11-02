@@ -1,118 +1,97 @@
 import 'dart:typed_data';
 
-import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
-import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:solvexo_pos/utils/receipt_data.dart';
 
-/// Builds a simple, printable-shaped PDF receipt for a completed sale — the
-/// in-app + shareable-PDF fallback scoped for Phase 1 in the absence of any
-/// thermal/ESC-POS printer hardware integration. Uses the store's own
-/// receiptHeader/receiptFooter/businessName (Settings → Receipt) and the
-/// resolved currency symbol, so nothing here is hardcoded per store.
+/// Renders a [ReceiptData] as a receipt-shaped PDF (shareable, no printer needed). Uses the bundled Inter font so
+/// currency symbols and non-Latin names/customers render instead of dropping out (the PDF default font is Latin-1).
 class ReceiptPdfBuilder {
-  static const _accent = PdfColor.fromInt(0xFFD97757); // clay/terracotta
+  static const _accent = PdfColor.fromInt(0xFFD97757);
+  static const _red = PdfColor.fromInt(0xFFB3261E);
 
-  static Future<Uint8List> build({
-    required PosSaleModel sale,
-    required String currencySymbol,
-    PosSettingsModel? settings,
-  }) async {
-    final doc = pw.Document();
-    String money(double v) => '$currencySymbol${v.toStringAsFixed(2)}';
+  static Future<pw.ThemeData?> _theme() async {
+    try {
+      final regular = pw.Font.ttf(await rootBundle.load('assets/app_fonts/inter/Inter_Regular.ttf'));
+      final bold = pw.Font.ttf(await rootBundle.load('assets/app_fonts/inter/Inter_Bold.ttf'));
+      return pw.ThemeData.withFont(base: regular, bold: bold);
+    } catch (_) {
+      return null; // font assets unavailable (e.g. a bare unit test) — fall back to the PDF default
+    }
+  }
+
+  static Future<Uint8List> build({required ReceiptData data}) async {
+    final theme = await _theme();
+    final doc = pw.Document(theme: theme);
+
+    pw.Widget center(String t, {double size = 9, bool bold = false, PdfColor? color}) => pw.Center(
+          child: pw.Text(t, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: size, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal, color: color)),
+        );
+
+    pw.Widget row(String l, String r, {bool bold = false, double size = 9}) => pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(vertical: 1),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(child: pw.Text(l, style: pw.TextStyle(fontSize: size, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal))),
+              pw.SizedBox(width: 6),
+              pw.Text(r, style: pw.TextStyle(fontSize: size, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+            ],
+          ),
+        );
 
     doc.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.roll80, // narrow receipt-shaped page
+        pageFormat: PdfPageFormat.roll80,
         margin: const pw.EdgeInsets.all(16),
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              if ((settings?.businessName ?? '').isNotEmpty)
-                pw.Center(
-                  child: pw.Text(
-                    settings!.businessName!,
-                    style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-                  ),
-                ),
-              if ((settings?.receiptHeader ?? '').isNotEmpty)
-                pw.Center(
-                  child: pw.Text(settings!.receiptHeader!, style: const pw.TextStyle(fontSize: 9)),
-                ),
-              pw.SizedBox(height: 8),
-              pw.Center(
-                child: pw.Text(
-                  sale.saleNumber.isNotEmpty ? sale.saleNumber : sale.id,
-                  style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _accent),
-                ),
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            if (data.banner != null) center('*** ${data.banner} ***', size: 13, bold: true, color: _red),
+            if (data.isCopy) center('COPY', size: 9, bold: true),
+            if (data.businessName != null) center(data.businessName!, size: 14, bold: true),
+            if (data.header != null) center(data.header!),
+            if (data.address != null) center(data.address!, size: 8),
+            if (data.taxId != null) center(data.taxId!, size: 8),
+            pw.SizedBox(height: 8),
+            center('Receipt ${data.receiptNumber}', size: 11, bold: true, color: _accent),
+            center(data.dateText, size: 8),
+            if (data.cashier != null) center('Cashier: ${data.cashier}', size: 8),
+            pw.SizedBox(height: 6),
+            pw.Divider(),
+            for (final l in data.lines) ...[
+              row(l.name, l.total),
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(left: 8, bottom: 2),
+                child: pw.Text('${l.qtyAndPrice}${l.note != null ? '  (${l.note})' : ''}', style: const pw.TextStyle(fontSize: 8)),
               ),
-              pw.Center(
-                child: pw.Text(
-                  sale.createdAt.toLocal().toString(),
-                  style: const pw.TextStyle(fontSize: 8),
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Divider(),
-              ...sale.items.map(
-                (item) => pw.Padding(
-                  padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Expanded(
-                        child: pw.Text(
-                          '${item.name} x${item.qty}',
-                          style: const pw.TextStyle(fontSize: 9),
-                        ),
-                      ),
-                      pw.Text(money(item.lineTotal), style: const pw.TextStyle(fontSize: 9)),
-                    ],
-                  ),
-                ),
-              ),
-              pw.Divider(),
-              _totalRow('Subtotal', money(sale.subtotal)),
-              if (sale.discount > 0) _totalRow('Discount', '-${money(sale.discount)}'),
-              if (sale.tax > 0) _totalRow('Tax', '+${money(sale.tax)}'),
-              pw.SizedBox(height: 4),
-              _totalRow('Total', money(sale.total), bold: true),
-              pw.SizedBox(height: 8),
-              _totalRow('Payment', sale.paymentMethod.toUpperCase()),
-              _totalRow(
-                'Customer',
-                sale.customerName.isEmpty ? 'Walk-in' : sale.customerName,
-              ),
-              if (sale.refundedAmount > 0)
-                _totalRow('Refunded', money(sale.refundedAmount)),
-              if ((settings?.receiptFooter ?? '').isNotEmpty) ...[
-                pw.SizedBox(height: 10),
-                pw.Divider(),
-                pw.Center(
-                  child: pw.Text(settings!.receiptFooter!, style: const pw.TextStyle(fontSize: 8)),
-                ),
-              ],
             ],
-          );
-        },
+            pw.Divider(),
+            row('Subtotal', data.subtotal),
+            if (data.discount != null) row(data.discountLabel ?? 'Discount', data.discount!),
+            if (data.tax != null) row(data.taxLabel ?? 'Tax', data.tax!),
+            pw.SizedBox(height: 3),
+            row('TOTAL', data.total, bold: true, size: 11),
+            pw.SizedBox(height: 6),
+            for (final p in data.payments) ...[
+              row(p.label, p.amount),
+              if (p.detail != null) pw.Padding(padding: const pw.EdgeInsets.only(left: 8), child: pw.Text(p.detail!, style: const pw.TextStyle(fontSize: 8))),
+            ],
+            if (data.change != null) row('Change', data.change!),
+            for (final r in data.refunds) row(r.label, r.amount, size: 9),
+            pw.SizedBox(height: 4),
+            row('Customer', data.customer),
+            if (data.footer != null) ...[
+              pw.SizedBox(height: 10),
+              pw.Divider(),
+              center(data.footer!, size: 8),
+            ],
+          ],
+        ),
       ),
     );
-
     return doc.save();
-  }
-
-  static pw.Widget _totalRow(String label, String value, {bool bold = false}) {
-    final style = pw.TextStyle(
-      fontSize: bold ? 10 : 9,
-      fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-    );
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 1),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [pw.Text(label, style: style), pw.Text(value, style: style)],
-      ),
-    );
   }
 }
