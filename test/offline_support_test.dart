@@ -2,6 +2,8 @@
 // the drawer report expects), the close-shift / sign-out guard, and the new repository calls (quote, discard audit,
 // replay with the saved employee token, queued payload shape).
 
+import 'package:cryptography/cryptography.dart';
+import 'package:solvexo_pos/app/data/local/queue_cipher.dart';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -39,6 +41,8 @@ class FakeSync extends PendingSaleSyncService {
 Response res(dynamic data, {int? status}) => Response(data: data, statusCode: status, requestOptions: RequestOptions(path: ''));
 DioException fail(DioExceptionType t, {int? status, dynamic body}) =>
     DioException(requestOptions: RequestOptions(path: ''), type: t, response: status != null ? res(body ?? {'message': 'x'}, status: status) : null);
+
+AesGcmQueueCipher testCipher([int seed = 7]) => AesGcmQueueCipher(fixedKey: SecretKey(List.filled(32, seed)));
 
 void main() {
   setUpAll(() {
@@ -107,7 +111,7 @@ void main() {
 
     setUp(() async {
       tmp = await Directory.systemTemp.createTemp('guard_');
-      store = PendingSaleLocalStore(dbPath: '${tmp.path}/q.db');
+      store = PendingSaleLocalStore(dbPath: '${tmp.path}/q.db', cipher: testCipher());
       repo = MockPosRepository();
       svc = PendingSaleSyncService(posRepository: repo, localStore: store, currentStoreId: () async => 's1', persistLastSync: false);
       // sync can't reach the server: nothing gets resolved by the guard's own sync attempt

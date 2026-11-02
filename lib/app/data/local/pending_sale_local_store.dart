@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:solvexo_pos/app/data/local/queue_cipher.dart';
 
 /// A sale rung up (or attempted) while the server could not be reached, kept on the device until it syncs.
 ///
@@ -33,6 +34,10 @@ class PendingSaleRecord {
   final String? discardReason;
   final String? discardedBy;
 
+  /// The row's encrypted contents could not be read (the device key is gone / data damaged). The row is KEPT and
+  /// shown for a manager to discard — never dropped, never replayed blind.
+  final bool unreadable;
+
   PendingSaleRecord({
     required this.id,
     required this.payload,
@@ -48,6 +53,7 @@ class PendingSaleRecord {
     this.lastAttemptAt,
     this.discardReason,
     this.discardedBy,
+    this.unreadable = false,
   });
 
   bool get isPending => status == 'pending';
@@ -70,7 +76,7 @@ class PendingSaleRecord {
   /// What the device showed the customer (what was charged), if recorded.
   double? get deviceTotal => (payload['clientTotal'] as num?)?.toDouble();
 
-  factory PendingSaleRecord.fromRow(Map<String, dynamic> row) => PendingSaleRecord(
+  factory PendingSaleRecord.fromRow(Map<String, dynamic> row, {bool unreadable = false}) => PendingSaleRecord(
         id: row['id'] as String,
         payload: jsonDecode(row['payload'] as String) as Map<String, dynamic>,
         status: row['status'] as String,
@@ -85,17 +91,22 @@ class PendingSaleRecord {
         lastAttemptAt: row['lastAttemptAt'] != null ? DateTime.tryParse(row['lastAttemptAt'] as String) : null,
         discardReason: row['discardReason'] as String?,
         discardedBy: row['discardedBy'] as String?,
+        unreadable: unreadable,
       );
 }
 
 /// On-device queue for sales made while offline: one table, a handful of rows. Rows belong to a store+session and
 /// are NEVER deleted by sign-out — only by a successful sync or a manager's recorded discard.
 class PendingSaleLocalStore {
-  PendingSaleLocalStore({Database? database, this.dbPath}) : _db = database;
+  PendingSaleLocalStore({Database? database, this.dbPath, QueueCipher? cipher})
+      : _db = database,
+        _cipher = cipher ?? AesGcmQueueCipher();
+
+  final QueueCipher _cipher;
 
   static const _dbName = 'pos_pending_sales.db';
   static const _table = 'pending_sales';
-  static const _version = 2;
+  static const _version = 3;
 
   final String? dbPath;
   Database? _db;
@@ -109,6 +120,9 @@ class PendingSaleLocalStore {
       version: _version,
       onCreate: (db, version) => db.execute(_createSql),
       onUpgrade: (db, from, to) async {
+        if (from < 3 && from >= 2) {
+          await db.execute('ALTER TABLE $_table ADD COLUMN enc INTEGER NOT NULL DEFAULT 0');
+        }
         if (from < 2) {
           for (final col in const [
             'errorCode TEXT',
@@ -123,6 +137,7 @@ class PendingSaleLocalStore {
           ]) {
             await db.execute('ALTER TABLE $_table ADD COLUMN $col');
           }
+          await db.execute('ALTER TABLE $_table ADD COLUMN enc INTEGER NOT NULL DEFAULT 0');
           // Rows queued by v1 carry their store/session inside the payload — lift them into the new columns.
           final rows = await db.query(_table);
           for (final r in rows) {
@@ -135,7 +150,51 @@ class PendingSaleLocalStore {
       },
     );
     _db = db;
+    await _encryptPlaintextRows(db);
     return db;
+  }
+
+  /// Encrypts any row still stored in plaintext (written by an older app version). One row per transaction and the
+  /// plaintext is replaced only by a value that has just been produced, so a crash or a missing key at any moment
+  /// leaves the row readable as before — nothing is lost, and the next open tries again.
+  Future<void> _encryptPlaintextRows(Database db) async {
+    final rows = await db.query(_table, where: 'enc = 0');
+    for (final r in rows) {
+      try {
+        final values = <String, Object?>{
+          'payload': await _cipher.encrypt(r['payload'] as String),
+          if (r['employeeToken'] != null) 'employeeToken': await _cipher.encrypt(r['employeeToken'] as String),
+          if (r['errorMessage'] != null) 'errorMessage': await _cipher.encrypt(r['errorMessage'] as String),
+          if (r['discardReason'] != null) 'discardReason': await _cipher.encrypt(r['discardReason'] as String),
+          'enc': 1,
+        };
+        await db.transaction((txn) => txn.update(_table, values, where: 'id = ? AND enc = 0', whereArgs: [r['id']]));
+      } catch (_) {/* keep the plaintext row; retried on the next open */}
+    }
+  }
+
+  Future<String?> _enc(String? v) async => v == null ? null : _cipher.encrypt(v);
+
+  /// Decrypts a stored row into a record. A row that can't be decrypted is returned `unreadable` (kept, shown, never lost).
+  Future<PendingSaleRecord> _decode(Map<String, Object?> row) async {
+    final m = Map<String, dynamic>.from(row);
+    if ((m['enc'] as int?) != 1) return PendingSaleRecord.fromRow(m);
+    try {
+      m['payload'] = await _cipher.decrypt(m['payload'] as String);
+      if (m['employeeToken'] != null) m['employeeToken'] = await _cipher.decrypt(m['employeeToken'] as String);
+      if (m['errorMessage'] != null) m['errorMessage'] = await _cipher.decrypt(m['errorMessage'] as String);
+      if (m['discardReason'] != null) m['discardReason'] = await _cipher.decrypt(m['discardReason'] as String);
+      return PendingSaleRecord.fromRow(m);
+    } on QueueDecryptException {
+      return PendingSaleRecord.fromRow({
+        ...m,
+        'payload': '{"storeId":"${m['storeId'] ?? ''}","sessionId":"${m['sessionId'] ?? ''}","items":[]}',
+        'employeeToken': null,
+        'errorMessage': 'This sale could not be read on this device (its encryption key is missing). A manager must review and discard it.',
+        'discardReason': null,
+        'status': (m['status'] == 'discarding') ? 'discarding' : 'failed',
+      }, unreadable: true);
+    }
   }
 
   static const _createSql = '''
@@ -153,7 +212,8 @@ class PendingSaleLocalStore {
       nextAttemptAt TEXT,
       lastAttemptAt TEXT,
       discardReason TEXT,
-      discardedBy TEXT
+      discardedBy TEXT,
+      enc INTEGER NOT NULL DEFAULT 1
     )
   ''';
 
@@ -165,14 +225,15 @@ class PendingSaleLocalStore {
       _table,
       {
         'id': id,
-        'payload': jsonEncode(payload),
+        'payload': await _cipher.encrypt(jsonEncode(payload)),
         'status': 'pending',
         'errorMessage': null,
         'createdAt': DateTime.now().toIso8601String(),
         'storeId': payload['storeId'],
         'sessionId': payload['sessionId'],
-        'employeeToken': employeeToken,
+        'employeeToken': await _enc(employeeToken),
         'attempts': 0,
+        'enc': 1,
       },
       conflictAlgorithm: ConflictAlgorithm.ignore,
     );
@@ -181,13 +242,13 @@ class PendingSaleLocalStore {
   Future<List<PendingSaleRecord>> getAll() async {
     final db = await _open();
     final rows = await db.query(_table, orderBy: 'createdAt ASC');
-    return rows.map(PendingSaleRecord.fromRow).toList();
+    return [for (final r in rows) await _decode(r)];
   }
 
   Future<PendingSaleRecord?> getById(String id) async {
     final db = await _open();
     final rows = await db.query(_table, where: 'id = ?', whereArgs: [id], limit: 1);
-    return rows.isEmpty ? null : PendingSaleRecord.fromRow(rows.first);
+    return rows.isEmpty ? null : await _decode(rows.first);
   }
 
   /// Pending + failed rows (what still needs to reach the server or be resolved by a manager), optionally limited
@@ -221,7 +282,7 @@ class PendingSaleLocalStore {
   /// A definite server "no": keep the sale, say why, wait for a person.
   Future<void> markFailed(String id, String errorMessage, {String? errorCode}) async {
     final db = await _open();
-    await db.update(_table, {'status': 'failed', 'errorMessage': errorMessage, 'errorCode': errorCode}, where: 'id = ?', whereArgs: [id]);
+    await db.update(_table, {'status': 'failed', 'errorMessage': await _enc(errorMessage), 'errorCode': errorCode, 'enc': 1}, where: 'id = ?', whereArgs: [id]);
   }
 
   /// A retryable failure: keep it pending, count the attempt, schedule the next one.
@@ -229,7 +290,7 @@ class PendingSaleLocalStore {
     final db = await _open();
     await db.update(
       _table,
-      {'attempts': attempts, 'nextAttemptAt': nextAttemptAt.toIso8601String(), 'lastAttemptAt': DateTime.now().toIso8601String(), 'errorMessage': errorMessage},
+      {'attempts': attempts, 'nextAttemptAt': nextAttemptAt.toIso8601String(), 'lastAttemptAt': DateTime.now().toIso8601String(), 'errorMessage': await _enc(errorMessage)},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -246,7 +307,7 @@ class PendingSaleLocalStore {
   Future<void> markDiscarding(String id, {required String reason, required String discardedBy, String? managerToken}) async {
     final db = await _open();
     // `employeeToken` is overwritten with the discarding MANAGER's token: the audit entry must be authorised by them.
-    await db.update(_table, {'status': 'discarding', 'discardReason': reason, 'discardedBy': discardedBy, 'employeeToken': managerToken}, where: 'id = ?', whereArgs: [id]);
+    await db.update(_table, {'status': 'discarding', 'discardReason': await _enc(reason), 'discardedBy': discardedBy, 'employeeToken': await _enc(managerToken)}, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> remove(String id) async {

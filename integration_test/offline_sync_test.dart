@@ -5,7 +5,6 @@
 // connection returns with their original key / time / settingsVersion, and a rejected sale is kept, not dropped.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get/get.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:solvexo_pos/app/data/local/pending_sale_local_store.dart';

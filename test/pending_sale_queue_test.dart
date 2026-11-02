@@ -3,6 +3,8 @@
 // manager discard that stays on the device until it is in the audit log, store scoping, persistence across a
 // restart, and the v1 → v2 database migration.
 
+import 'package:cryptography/cryptography.dart';
+import 'package:solvexo_pos/app/data/local/queue_cipher.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +28,8 @@ Map<String, dynamic> payload(String session, {String store = 's1', double total 
       'clientCreatedAt': '2026-11-02T10:00:00.000Z', 'settingsVersion': 3, 'offline': true,
     };
 
+AesGcmQueueCipher testCipher([int seed = 7]) => AesGcmQueueCipher(fixedKey: SecretKey(List.filled(32, seed)));
+
 void main() {
   late Directory tmp;
   late String dbFile;
@@ -47,7 +51,7 @@ void main() {
     repo = MockPosRepository();
     now = DateTime(2026, 11, 2, 12);
     currentStore = 's1';
-    store = PendingSaleLocalStore(dbPath: dbFile);
+    store = PendingSaleLocalStore(dbPath: dbFile, cipher: testCipher());
     svc = PendingSaleSyncService(posRepository: repo, localStore: store, currentStoreId: () async => currentStore, clock: () => now, persistLastSync: false);
   });
 
@@ -73,7 +77,7 @@ void main() {
     test('rows survive a restart (a brand-new store object on the same file sees them) with everything the replay needs', () async {
       await store.enqueue('k1', payload('A'), employeeToken: 'tok');
       await store.close();
-      final reopened = PendingSaleLocalStore(dbPath: dbFile);
+      final reopened = PendingSaleLocalStore(dbPath: dbFile, cipher: testCipher());
       final r = (await reopened.getById('k1'))!;
       expect(r.id, 'k1');
       expect(r.payload['settingsVersion'], 3);
@@ -93,7 +97,7 @@ void main() {
       }));
       await v1.close();
 
-      final rows = await PendingSaleLocalStore(dbPath: dbFile).getAll();
+      final rows = await PendingSaleLocalStore(dbPath: dbFile, cipher: testCipher()).getAll();
       expect(rows.map((r) => r.id), ['old-1', 'old-2']);
       expect(rows[0].sessionId, 'A');
       expect(rows[0].storeId, 's1');
