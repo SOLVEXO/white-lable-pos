@@ -5,6 +5,7 @@
 // product built from the sale item's own snapshot (name/sku/image/price),
 // which the backend always includes.
 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
@@ -54,6 +55,7 @@ void main() {
   late PosHomeController c;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({}); // the cart is persisted to SharedPreferences
     c = PosHomeController();
   });
 

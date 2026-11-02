@@ -80,6 +80,9 @@ class ReceiptData {
     this.footer,
   });
 
+  /// How a refund slice is handed back, per tender.
+  static String refundHow(String m) => switch (m) { 'cash' => 'cash returned', 'card' => 'to card', _ => 'bank / other' };
+
   static String methodLabel(String m) => switch (m) { 'cash' => 'Cash', 'card' => 'Card', _ => 'Bank / Other' };
 
   /// [asciiSafeMoney]: thermal printers can't print most currency symbols, so amounts are written as
@@ -116,12 +119,19 @@ class ReceiptData {
 
     final refunds = <ReceiptRefundRow>[];
     if (sale.refunds.isNotEmpty) {
+      // one row per TENDER per refund event, saying what was done with it — the cash row is exactly what left the drawer
       for (final r in sale.refunds) {
-        final to = r.tenders.map((t) => methodLabel(t.method)).join(' + ');
-        refunds.add(ReceiptRefundRow(label: r.kind == 'full' ? 'Refund${to.isEmpty ? '' : ' to $to'}' : 'Partial refund${to.isEmpty ? '' : ' to $to'}', amount: '-${m(r.amount)}'));
+        final prefix = r.kind == 'full' ? 'Refund' : 'Partial refund';
+        if (r.tenders.isEmpty) {
+          refunds.add(ReceiptRefundRow(label: prefix, amount: '-${m(r.amount)}'));
+        } else {
+          for (final t in r.tenders) {
+            refunds.add(ReceiptRefundRow(label: '$prefix — ${refundHow(t.method)}', amount: '-${m(t.amount)}'));
+          }
+        }
       }
     } else if (sale.refundedAmount > 0) {
-      refunds.add(ReceiptRefundRow(label: 'Refunded', amount: '-${m(sale.refundedAmount)}')); // sale refunded before refund records existed
+      refunds.add(ReceiptRefundRow(label: 'Refunded', amount: '-${m(sale.refundedAmount)}')); // refunded before refund records existed
     }
 
     final banner = sale.isVoided

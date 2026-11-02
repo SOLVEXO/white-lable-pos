@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/refund_instructions.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
@@ -174,7 +175,8 @@ class PosTransactionCard extends StatelessWidget {
     CustomConfirmDialog.show(
       context,
       title: 'Confirm Refund',
-      message: 'Refund ${Money.format(sale.total)} for this sale?',
+      message: 'Refund ${Money.format(sale.total - sale.refundedAmount, currency: sale.currency, exponent: sale.currencyExponent)} for this sale?\n\n'
+          '${posRefundInstructions(posAllocateRefund(tenders: [for (final p in sale.paymentLines) (method: p.method, amount: p.amount)], alreadyRefunded: sale.refundedAmount, amount: sale.total - sale.refundedAmount, exponent: sale.currencyExponent), currency: sale.currency, exponent: sale.currencyExponent).map((l) => '• $l').join('\n')}',
       confirmLabel: 'Refund',
       confirmColor: AppColors.red,
       onConfirm: () => controller.refundSale(sale),

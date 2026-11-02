@@ -1,3 +1,6 @@
+import 'package:intl/intl.dart';
+import 'package:solvexo_pos/app/routes/app_pages.dart';
+import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
@@ -32,35 +35,48 @@ class NetworkStatusBanner extends StatelessWidget {
       Obx(() {
         final offline = !status.isOnline.value;
         final pending = syncService?.pendingCount.value ?? 0;
-        if (!offline && pending == 0) return const SizedBox.shrink();
+        final failed = syncService?.failedCount.value ?? 0;
+        if (!offline && pending == 0 && failed == 0) return const SizedBox.shrink();
+
+        final last = syncService?.lastSuccessfulSync.value;
+        final lastText = last == null ? '' : ' · last sync ${DateFormat('HH:mm').format(last.toLocal())}';
+        String sales(int n) => '$n sale${n == 1 ? '' : 's'}';
 
         final String text;
         final Color color;
-        if (offline && pending > 0) {
-          text = 'No internet — $pending sale${pending == 1 ? '' : 's'} saved locally, will sync';
+        if (failed > 0) {
+          // A rejected sale is never hidden: it stays until a manager retries or discards it.
+          text = '${sales(failed)} rejected — tap to review${pending > 0 ? ' · ${sales(pending)} waiting' : ''}$lastText';
+          color = AppColors.red;
+        } else if (offline && pending > 0) {
+          text = 'No internet — ${sales(pending)} saved on this device, will sync$lastText';
           color = AppColors.red;
         } else if (offline) {
-          text = 'No internet connection — some actions may fail';
+          text = 'No internet connection$lastText';
           color = AppColors.red;
         } else {
-          text = '$pending sale${pending == 1 ? '' : 's'} pending sync…';
+          text = '${sales(pending)} syncing…$lastText';
           color = AppColors.amberDark;
         }
+        final tappable = (failed > 0 || pending > 0) && (AppPreferences.cachedToken ?? '').isNotEmpty;
 
         return Positioned(
           top: 0, left: 0, right: 0,
           child: SafeArea(
             bottom: false,
-            child: Container(
-              width: double.infinity,
-              color: color,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Center(
-                child: CustomText(
-                  text: text,
-                  fontSize: AppFontSize.tiny,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.white,
+            child: GestureDetector(
+              onTap: tappable && Get.currentRoute != Routes.posNeedsAttention ? () => Get.toNamed(Routes.posNeedsAttention) : null,
+              child: Container(
+                width: double.infinity,
+                color: color,
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                child: Center(
+                  child: CustomText(
+                    text: text,
+                    fontSize: AppFontSize.tiny,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.white,
+                  ),
                 ),
               ),
             ),

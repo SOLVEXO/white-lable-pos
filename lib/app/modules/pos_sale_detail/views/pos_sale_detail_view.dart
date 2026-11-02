@@ -353,14 +353,14 @@ class _ActionsSection extends StatelessWidget {
               label: 'Refund Selected (${Money.format(c.selectedRefundAmount)})',
               color: AppColors.red,
               onTap: () => _confirm(context, 'Partial Refund',
-                  'Refund ${Money.format(c.selectedRefundAmount)} for the selected items?', c.refundPartial),
+                  'Refund ${Money.format(c.selectedRefundAmount, currency: sale.currency, exponent: sale.currencyExponent)} for the selected items?\n\n${c.refundPlan(c.selectedRefundAmount).map((l) => '• $l').join('\n')}', c.refundPartial),
             ),
           _ActionButton(
             label: 'Refund Full Sale',
             color: AppColors.red,
             outline: hasSelection,
             onTap: () => _confirm(context, 'Full Refund',
-                'Refund the entire sale (${Money.format(sale.total)})?', c.refundFull),
+                'Refund the entire sale (${Money.format(sale.total - sale.refundedAmount, currency: sale.currency, exponent: sale.currencyExponent)})?\n\n${c.refundPlan(sale.total - sale.refundedAmount).map((l) => '• $l').join('\n')}', c.refundFull),
           ),
         ],
         if (sale.canVoid && c.isManager.value)

@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/unsynced_guard.dart';
 import 'package:solvexo_pos/app/components/svg_icon.dart';
 import 'package:solvexo_pos/app/data/repositories/auth_repository.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/controllers/seller_stores_controller.dart';
@@ -36,6 +37,9 @@ class StoresHeroHeader extends StatelessWidget {
                     rightButtonName: 'Logout',
                     onLeftButtonTap: () => Get.back(),
                     onRightButtonTap: () async {
+                      Get.back();
+                      // Sales still on this device are the only copy of that money — never sign out over them.
+                      if (await UnsyncedGuard.blockIfUnsynced(action: 'sign out')) return;
                       await AuthRepository().logout();
                       Get.offAllNamed(Routes.posLogin);
                     },

@@ -47,5 +47,6 @@ abstract class Routes {
   // Phase 2 — supporting modules
   static const posInventory = '/pos/inventory';
   static const posStockActivity = '/pos/stock-activity';
+  static const posNeedsAttention = '/pos/needs-attention';
   static const posCustomers = '/pos/customers';
 }

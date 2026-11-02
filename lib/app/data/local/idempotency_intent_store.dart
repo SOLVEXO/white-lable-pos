@@ -54,6 +54,9 @@ class IdempotencyIntentStore {
     return v;
   }
 
+  /// A fresh, unique key (for an intent that is created once and then carried explicitly — e.g. a checkout).
+  static String newKey() => _randomKey();
+
   static String _randomKey() {
     final r = Random.secure();
     final bytes = List<int>.generate(12, (_) => r.nextInt(256));

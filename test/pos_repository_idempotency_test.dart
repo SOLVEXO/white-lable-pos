@@ -22,7 +22,7 @@ class FakeSync extends PendingSaleSyncService {
   int scheduled = 0;
 
   @override
-  Future<void> enqueue(String id, Map<String, dynamic> payload) async => enqueued.add(MapEntry(id, payload));
+  Future<void> enqueue(String id, Map<String, dynamic> payload, {String? employeeToken}) async => enqueued.add(MapEntry(id, payload));
 
   @override
   void scheduleSync({Duration delay = const Duration(seconds: 5)}) => scheduled++;

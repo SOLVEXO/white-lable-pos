@@ -3,6 +3,7 @@
 // selectedCustomer as soon as the cashier edits the name field, so a stale
 // customerId is never sent to the backend alongside a different typed name.
 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
@@ -12,6 +13,7 @@ void main() {
   late PosHomeController c;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({}); // the cart is persisted to SharedPreferences
     c = PosHomeController();
   });
 

@@ -1,3 +1,5 @@
+import 'package:solvexo_pos/app/data/local/idempotency_intent_store.dart';
+import 'package:solvexo_pos/app/data/local/pos_local_caches.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/utils/pos_totals.dart';
 import 'dart:async';
@@ -79,11 +81,37 @@ class PosHomeController extends GetxController {
   PosHomeController({
     PosRepository? posRepository,
     CategoryRepository? categoryRepository,
+    CartSnapshotStore? cartStore,
+    CatalogCacheStore? catalogCache,
+    SettingsCacheStore? settingsCache,
   }) : _posRepo = posRepository ?? PosRepository(),
-       _categoryRepo = categoryRepository ?? CategoryRepository();
+       _categoryRepo = categoryRepository ?? CategoryRepository(),
+       _cartStore = cartStore ?? CartSnapshotStore.instance,
+       _catalogCache = catalogCache ?? CatalogCacheStore.instance,
+       _settingsCache = settingsCache ?? SettingsCacheStore.instance;
 
   final PosRepository _posRepo;
   final CategoryRepository _categoryRepo;
+  final CartSnapshotStore _cartStore;
+  final CatalogCacheStore _catalogCache;
+  final SettingsCacheStore _settingsCache;
+
+  // ── Offline resilience ────────────────────────────────────────────────────
+  /// The catalog / settings on screen came from the on-device cache (the server couldn't be reached) — prices and
+  /// the tax rate may be out of date. [catalogUpdatedAt] / [settingsUpdatedAt] say how old.
+  final RxBool catalogFromCache = false.obs;
+  final Rxn<DateTime> catalogUpdatedAt = Rxn<DateTime>();
+  final RxBool settingsFromCache = false.obs;
+  final Rxn<DateTime> settingsUpdatedAt = Rxn<DateTime>();
+  bool get isDataStale => catalogFromCache.value || settingsFromCache.value;
+
+  /// The checkout currently being charged: its idempotency key and the moment Charge was tapped. Set on the first
+  /// Charge tap, saved with the cart, reused on every retry / after a restart, cleared when the attempt reaches a
+  /// final result or the cart is edited (a changed cart is a different sale and must not reuse the key).
+  String? _pendingKey;
+  DateTime? _pendingAt;
+  Timer? _persistTimer;
+  bool _restoring = false;
 
   // ── Session context (loaded from prefs) ───────────────────────────────────
   final RxString sessionId = ''.obs;
@@ -283,7 +311,9 @@ class PosHomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadContext().then((_) {
+    _loadContext().then((_) async {
+      await _restoreCart();
+      _attachPersistence();
       _loadProducts();
       _loadSettings();
     });
@@ -336,8 +366,28 @@ class PosHomeController extends GetxController {
   // ── Store settings (currency symbol) ────────────────────────────────────
   Future<void> _loadSettings() async {
     if (storeId.value.isEmpty) return;
-    settings.value = await _posRepo.getPosSettings(storeId.value);
+    final fresh = await _posRepo.getPosSettings(storeId.value);
+    if (fresh != null) {
+      settings.value = fresh;
+      settingsFromCache.value = false;
+      settingsUpdatedAt.value = DateTime.now();
+      unawaited(_settingsCache.save(fresh));
+    } else {
+      // Can't reach the server: price and print receipts with the last settings we saw (tax rate, version, header…).
+      final cached = await _settingsCache.load(storeId.value);
+      if (cached != null && settings.value == null) {
+        settings.value = cached.settings;
+        settingsFromCache.value = true;
+        settingsUpdatedAt.value = cached.savedAt;
+      }
+    }
     currencySymbol.value = Money.symbol(); // from the store's currency code, never free text
+  }
+
+  /// Re-tries the server for the catalog and settings (the 'Refresh' on the stale-data bar).
+  Future<void> refreshCatalogAndSettings() async {
+    await _loadSettings();
+    await _loadProducts();
   }
 
   // ── Products ──────────────────────────────────────────────────────────────
@@ -353,8 +403,25 @@ class PosHomeController extends GetxController {
         page: _productPage,
         limit: _productPageSize,
       );
-      allProducts.assignAll(result.items);
-      _hasMoreProducts = result.hasMore;
+      if (result.items.isNotEmpty) {
+        allProducts.assignAll(result.items);
+        _hasMoreProducts = result.hasMore;
+        catalogFromCache.value = false;
+        catalogUpdatedAt.value = DateTime.now();
+        unawaited(_catalogCache.save(storeId.value, allProducts));
+      } else {
+        // Nothing came back (offline / server down): sell from the last catalog we saw, and say how old it is.
+        final cached = await _catalogCache.load(storeId.value);
+        if (cached != null && cached.products.isNotEmpty) {
+          allProducts.assignAll(cached.products);
+          _hasMoreProducts = false;
+          catalogFromCache.value = true;
+          catalogUpdatedAt.value = cached.savedAt;
+        } else {
+          allProducts.assignAll(result.items);
+          _hasMoreProducts = result.hasMore;
+        }
+      }
     } finally {
       isLoadingProducts.value = false;
     }
@@ -378,6 +445,7 @@ class PosHomeController extends GetxController {
       allProducts.addAll(result.items);
       _productPage++;
       _hasMoreProducts = result.hasMore;
+      if (!catalogFromCache.value) unawaited(_catalogCache.save(storeId.value, allProducts));
     } finally {
       isLoadingMoreProducts.value = false;
     }
@@ -454,7 +522,105 @@ class PosHomeController extends GetxController {
     }
   }
 
+  // ── Cart persistence (crash / kill / restart) ─────────────────────────────
+  void _attachPersistence() {
+    ever(cartItems, (_) => _onCartEdited());
+    for (final c in [discountController, noteController, customerController, tenderedController, paymentReferenceController]) {
+      c.addListener(_onCartEdited);
+    }
+    ever(selectedPayment, (_) => _onCartEdited());
+    ever(isPercentDiscount, (_) => _onCartEdited());
+    ever(isSplitPayment, (_) => _onCartEdited());
+  }
+
+  /// Any edit to the cart or payment entry makes it a different sale: drop the in-flight key (reusing it would make
+  /// the server answer with the OLD sale), and save the cart a moment later.
+  void _onCartEdited() {
+    if (_restoring) return;
+    if (!isChargingOrHolding.value) {
+      _pendingKey = null;
+      _pendingAt = null;
+    }
+    persistSoon();
+  }
+
+  void persistSoon() {
+    _persistTimer?.cancel();
+    _persistTimer = Timer(const Duration(milliseconds: 400), () => unawaited(persistNow()));
+  }
+
+  CartSnapshot _snapshot() => CartSnapshot(
+        storeId: storeId.value,
+        sessionId: sessionId.value,
+        lines: [for (final i in cartItems) CartLineSnapshot(product: i.product.toJson(), variantId: i.variant?.variantId, qty: i.quantity.value)],
+        discountText: discountController.text,
+        percentDiscount: isPercentDiscount.value,
+        customerName: customerController.text,
+        customerId: selectedCustomer.value?.id,
+        note: noteController.text,
+        payment: selectedPayment.value,
+        tendered: tenderedController.text,
+        paymentReference: paymentReferenceController.text,
+        split: isSplitPayment.value,
+        splitLines: [for (final l in splitLines) SplitLineSnapshot(method: l.method.value, amount: l.amount.text, reference: l.reference.text)],
+        pendingKey: _pendingKey,
+        pendingAt: _pendingAt,
+        savedAt: DateTime.now(),
+      );
+
+  Future<void> persistNow() async {
+    if (storeId.value.isEmpty || sessionId.value.isEmpty) return;
+    await _cartStore.save(_snapshot());
+  }
+
+  /// Rebuilds the cart left by a crash / kill / restart (same store + same register session, recent), including the
+  /// checkout that may have been in flight.
+  @visibleForTesting
+  Future<void> restoreCart() => _restoreCart();
+
+  Future<void> _restoreCart() async {
+    if (storeId.value.isEmpty || sessionId.value.isEmpty) return;
+    final snap = await _cartStore.load(storeId: storeId.value, sessionId: sessionId.value);
+    if (snap == null) return;
+    _restoring = true;
+    try {
+      for (final l in snap.lines) {
+        final product = PosProductModel.fromJson(l.product);
+        final variant = l.variantId == null ? null : product.variantById(l.variantId);
+        cartItems.add(CartItem(product: product, variant: variant, qty: l.qty));
+      }
+      discountController.text = snap.discountText;
+      isPercentDiscount.value = snap.percentDiscount;
+      customerController.text = snap.customerName;
+      if (snap.customerId != null && snap.customerName.isNotEmpty) {
+        selectedCustomer.value = CustomerModel(id: snap.customerId!, name: snap.customerName);
+      }
+      noteController.text = snap.note;
+      selectedPayment.value = snap.payment;
+      tenderedController.text = snap.tendered;
+      paymentReferenceController.text = snap.paymentReference;
+      if (snap.split) {
+        isSplitPayment.value = true;
+        for (final sl in snap.splitLines) {
+          final line = SplitPaymentLine(sl.method);
+          line.amount.text = sl.amount;
+          line.reference.text = sl.reference;
+          splitLines.add(line);
+        }
+      }
+      _pendingKey = snap.pendingKey;
+      _pendingAt = snap.pendingAt;
+    } finally {
+      _restoring = false;
+    }
+    if (cartItems.isNotEmpty) cartItems.refresh();
+  }
+
   void clearSale() {
+    _pendingKey = null;
+    _pendingAt = null;
+    _persistTimer?.cancel();
+    unawaited(_cartStore.clear());
     cartItems.clear();
     noteController.clear();
     customerController.clear();
@@ -555,6 +721,50 @@ class PosHomeController extends GetxController {
     final pay = _paymentPayload();
     isChargingOrHolding.value = true;
     try {
+      // This checkout's identity — fixed on the first Charge tap, saved with the cart, reused on every retry and
+      // after a crash/restart, so the same intent can never become two sales.
+      _pendingKey ??= IdempotencyIntentStore.newKey();
+      _pendingAt ??= DateTime.now();
+      await persistNow();
+
+      // Price it on the server first (when reachable) and charge THAT total with the settingsVersion it used.
+      var chargeTotal = total;
+      var version = settings.value?.settingsVersion;
+      final q = await _posRepo.quoteSale(
+        storeId: storeId.value,
+        items: _buildItems(),
+        discountType: isPercentDiscount.value ? 'percent' : 'amount',
+        discountValue: _rawDiscountInput,
+        settingsVersion: version,
+      );
+      if (q.quote != null) {
+        version = q.quote!.settingsVersion;
+        if (Money.toMinor(q.quote!.total) != Money.toMinor(total)) {
+          // This device's prices / tax rate were out of date. Bring the cart in line with the server and let the
+          // cashier see the new total BEFORE anyone is charged.
+          _applyQuote(q.quote!);
+          final ok = await _confirmNewTotal(q.quote!.total);
+          if (!ok) {
+            _pendingKey = null;
+            _pendingAt = null;
+            return;
+          }
+          chargeTotal = q.quote!.total;
+          if (!PosPaymentCheck.evaluate(chargeTotal, paymentEntries, exponent: Money.exponent).covered) {
+            CustomAppSnackbar.warning('The total changed — please re-enter the payment.');
+            _pendingKey = null;
+            _pendingAt = null;
+            return;
+          }
+        }
+      } else if (q.message != null) {
+        // a business refusal (e.g. POS plan not active) — nothing to charge
+        CustomAppSnackbar.error(q.message!);
+        _pendingKey = null;
+        _pendingAt = null;
+        return;
+      } // else: server unreachable → price with the cached settings; the sale goes through the offline queue if needed
+
       final result = await _posRepo.createSale(
         storeId: storeId.value,
         sessionId: sessionId.value,
@@ -563,7 +773,10 @@ class PosHomeController extends GetxController {
         items: _buildItems(),
         discountType: isPercentDiscount.value ? 'percent' : 'amount',
         discountValue: _rawDiscountInput,
-        clientTotal: total,
+        clientTotal: chargeTotal,
+        settingsVersion: version,
+        clientCreatedAt: _pendingAt,
+        idempotencyKey: _pendingKey,
         paymentMethod: pay.method,
         payments: pay.payments,
         amountTendered: pay.amountTendered,
@@ -583,8 +796,12 @@ class PosHomeController extends GetxController {
       }
       if (!result.success) {
         CustomAppSnackbar.error(_friendlyError(result.message ?? ''));
-        // The server priced it differently (tax rate / price changed since this device loaded): reload so the
-        // cashier sees the current figures instead of retrying a number that will be refused again.
+        // A definite answer ends this checkout attempt; no answer at all (message null) keeps the key so the
+        // retry is the SAME sale.
+        if (result.message != null) {
+          _pendingKey = null;
+          _pendingAt = null;
+        }
         if ((result.message ?? '').toLowerCase().contains('does not match')) {
           await _loadSettings();
           await _loadProducts();
@@ -597,6 +814,35 @@ class PosHomeController extends GetxController {
     } finally {
       isChargingOrHolding.value = false;
     }
+  }
+
+  /// Takes the server's current unit prices and tax rate into the cart/settings so the on-screen numbers equal its.
+  void _applyQuote(PosQuote quote) {
+    for (var i = 0; i < cartItems.length; i++) {
+      final item = cartItems[i];
+      final price = item.variant == null ? null : quote.unitPrices[item.variant!.variantId];
+      if (price != null && price != item.variant!.price) {
+        cartItems[i] = CartItem(product: item.product, variant: item.variant!.withPrice(price), qty: item.quantity.value);
+      }
+    }
+    final cur = settings.value;
+    if (cur != null) settings.value = cur.withPricing(taxRate: quote.taxRate, settingsVersion: quote.settingsVersion);
+    cartItems.refresh();
+  }
+
+  Future<bool> _confirmNewTotal(double newTotal) async {
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Total updated'),
+        content: Text('Prices or tax were updated since this device last loaded them.\n\nThe total is now ${Money.format(newTotal)}. Charge this amount?'),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Get.back(result: true), child: Text('Charge ${Money.format(newTotal)}')),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+    return ok ?? false;
   }
 
   // ── Hold sale ─────────────────────────────────────────────────────────────
@@ -618,6 +864,7 @@ class PosHomeController extends GetxController {
         discountType: isPercentDiscount.value ? 'percent' : 'amount',
         discountValue: _rawDiscountInput,
         clientTotal: total,
+        settingsVersion: settings.value?.settingsVersion,
         paymentMethod: selectedPayment.value,
         customerName: customerController.text.trim().isEmpty
             ? 'Walk-in'

@@ -9,6 +9,7 @@ import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 class PosHomeView extends StatelessWidget {
   final c = Get.put(PosHomeController());
@@ -24,6 +25,7 @@ class PosHomeView extends StatelessWidget {
         Column(children: [
           const PosAppBar(),
           PosSearchBar(c: c),
+          _StaleDataBar(c: c),
           const Divider(height: 1, color: AppColors.lightGrey2),
           PosCategoryRow(c: c),
           const Divider(height: 1, color: AppColors.lightGrey2),
@@ -181,5 +183,37 @@ class _ProductShimmer extends StatelessWidget {
         ),
       ]),
     );
+  }
+}
+
+/// Shown while the catalog / tax settings on screen came from the on-device cache (the server couldn't be reached):
+/// says how old they are so nobody trusts a stale price without knowing. Cleared once fresh data loads.
+class _StaleDataBar extends StatelessWidget {
+  final PosHomeController c;
+  const _StaleDataBar({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (!c.isDataStale) return const SizedBox.shrink();
+      final at = c.catalogFromCache.value ? c.catalogUpdatedAt.value : c.settingsUpdatedAt.value;
+      final when = at == null ? 'earlier' : DateFormat('d MMM, HH:mm').format(at.toLocal());
+      return Container(
+        width: double.infinity,
+        color: const Color(0xFFFFF4E5),
+        padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+        child: Row(children: [
+          const Icon(Icons.history_rounded, size: 16, color: Color(0xFF9A5B00)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Offline — prices and tax from $when. They may be out of date; sales are checked against the server when they sync.',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF5C3700)),
+            ),
+          ),
+          TextButton(onPressed: c.refreshCatalogAndSettings, child: const Text('Refresh', style: TextStyle(fontSize: 12))),
+        ]),
+      );
+    });
   }
 }

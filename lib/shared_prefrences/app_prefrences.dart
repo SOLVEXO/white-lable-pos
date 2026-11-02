@@ -209,6 +209,11 @@ class AppPreferences {
     return token != null && token.isNotEmpty;
   }
 
+  // ── Small generic key/value helpers (caches, timestamps) ───────────────────────
+  static Future<String?> getString(String key) async => (await SharedPreferences.getInstance()).getString(key);
+  static Future<void> setString(String key, String value) async => (await SharedPreferences.getInstance()).setString(key, value);
+  static Future<void> removeKey(String key) async => (await SharedPreferences.getInstance()).remove(key);
+
   // ── Store currency (so money renders correctly before settings have loaded) ────
   static Future<void> saveStoreCurrency(String code, int exponent) async {
     final prefs = await SharedPreferences.getInstance();

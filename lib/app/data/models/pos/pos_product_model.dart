@@ -34,6 +34,26 @@ class PosProductVariant {
   /// Can be added to a cart: tracked stock remains, or stock isn't tracked.
   bool get isAvailable => unlimitedStock || stock > 0;
 
+  /// A copy at a different unit price (the server's current price, taken from a quote).
+  PosProductVariant withPrice(double newPrice) => PosProductVariant(
+        variantId: variantId, sku: sku, barcode: barcode, price: newPrice, compareAtPrice: compareAtPrice, stock: stock,
+        unlimitedStock: unlimitedStock, options: options, isDefault: isDefault, images: images,
+      );
+
+  /// For the on-device cart/catalog caches (so a restart or an offline start can rebuild the same product).
+  Map<String, dynamic> toJson() => {
+        'variantId': variantId,
+        'sku': sku,
+        'barcode': barcode,
+        'price': price,
+        'compareAtPrice': compareAtPrice,
+        'stock': stock,
+        'unlimitedStock': unlimitedStock,
+        'options': options.map((o) => o.toJson()).toList(),
+        'isDefault': isDefault,
+        'images': images,
+      };
+
   /// Human-readable label for a variant picker, e.g. "Large / Blue".
   String get label {
     final parts = options.map((o) => o.value).where((p) => p.isNotEmpty);
@@ -79,6 +99,15 @@ class PosProductModel {
   PosProductVariant? get defaultVariant =>
       variants.firstWhereOrNull((v) => v.isDefault) ??
       (variants.isNotEmpty ? variants.first : null);
+
+  Map<String, dynamic> toJson() => {
+        'productId': productId,
+        'name': name,
+        'type': type,
+        'image': image,
+        'categoryId': categoryId,
+        'variants': variants.map((v) => v.toJson()).toList(),
+      };
 
   bool get hasMultipleVariants => variants.length > 1;
   double get price => defaultVariant?.price ?? 0;

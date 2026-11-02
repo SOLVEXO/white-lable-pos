@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/components/refund_done_dialog.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
@@ -160,6 +161,7 @@ class PosOrdersController extends GetxController {
         sales[idx] = _withStatus(sales[idx], result.newStatus ?? 'refunded', refundedAmount: sale.total);
       }
       CustomAppSnackbar.success(result.message ?? 'Refund processed.');
+      await showRefundDoneDialog(sale, result.tenders, result.refundedAmount);
     } finally {
       processingId.value = '';
     }

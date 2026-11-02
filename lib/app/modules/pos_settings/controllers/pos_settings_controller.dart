@@ -1,3 +1,5 @@
+import 'package:solvexo_pos/utils/unsynced_guard.dart';
+import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'dart:async';
 
@@ -156,6 +158,23 @@ class PosSettingsController extends GetxController {
         ),
         PosSettingsTile(
           emoji: AppIcons.profileIcon,
+          title: 'Business Tax ID',
+          trailing: settings.value?.businessTaxId?.isNotEmpty == true ? settings.value!.businessTaxId : (isManager ? 'Not set' : 'Managers only'),
+          onTap: () {
+            // Printed on every receipt, so owner/manager only (the backend stores it with the other POS settings).
+            if (!isManager) {
+              CustomAppSnackbar.warning('Only a manager can change the business tax ID.');
+              return;
+            }
+            _editTextSetting(
+              title: 'Business Tax ID',
+              initial: settings.value?.businessTaxId ?? '',
+              onSave: (v) => _posRepo.updatePosSettings(_storeId, {'businessTaxId': v}),
+            );
+          },
+        ),
+        PosSettingsTile(
+          emoji: AppIcons.profileIcon,
           title: 'Receipt Header',
           trailing: settings.value?.receiptHeader?.isNotEmpty == true ? 'Set' : 'Not set',
           onTap: () => _editTextSetting(
@@ -229,6 +248,14 @@ class PosSettingsController extends GetxController {
           title: 'Cash Management',
           trailing: isManager ? 'Cash in / out' : 'Managers only',
           onTap: showCashAdjustmentDialog,
+        ),
+        PosSettingsTile(
+          emoji: AppIcons.anylaticsIcon,
+          title: 'Sync & needs attention',
+          trailing: Get.isRegistered<PendingSaleSyncService>() && Get.find<PendingSaleSyncService>().unresolvedCount.value > 0
+              ? '${Get.find<PendingSaleSyncService>().unresolvedCount.value} unsynced'
+              : 'All synced',
+          onTap: () => Get.toNamed(Routes.posNeedsAttention),
         ),
         PosSettingsTile(
           emoji: AppIcons.logoutIcon,
@@ -490,6 +517,9 @@ class PosSettingsController extends GetxController {
       CustomAppSnackbar.error('No active session found.');
       return;
     }
+    // The queue is the only copy of any sale not yet on the server: the shift can't close over it. (A manager
+    // resolves each item from Needs attention — retry, or discard with a reason.)
+    if (await UnsyncedGuard.blockIfUnsynced(action: 'close the shift', sessionId: _sessionId)) return;
     isLoadingCloseReport.value = true;
     final report = await _posRepo.getSessionReport(_sessionId);
     isLoadingCloseReport.value = false;

@@ -42,6 +42,8 @@ import '../modules/pos_range_report/bindings/pos_range_report_binding.dart';
 import '../modules/pos_range_report/views/pos_range_report_view.dart';
 import '../modules/pos_inventory/bindings/pos_inventory_binding.dart';
 import '../modules/pos_inventory/views/pos_inventory_view.dart';
+import '../modules/pos_needs_attention/bindings/pos_needs_attention_binding.dart';
+import '../modules/pos_needs_attention/views/pos_needs_attention_view.dart';
 import '../modules/pos_stock_activity/bindings/pos_stock_activity_binding.dart';
 import '../modules/pos_stock_activity/views/pos_stock_activity_view.dart';
 import '../modules/pos_customers/bindings/pos_customers_binding.dart';
@@ -182,6 +184,13 @@ class AppPages {
       page: () => PosInventoryView(),
       binding: PosInventoryBinding(),
       middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+    ),
+    // Reachable in restricted mode too: unsynced sales must be resolvable whatever the plan says.
+    GetPage(
+      name: Routes.posNeedsAttention,
+      page: () => PosNeedsAttentionView(),
+      binding: PosNeedsAttentionBinding(),
+      middlewares: [PosAccessMiddleware()],
     ),
     GetPage(
       name: Routes.posStockActivity,

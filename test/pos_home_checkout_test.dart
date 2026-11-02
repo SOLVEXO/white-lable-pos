@@ -4,6 +4,7 @@
 // CustomAppSnackbar calls inside the controller have a real overlay/
 // navigator to act on, instead of throwing on a bare `test()`.
 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -57,7 +58,11 @@ void main() {
   });
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({}); // the cart is persisted to SharedPreferences
     posRepo = MockPosRepository();
+    // the server can't be reached for a quote → price with the local numbers (the offline-capable path)
+    when(() => posRepo.quoteSale(storeId: any(named: 'storeId'), items: any(named: 'items'), discountType: any(named: 'discountType'), discountValue: any(named: 'discountValue'), settingsVersion: any(named: 'settingsVersion')))
+        .thenAnswer((_) async => (quote: null, message: null, code: null));
     c = PosHomeController(posRepository: posRepo);
     c.storeId.value = 'store-1';
     c.sessionId.value = 'session-1';
@@ -110,6 +115,8 @@ void main() {
           discountType: any(named: 'discountType'),
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
+          settingsVersion: any(named: 'settingsVersion'),
+          clientCreatedAt: any(named: 'clientCreatedAt'),
           paymentMethod: any(named: 'paymentMethod'),
           payments: any(named: 'payments'),
           amountTendered: any(named: 'amountTendered'),
@@ -133,6 +140,8 @@ void main() {
           discountType: any(named: 'discountType'),
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
+          settingsVersion: any(named: 'settingsVersion'),
+          clientCreatedAt: any(named: 'clientCreatedAt'),
           paymentMethod: any(named: 'paymentMethod'),
           payments: any(named: 'payments'),
           amountTendered: any(named: 'amountTendered'),
@@ -158,6 +167,8 @@ void main() {
           discountType: any(named: 'discountType'),
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
+          settingsVersion: any(named: 'settingsVersion'),
+          clientCreatedAt: any(named: 'clientCreatedAt'),
           paymentMethod: any(named: 'paymentMethod'),
           payments: any(named: 'payments'),
           amountTendered: any(named: 'amountTendered'),
@@ -181,6 +192,8 @@ void main() {
           discountType: any(named: 'discountType'),
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
+          settingsVersion: any(named: 'settingsVersion'),
+          clientCreatedAt: any(named: 'clientCreatedAt'),
           paymentMethod: any(named: 'paymentMethod'),
           payments: any(named: 'payments'),
           amountTendered: any(named: 'amountTendered'),
@@ -206,6 +219,8 @@ void main() {
           discountType: any(named: 'discountType'),
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
+          settingsVersion: any(named: 'settingsVersion'),
+          clientCreatedAt: any(named: 'clientCreatedAt'),
           paymentMethod: any(named: 'paymentMethod'),
           payments: any(named: 'payments'),
           amountTendered: any(named: 'amountTendered'),
@@ -241,6 +256,8 @@ void main() {
           discountType: any(named: 'discountType'),
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
+          settingsVersion: any(named: 'settingsVersion'),
+          clientCreatedAt: any(named: 'clientCreatedAt'),
           paymentMethod: any(named: 'paymentMethod'),
           payments: any(named: 'payments'),
           amountTendered: any(named: 'amountTendered'),
@@ -265,6 +282,8 @@ void main() {
           discountType: any(named: 'discountType'),
           discountValue: any(named: 'discountValue'),
           clientTotal: any(named: 'clientTotal'),
+          settingsVersion: any(named: 'settingsVersion'),
+          clientCreatedAt: any(named: 'clientCreatedAt'),
           paymentMethod: any(named: 'paymentMethod'),
           payments: any(named: 'payments'),
           amountTendered: any(named: 'amountTendered'),

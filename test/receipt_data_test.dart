@@ -78,7 +78,7 @@ void main() {
       sale(status: 'partially_refunded', refunded: 20, refunds: const [PosRefundRecord(amount: 20, kind: 'partial', tenders: [PosPaymentLine(method: 'card', amount: 20)])]),
       settings,
     );
-    expect(d.refunds.single.label, 'Partial refund to Card');
+    expect(d.refunds.single.label, 'Partial refund — to card');
     expect(d.refunds.single.amount, '-\$20.00');
     expect(d.totalRefunded, '\$20.00');
   });
@@ -123,5 +123,15 @@ void main() {
     );
     expect(s, isNotNull);
     expect(await ReceiptEscPosBuilder.build(data: d), isNotEmpty);
+  });
+
+  test('a split-tender refund prints one row per tender: what went to the card and the cash that left the drawer', () {
+    final d = ReceiptData.fromSale(
+      sale(status: 'refunded', refunded: 58.42, refunds: const [
+        PosRefundRecord(amount: 58.42, kind: 'full', tenders: [PosPaymentLine(method: 'card', amount: 30), PosPaymentLine(method: 'cash', amount: 28.42)]),
+      ]),
+      settings,
+    );
+    expect(d.refunds.map((r) => '${r.label} ${r.amount}'), ['Refund — to card -\$30.00', 'Refund — cash returned -\$28.42']);
   });
 }

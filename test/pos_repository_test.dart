@@ -33,7 +33,7 @@ class FakePendingSaleSyncService extends PendingSaleSyncService {
   final List<MapEntry<String, Map<String, dynamic>>> enqueued = [];
 
   @override
-  Future<void> enqueue(String id, Map<String, dynamic> payload) async {
+  Future<void> enqueue(String id, Map<String, dynamic> payload, {String? employeeToken}) async {
     enqueued.add(MapEntry(id, payload));
   }
 

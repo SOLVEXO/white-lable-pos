@@ -832,6 +832,8 @@ class PosRepository {
     String? discountType, // "amount" | "percent" — the server computes the discount from it
     double? discountValue,
     double? clientTotal, // what this device displayed; the server rejects a mismatch (TOTAL_MISMATCH)
+    int? settingsVersion, // the POS settings version (tax rate…) the device priced this with — see quoteSale
+    DateTime? clientCreatedAt, // when the sale was really made; sent so a queued sale keeps its true time
     required String paymentMethod,
     List<Map<String, dynamic>>? payments, // split tender: [{method, amount, reference?}]
     double? amountTendered, // single cash payment: what the customer handed over
@@ -850,6 +852,9 @@ class PosRepository {
       'items': items,
       if (discountType != null && (discountValue ?? 0) > 0) ...{'discountType': discountType, 'discountValue': discountValue},
       if (clientTotal != null) 'clientTotal': clientTotal,
+      if (settingsVersion != null) 'settingsVersion': settingsVersion,
+      // the moment the cashier rang it up (stable across retries — it is part of the queued payload)
+      'clientCreatedAt': (clientCreatedAt ?? DateTime.now()).toUtc().toIso8601String(),
       'paymentMethod': paymentMethod,
       if (payments != null && payments.isNotEmpty) 'payments': payments,
       if (amountTendered != null) 'amountTendered': amountTendered,
@@ -862,7 +867,8 @@ class PosRepository {
     // The key belongs to this checkout *intent*: the same cart retried after a
     // timeout (or after an app restart) reuses it; the caller no longer mints
     // one per tap. See IdempotencyIntentStore.
-    final fp = IdempotencyIntentStore.fingerprint('createSale', payload);
+    // `clientCreatedAt` is excluded: it is the retry-stable moment of the sale, not part of WHAT is being sold
+    final fp = IdempotencyIntentStore.fingerprint('createSale', {...payload}..remove('clientCreatedAt'));
     final key = idempotencyKey ?? await _intents.keyFor(fp);
     payload['idempotencyKey'] = key;
     var settled = false;
@@ -890,7 +896,12 @@ class PosRepository {
         // if it was recorded and creates it exactly once if it wasn't, so
         // the cashier is never asked to ring it up a second time.
         final sync = Get.find<PendingSaleSyncService>();
-        await sync.enqueue(key, payload);
+        // `offline: true` tells the server this is a replay: it keeps `clientCreatedAt` as the sale's time, checks the
+        // plan at THAT time, applies the offline stock rule and validates the offline window. The employee's token is
+        // kept only when a discount needs a manager's authority — the server checks it was valid when the sale was made.
+        final queued = {...payload, 'offline': true};
+        final needsToken = (payload['discountValue'] as num? ?? 0) > 0;
+        await sync.enqueue(key, queued, employeeToken: needsToken ? await AppPreferences.getPosEmployeeToken() : null);
         await _intents.release(fp); // the queue owns the key now
         sync.scheduleSync();
         return (success: false, sale: null, message: null, queued: true);
@@ -910,15 +921,23 @@ class PosRepository {
   /// [PendingSaleSyncService] once connectivity returns — see
   /// [PendingSaleLocalStore] for what's stored.
   Future<({bool success, bool connectivityError, bool retryable, String? message, String? code})> submitRawSale(
-    Map<String, dynamic> payload,
-  ) async {
+    Map<String, dynamic> payload, {
+    String? employeeToken,
+  }) async {
     try {
       final key = payload['idempotencyKey'] as String?;
+      // Replay with the token saved when the sale was made (if any) — the current cashier's token may be a different
+      // person, or expired; the server judges the saved one as of the sale's own time.
+      final headers = {
+        ...await _employeeAuthHeaders(),
+        if (employeeToken != null) 'x-pos-employee-token': employeeToken,
+        if (key != null) 'Idempotency-Key': key,
+      };
       final res = await _client.post(
         ApiConstants.posSales,
         data: payload,
         requiresAuth: true,
-        headers: key != null ? await _writeHeaders(key) : await _employeeAuthHeaders(),
+        headers: headers,
       );
       if (_ok(res)) return (success: true, connectivityError: false, retryable: false, message: null, code: null);
       return (success: false, connectivityError: false, retryable: false, message: res.data['message'] as String?, code: null);
@@ -1116,7 +1135,7 @@ class PosRepository {
   /// for a partial refund. Authorization comes from the current employee's
   /// signed token (see [_employeeAuthHeaders]) — the backend requires a
   /// verified manager-role token, not a client-supplied id.
-  Future<({bool success, double? refundedAmount, String? newStatus, String? message})> refundSale(
+  Future<({bool success, double? refundedAmount, String? newStatus, String? message, List<PosPaymentLine> tenders})> refundSale(
     String saleId, {
     List<Map<String, dynamic>>? items,
   }) async {
@@ -1140,19 +1159,21 @@ class PosRepository {
           refundedAmount: (data?['refundedAmount'] as num?)?.toDouble(),
           newStatus: data?['newStatus'] as String?,
           message: res.data['message'] as String?,
+          // what the SERVER recorded per tender — the cashier is told to do exactly this
+          tenders: (data?['tenders'] as List<dynamic>?)?.map((e) => PosPaymentLine.fromJson((e as Map).cast<String, dynamic>())).toList() ?? const <PosPaymentLine>[],
         );
       }
-      return (success: false, refundedAmount: null, newStatus: null, message: res.data['message'] as String?);
+      return (success: false, refundedAmount: null, newStatus: null, message: res.data['message'] as String?, tenders: const <PosPaymentLine>[]);
     } on DioException catch (e) {
       settled = _isFinalFailure(e);
       _logDioError('refundSale', e);
       _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e);
-      return (success: false, refundedAmount: null, newStatus: null, message: null);
+      return (success: false, refundedAmount: null, newStatus: null, message: null, tenders: const <PosPaymentLine>[]);
     } catch (e) {
       debugPrint('❌ refundSale: $e');
       ToastUtil.showToast('Could not process refund.');
-      return (success: false, refundedAmount: null, newStatus: null, message: null);
+      return (success: false, refundedAmount: null, newStatus: null, message: null, tenders: const <PosPaymentLine>[]);
     } finally {
       if (settled) await _intents.release(fp);
     }
@@ -1189,6 +1210,112 @@ class PosRepository {
       return false;
     } finally {
       if (settled) await _intents.release(fp);
+    }
+  }
+
+  // ── Quote (price a cart on the server, no side effects) ──────────────────
+
+  /// What the server would charge for this cart — lines, discount, tax, total, currency, exponent and the
+  /// settingsVersion used. Null when it can't be reached (offline / timeout): the caller then prices locally and the
+  /// sale goes through the offline queue. A business refusal (POS plan, discount too large …) is returned in [message].
+  Future<({PosQuote? quote, String? message, String? code})> quoteSale({
+    required String storeId,
+    required List<Map<String, dynamic>> items,
+    String? discountType,
+    double? discountValue,
+    int? settingsVersion,
+  }) async {
+    try {
+      final res = await _client.post(
+        ApiConstants.posSalesQuote,
+        data: {
+          'storeId': storeId,
+          'items': items,
+          if (discountType != null && (discountValue ?? 0) > 0) ...{'discountType': discountType, 'discountValue': discountValue},
+          if (settingsVersion != null) 'settingsVersion': settingsVersion,
+        },
+        requiresAuth: true,
+      );
+      final data = _data(res) as Map<String, dynamic>?;
+      if (data != null) return (quote: PosQuote.fromJson(data), message: null, code: null);
+      return (quote: null, message: res.data['message'] as String?, code: null);
+    } on DioException catch (e) {
+      _logDioError('quoteSale', e);
+      _noteEntitlement(e);
+      return (quote: null, message: isRetryableStatus(e.response?.statusCode, _dioCode(e)) ? null : _dioMessage(e), code: _dioCode(e));
+    } catch (e) {
+      debugPrint('❌ quoteSale: $e');
+      return (quote: null, message: null, code: null);
+    }
+  }
+
+  // ── Offline review / discard ──────────────────────────────────────────────
+
+  Future<List<PosSaleModel>> getSalesNeedingReview(String storeId) async {
+    try {
+      final res = await _client.get(ApiConstants.posSalesNeedsReview(storeId), requiresAuth: true);
+      final data = _data(res);
+      return (data as List<dynamic>? ?? []).map((e) => PosSaleModel.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      _logDioError('getSalesNeedingReview', e);
+      DioExceptionHandler.handleDioException(e, showToast: false);
+      return [];
+    } catch (e) {
+      debugPrint('❌ getSalesNeedingReview: $e');
+      return [];
+    }
+  }
+
+  Future<({bool success, String? message})> resolveSaleReview(String saleId, String note) async {
+    final fp = IdempotencyIntentStore.fingerprint('resolveReview:$saleId', {'note': note});
+    var settled = false;
+    try {
+      final res = await _client.post(
+        ApiConstants.posSaleResolveReview(saleId),
+        data: {'note': note},
+        requiresAuth: true,
+        headers: await _writeHeaders(await _intents.keyFor(fp)),
+      );
+      settled = true;
+      return (success: _ok(res), message: res.data['message'] as String?);
+    } on DioException catch (e) {
+      settled = _isFinalFailure(e);
+      _logDioError('resolveSaleReview', e);
+      return (success: false, message: _dioMessage(e));
+    } catch (e) {
+      return (success: false, message: null);
+    } finally {
+      if (settled) await _intents.release(fp);
+    }
+  }
+
+  /// Writes a manager's decision to give up on a queued sale to the server's audit log. [recorded] = it is on the
+  /// server now (the device may delete its copy); [alreadySynced] = the sale actually reached the server after all.
+  Future<({bool recorded, bool alreadySynced, bool connectivityError, String? message})> recordOfflineDiscard({
+    required String storeId,
+    required String idempotencyKey,
+    required String reason,
+    Map<String, dynamic>? summary,
+    String? employeeToken,
+  }) async {
+    try {
+      final res = await _client.post(
+        ApiConstants.posOfflineDiscards,
+        data: {'storeId': storeId, 'idempotencyKey': idempotencyKey, 'reason': reason, if (summary != null) 'summary': summary},
+        requiresAuth: true,
+        headers: {
+          ...await _employeeAuthHeaders(),
+          if (employeeToken != null) 'x-pos-employee-token': employeeToken,
+          'Idempotency-Key': 'discard-$idempotencyKey',
+        },
+      );
+      return (recorded: _ok(res), alreadySynced: false, connectivityError: false, message: res.data['message'] as String?);
+    } on DioException catch (e) {
+      _logDioError('recordOfflineDiscard', e);
+      if (_dioCode(e) == 'SALE_ALREADY_SYNCED') return (recorded: false, alreadySynced: true, connectivityError: false, message: _dioMessage(e));
+      return (recorded: false, alreadySynced: false, connectivityError: _isConnectivityError(e) || !_isFinalFailure(e), message: _dioMessage(e));
+    } catch (e) {
+      return (recorded: false, alreadySynced: false, connectivityError: true, message: null);
     }
   }
 
@@ -1394,4 +1521,49 @@ bool isRetryableStatus(int? status, String? code) {
   if (status == 408 || status == 429) return true;
   if (status == 409) return code == 'IDEMPOTENCY_IN_PROGRESS';
   return false;
+}
+
+/// The server's pricing of a cart (`POST /pos/sales/quote`).
+class PosQuote {
+  final double subtotal;
+  final double discount;
+  final double tax;
+  final double total;
+  final double taxRate;
+  final String currency;
+  final int currencyExponent;
+  final int settingsVersion;
+  final bool settingsVersionReplaced;
+
+  /// The server's current unit price per variant (variantId → price) — used to refresh a stale cart.
+  final Map<String, double> unitPrices;
+
+  const PosQuote({
+    required this.subtotal,
+    required this.discount,
+    required this.tax,
+    required this.total,
+    required this.taxRate,
+    required this.currency,
+    required this.currencyExponent,
+    required this.settingsVersion,
+    this.settingsVersionReplaced = false,
+    this.unitPrices = const {},
+  });
+
+  factory PosQuote.fromJson(Map<String, dynamic> j) => PosQuote(
+        subtotal: (j['subtotal'] as num?)?.toDouble() ?? 0,
+        discount: (j['discount'] as num?)?.toDouble() ?? 0,
+        tax: (j['tax'] as num?)?.toDouble() ?? 0,
+        total: (j['total'] as num?)?.toDouble() ?? 0,
+        taxRate: (j['taxRate'] as num?)?.toDouble() ?? 0,
+        currency: (j['currency'] as String?)?.toUpperCase() ?? 'USD',
+        currencyExponent: (j['currencyExponent'] as num?)?.toInt() ?? 2,
+        settingsVersion: (j['settingsVersion'] as num?)?.toInt() ?? 1,
+        settingsVersionReplaced: j['settingsVersionReplaced'] as bool? ?? false,
+        unitPrices: {
+          for (final l in (j['lines'] as List? ?? []))
+            if ((l as Map)['variantId'] != null) l['variantId'] as String: (l['price'] as num?)?.toDouble() ?? 0,
+        },
+      );
 }

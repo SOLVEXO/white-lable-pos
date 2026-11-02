@@ -281,6 +281,11 @@ class ApiConstants {
   // user on the platform.
   static String customerSearch(String storeId) =>
       "$apiPrefix/pos/customers/$storeId/search";
+  // Offline-sync support: price a cart without selling it; manager review of flagged sales; audit of a discarded queued sale
+  static String get posSalesQuote => "$apiPrefix/pos/sales/quote";
+  static String posSalesNeedsReview(String storeId) => "$apiPrefix/pos/sales/needs-review?storeId=$storeId";
+  static String posSaleResolveReview(String saleId) => "$apiPrefix/pos/sales/$saleId/resolve-review";
+  static String get posOfflineDiscards => "$apiPrefix/pos/offline-discards";
   static String inventoryAdjustStock(String storeId, String variantId) =>
       "$apiPrefix/inventory/$storeId/variant/$variantId/adjust";
   static String sellerOrders(String storeId) =>

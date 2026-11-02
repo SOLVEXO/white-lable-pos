@@ -88,7 +88,7 @@ void main() {
     // calls that actually pass that named parameter (see refundPartial's
     // stub below), so this one must omit it too.
     when(() => posRepo.refundSale(any())).thenAnswer(
-      (_) async => (success: true, refundedAmount: 10.0, newStatus: 'refunded', message: 'Sale fully refunded.'),
+      (_) async => (success: true, refundedAmount: 10.0, newStatus: 'refunded', message: 'Sale fully refunded.', tenders: const <PosPaymentLine>[]),
     );
 
     await c.refundFull();
@@ -101,7 +101,7 @@ void main() {
   testWidgets('refundFull leaves isProcessing false again after a failure, without reloading', (tester) async {
     await pumpApp(tester);
     when(() => posRepo.refundSale(any())).thenAnswer(
-      (_) async => (success: false, refundedAmount: null, newStatus: null, message: 'Refund window expired.'),
+      (_) async => (success: false, refundedAmount: null, newStatus: null, message: 'Refund window expired.', tenders: const <PosPaymentLine>[]),
     );
 
     await c.refundFull();
@@ -118,7 +118,7 @@ void main() {
     await pumpApp(tester);
     c.setRefundQty('item-1', 1);
     when(() => posRepo.refundSale(any(), items: any(named: 'items'))).thenAnswer(
-      (_) async => (success: true, refundedAmount: 5.0, newStatus: 'partially_refunded', message: null),
+      (_) async => (success: true, refundedAmount: 5.0, newStatus: 'partially_refunded', message: null, tenders: const <PosPaymentLine>[]),
     );
 
     await c.refundPartial();

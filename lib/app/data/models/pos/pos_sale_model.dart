@@ -63,6 +63,30 @@ class PosPaymentLine {
       );
 }
 
+/// A reason the server flagged a (synced offline) sale for a manager to look at.
+class PosSaleFlag {
+  final String type;
+  final Map<String, dynamic> detail;
+  const PosSaleFlag({required this.type, this.detail = const {}});
+
+  factory PosSaleFlag.fromJson(Map<String, dynamic> j) =>
+      PosSaleFlag(type: j['type'] as String? ?? '', detail: (j['detail'] as Map?)?.cast<String, dynamic>() ?? const {});
+
+  /// Plain-language explanation for the manager.
+  String get description {
+    switch (type) {
+      case 'oversold_on_sync':
+        return 'Sold ${detail['requested']} of ${detail['sku'] ?? 'an item'} but only ${detail['available']} were in stock — stock is now negative. Recount and correct it.';
+      case 'price_changed_while_offline':
+        return 'The price changed while the till was offline: charged ${detail['deviceTotal']}, current price total is ${detail['serverTotal']}.';
+      case 'payment_shortfall':
+        return 'The customer paid ${detail['shortBy']} less than the current price total (${detail['serverTotal']}).';
+      default:
+        return type.replaceAll('_', ' ');
+    }
+  }
+}
+
 /// One refund event against a sale (what came back, and to which tenders).
 class PosRefundRecord {
   final double amount;
@@ -120,6 +144,11 @@ class PosSaleModel {
   final double? taxRate;
   final List<PosRefundRecord> refunds;
 
+  /// Offline sync: why a manager should look at this sale (oversold, price changed, shortfall), and whether it still needs it.
+  final bool needsReview;
+  final List<PosSaleFlag> flags;
+  final bool isOffline;
+
   const PosSaleModel({
     required this.id,
     required this.saleNumber,
@@ -151,6 +180,9 @@ class PosSaleModel {
     this.discountValue,
     this.taxRate,
     this.refunds = const [],
+    this.needsReview = false,
+    this.flags = const [],
+    this.isOffline = false,
   });
 
   /// The tender lines to show: the stored ones, or — for a sale made before split tender — one synthetic line.
@@ -213,5 +245,8 @@ class PosSaleModel {
         discountValue: (json['discountValue'] as num?)?.toDouble(),
         taxRate: (json['taxRate'] as num?)?.toDouble(),
         refunds: (json['refunds'] as List<dynamic>?)?.map((e) => PosRefundRecord.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
+        needsReview: json['needsReview'] as bool? ?? false,
+        flags: (json['flags'] as List<dynamic>?)?.map((e) => PosSaleFlag.fromJson((e as Map).cast<String, dynamic>())).toList() ?? const [],
+        isOffline: json['isOffline'] as bool? ?? false,
       );
 }

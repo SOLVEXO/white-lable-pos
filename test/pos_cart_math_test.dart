@@ -4,6 +4,7 @@
 // controller is constructed directly (no Get.put/onInit) and exercised
 // without any network/SharedPreferences access.
 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
@@ -33,6 +34,7 @@ void main() {
   late PosHomeController c;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({}); // the cart is persisted to SharedPreferences
     c = PosHomeController();
   });
 

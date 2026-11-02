@@ -1,3 +1,5 @@
+import 'package:solvexo_pos/app/components/refund_done_dialog.dart';
+import 'package:solvexo_pos/utils/refund_instructions.dart';
 import 'package:solvexo_pos/utils/pos_totals.dart';
 import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:solvexo_pos/utils/money.dart';
@@ -94,6 +96,19 @@ class PosSaleDetailController extends GetxController {
     );
   }
 
+  /// What the cashier will have to do for a refund of [amount] on this sale, per tender (card machine / cash).
+  List<String> refundPlan(double amount) {
+    final s = sale.value;
+    if (s == null) return const [];
+    final splits = posAllocateRefund(
+      tenders: [for (final p in s.paymentLines) (method: p.method, amount: p.amount)],
+      alreadyRefunded: s.refundedAmount,
+      amount: amount,
+      exponent: s.currencyExponent,
+    );
+    return posRefundInstructions(splits, currency: s.currency, exponent: s.currencyExponent);
+  }
+
   Future<void> refundFull() async {
     final s = sale.value;
     if (s == null) return;
@@ -105,6 +120,7 @@ class PosSaleDetailController extends GetxController {
         return;
       }
       CustomAppSnackbar.success(result.message ?? 'Sale fully refunded.');
+      await showRefundDoneDialog(s, result.tenders, result.refundedAmount);
       await _load();
     } finally {
       isProcessing.value = false;
@@ -126,6 +142,7 @@ class PosSaleDetailController extends GetxController {
       }
       CustomAppSnackbar.success(result.message ?? 'Partial refund processed.');
       refundSelection.clear();
+      await showRefundDoneDialog(s, result.tenders, result.refundedAmount);
       await _load();
     } finally {
       isProcessing.value = false;
