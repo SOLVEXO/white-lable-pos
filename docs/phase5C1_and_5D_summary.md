@@ -59,7 +59,9 @@ Changed (backward compatible for owner/staff JWTs): operational `/pos` routes no
 | New `pos.security.integration.spec.ts` — **real Mongo + real Redis**, 18 tests: device registration/foreign store/unknown register, forged & ghost tokens, list/revoke authorisation, instant revocation + audit, re-registration, store/register scope in path/query/body, service-level scope for id-resolved routes, `JwtAuthGuard` refusing device/PIN tokens, manager-PIN gate (cashier/other store/revoked), pin-logout/PIN-reset/deactivation/lockout revocation, offline "as of sale time" rule + end-to-end offline discount after logout+deactivation, per-device rate limit (429, other device unaffected, success resets), device self sign-out | ✅ |
 | New `pos.negative-stock.integration.spec.ts`, 5C.1 price/approver tests in `pos.offline.integration.spec.ts` (38 tests) | ✅ |
 | `pos.module-di.smoke.spec.ts` — boots the **whole `AppModule` graph** (needs `MONGO_URI` pointing at a local throw-away DB, otherwise skipped) | ✅ resolves |
-| Backend `jest --maxWorkers=2` over `src/pos`, `pos-plans`, `inventory`, `product-variants`, `common/idempotency`, `draft-orders`, `auth` | see "Final run" below |
+| Backend `jest --maxWorkers=2` over `src/pos`, `pos-plans`, `inventory`, `product-variants`, `common/idempotency`, `draft-orders`, `markets`, `auth` | ✅ **22 suites passed, 353 tests passed** (2 suites / 45 tests skipped = the pre-existing env-gated `inventory.integration.spec.ts` and the AppModule smoke test, which needs `MONGO_URI` on localhost) |
+| `flutter analyze` | ✅ 4 issues, all pre-existing (none new) |
+| `flutter test` (whole suite) | ✅ **303 passed** (was 210 at 5B) |
 | Flutter `test/shared_device_security_test.dart` — 23 tests: route matrix (owner vs operational), credential selection, owner-session expiry/slide, gate screen, registration swap, revocation (queue + key + binding kept; Dio 401 handling; expired owner session ≠ device sign-out; same-store re-registration rule; queue waits then drains), sign-out blocked while unsynced / allowed when empty, `clearPreference` keeps the queue key, auto-lock (timing, reset on touch, owner minutes, only when signed in, ends owner session, unlock same employee/wrong PIN/other employee, overlay keeps the cart state), devices screen revoke | ✅ |
 
 ### Migration notes
@@ -81,11 +83,13 @@ Changed (backward compatible for owner/staff JWTs): operational `/pos` routes no
 10. While offline: Complete (held), Refund, Void are greyed out with the message; a sale queued by cashier A and synced after cashier B logged in is attributed to A.
 
 ### Not run / known limits
-- Simulator integration run results: see "Final run".
+- Pre-existing backend failures outside this scope (slug-transliteration, translations, themes compat, stripe-connect payouts, payment-webhooks) were not touched or re-run; they fail identically on the base commit.
 - The manager-PIN alternative to owner re-auth was **not** implemented for owner screens: the backend must authenticate owner-only routes with the owner's own session, so manager PIN can't stand in for it there (managers keep their PIN-gated reports, cash adjustments, refunds, voids and discard/review). If you want managers to edit settings from a till, that needs a new backend permission model — a product decision.
 - A device token's lifetime is 365 days with no refresh; re-setup is the renewal.
 - `lastSeenAt` is refreshed at most every 5 minutes per device (one write, not one per request).
 - Web dashboard changes (listed above) are not part of this workspace.
 
 ## Final run
-_(filled in at the end of the run)_
+- **iOS simulator (iPhone 17 Pro, iOS 26):** `integration_test/pos_checkout_flow_test.dart` ✅ passed; `integration_test/offline_sync_test.dart` ✅ passed (2 tests).
+- Backend and Flutter results are in the Tests table above.
+- Commits — solvexo-api: `4b021c3` (5C.1 #3–#5), `89d2c01` + `9b63b15` (5D). pos: `1cdf016` (5C.1 app), `5177b1b` (5D app); earlier this session: the integration-test repair and `268d1f3` (queue encryption).
