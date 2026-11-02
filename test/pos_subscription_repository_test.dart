@@ -42,72 +42,7 @@ void main() {
     when(() => client.get(any(), requiresAuth: any(named: 'requiresAuth'))).thenThrow(e);
   }
 
-  void stubPostCheckout(Response response) {
-    when(() => client.post(
-          any(),
-          data: any(named: 'data'),
-          requiresAuth: any(named: 'requiresAuth'),
-        )).thenAnswer((_) async => response);
-  }
 
-  void stubPostCheckoutThrows(DioException e) {
-    when(() => client.post(
-          any(),
-          data: any(named: 'data'),
-          requiresAuth: any(named: 'requiresAuth'),
-        )).thenThrow(e);
-  }
-
-  group('getPlans', () {
-    test('parses the active-plans list', () async {
-      stubGet(_res({
-        'success': true,
-        'data': [
-          {
-            'id': 'plan-1',
-            'name': '3 Month Plan',
-            'price': 49,
-            'currency': 'USD',
-            'durationInDays': 90,
-            'description': 'Great for seasonal sellers',
-          },
-          {
-            'id': 'plan-2',
-            'name': '1 Year Plan',
-            'price': 149,
-            'currency': 'USD',
-            'durationInDays': 365,
-          },
-        ],
-      }));
-
-      final plans = await repo.getPlans();
-
-      expect(plans, hasLength(2));
-      expect(plans[0].id, 'plan-1');
-      expect(plans[0].name, '3 Month Plan');
-      expect(plans[0].price, 49);
-      expect(plans[0].durationInDays, 90);
-      expect(plans[0].description, 'Great for seasonal sellers');
-      expect(plans[1].description, isNull);
-    });
-
-    test('returns an empty list when the backend reports failure', () async {
-      stubGet(_res({'success': false, 'message': 'error'}));
-
-      final plans = await repo.getPlans();
-
-      expect(plans, isEmpty);
-    });
-
-    test('returns an empty list (not throws) on a DioException', () async {
-      stubGetThrows(_dioError());
-
-      final plans = await repo.getPlans();
-
-      expect(plans, isEmpty);
-    });
-  });
 
   group('getStatus — status parsing', () {
     final cases = {
@@ -184,47 +119,8 @@ void main() {
     });
   });
 
-  group('createCheckoutSession', () {
-    test('extracts the url from a successful response', () async {
-      stubPostCheckout(_res({
-        'success': true,
-        'data': {'url': 'https://checkout.stripe.com/session-1'},
-      }));
-
-      final url = await repo.createCheckoutSession(
-        'store-1',
-        planId: 'plan-1',
-        successUrl: 'https://app/success',
-        cancelUrl: 'https://app/cancel',
-      );
-
-      expect(url, 'https://checkout.stripe.com/session-1');
-    });
-
-    test('returns null when the backend reports failure', () async {
-      stubPostCheckout(_res({'success': false, 'message': 'Stripe error'}));
-
-      final url = await repo.createCheckoutSession(
-        'store-1',
-        planId: 'plan-1',
-        successUrl: 'https://app/success',
-        cancelUrl: 'https://app/cancel',
-      );
-
-      expect(url, isNull);
-    });
-
-    test('returns null (not throws) on a DioException', () async {
-      stubPostCheckoutThrows(_dioError());
-
-      final url = await repo.createCheckoutSession(
-        'store-1',
-        planId: 'plan-1',
-        successUrl: 'https://app/success',
-        cancelUrl: 'https://app/cancel',
-      );
-
-      expect(url, isNull);
-    });
+  test('the app has no purchase surface: the repository exposes only the status read', () {
+    // (compile-time guarantee: getPlans / createCheckoutSession no longer exist)
+    expect(PosSubscriptionRepository(), isA<PosSubscriptionRepository>());
   });
 }

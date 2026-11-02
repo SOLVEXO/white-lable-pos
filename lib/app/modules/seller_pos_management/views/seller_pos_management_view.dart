@@ -9,15 +9,15 @@ import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
-import 'package:solvexo_pos/app/data/services/branding_service.dart';
 import 'package:solvexo_pos/app/modules/seller_pos_management/controllers/seller_pos_management_controller.dart';
 import 'package:solvexo_pos/app/modules/seller_pos_management/widgets/seller_pos_management_shimmer.dart';
-import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_text_styles.dart';
 import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:solvexo_pos/utils/dimens.dart';
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/modules/pos_plan/views/plan_expiry_banner.dart';
+import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
@@ -81,6 +81,7 @@ class SellerPosManagementView extends StatelessWidget {
                   child: ListView(
                     padding: EdgeInsets.fromLTRB(hPad, 18, hPad, 28),
                     children: [
+                      PlanExpiryBanner(status: c.planStatus.value, onTap: () => Get.toNamed(Routes.posPlanStatus)),
                       _OpenPosHeroCard(c: c, isWide: isTablet),
                       const SizedBox(height: 18),
                       _StatsRow(c: c, isWide: isTablet),
@@ -413,11 +414,7 @@ class _ReportsLinksRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // UI-level only — a tenant can hide the audit log entry point via
-    // white-label feature flags; the route/API still exist either way.
-    final showAuditLog = Get.find<BrandingService>().isFeatureEnabled(
-      'posAuditLog',
-    );
+    const showAuditLog = true;
     return Row(
       children: [
         Expanded(

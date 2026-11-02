@@ -3,7 +3,7 @@ import 'package:solvexo_pos/app/components/animated_background_circles.dart';
 import 'package:solvexo_pos/app/components/common_image_view.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/components/svg_icon.dart';
-import 'package:solvexo_pos/app/data/services/branding_service.dart';
+import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/app/modules/splash_screen/controllers/splash_screen_controller.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_icons.dart';
@@ -105,7 +105,7 @@ class SplashScreenView extends StatelessWidget {
                           Obx(
                             () => CustomText(
                               text:
-                                  '${Get.find<BrandingService>().config.value.appName} POS',
+                                  '${AppBrand.appName} POS',
                               textAlign: TextAlign.center,
                               color: AppColors.white,
                               fontFamily: AppTextStyles.headingFontFamily,

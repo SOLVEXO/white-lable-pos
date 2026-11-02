@@ -101,7 +101,6 @@ class PosSettingsController extends GetxController {
   // POS settings (backend-tracked, per store)
   final Rx<PosSettingsModel?> settings = Rx(null);
   final Rx<PosSubscriptionStatusModel?> subscriptionStatus = Rx(null);
-  final RxBool isBuyingPlan = false.obs;
 
   // Shift stats
   final RxDouble todaySales   = 0.0.obs;
@@ -272,32 +271,10 @@ class PosSettingsController extends GetxController {
       tiles: [
         PosSettingsTile(
           emoji: AppIcons.cardIcon,
-          title: 'Plan',
-          trailing: _currentPlanLabel,
+          title: 'Plan status',
+          trailing: _currentPlanLabel, // read-only; the details screen is owner-only
+          onTap: () => Get.toNamed(Routes.posPlanStatus),
         ),
-        if (subscriptionStatus.value?.status == PosSubscriptionStatusValue.active) ...[
-          PosSettingsTile(
-            emoji: AppIcons.cardIcon,
-            title: 'Purchased',
-            trailing: _formatDate(subscriptionStatus.value?.purchasedAt),
-          ),
-          PosSettingsTile(
-            emoji: AppIcons.cardIcon,
-            title: 'Expires',
-            trailing: _formatDate(subscriptionStatus.value?.expiresAt),
-          ),
-          PosSettingsTile(
-            emoji: AppIcons.cardIcon,
-            title: 'Days Remaining',
-            trailing: subscriptionStatus.value?.daysRemaining?.toString() ?? '—',
-          ),
-        ] else
-          PosSettingsTile(
-            emoji: AppIcons.cardIcon,
-            title: 'Buy a Plan',
-            trailing: isBuyingPlan.value ? 'Opening…' : null,
-            onTap: isBuyingPlan.value ? null : _buyPlan,
-          ),
       ],
     ),
     PosSettingsSection(
@@ -408,35 +385,6 @@ class PosSettingsController extends GetxController {
   Future<void> refreshData() => _load();
 
   // ── Subscription ──────────────────────────────────────────────────────────
-  String _formatDate(DateTime? date) {
-    if (date == null) return '—';
-    return '${date.month}/${date.day}/${date.year}';
-  }
-
-  /// Routes into the plan-selection paywall so the seller can buy a plan
-  /// for this store (no active one, or the last one expired) — fixed-term
-  /// one-time purchase, no billing portal to manage between purchases.
-  Future<void> _buyPlan() async {
-    if (_storeId.isEmpty) return;
-    if (!await OwnerGate.ensure()) return; // buying a plan is the owner's
-    isBuyingPlan.value = true;
-    try {
-      final storeName = await AppPreferences.getStoreName() ?? 'this store';
-      final status = subscriptionStatus.value;
-      await Get.toNamed(
-        Routes.posSubscriptionPaywall,
-        arguments: {
-          'storeId': _storeId,
-          'storeName': storeName,
-          'isExpired': status?.status == PosSubscriptionStatusValue.expired,
-          'expiresAt': status?.expiresAt?.toIso8601String(),
-        },
-      );
-      await _loadSubscriptionStatus();
-    } finally {
-      isBuyingPlan.value = false;
-    }
-  }
 
   // ── Editable settings ─────────────────────────────────────────────────────
   void _editTaxRate() {

@@ -12,7 +12,7 @@ import 'package:get/get.dart';
 /// is the actual source of truth for whether a request succeeded.
 ///
 /// `Get.put(NetworkStatusService(), permanent: true)` in `main.dart` (mirrors
-/// `BrandingService`'s init pattern); read anywhere via
+/// the other early services' init pattern); read anywhere via
 /// `Get.find<NetworkStatusService>()`.
 class NetworkStatusService extends GetxController {
   final RxBool isOnline = true.obs;

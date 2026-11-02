@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import 'package:solvexo_pos/app/middleware/auth_middleware.dart';
 import 'package:solvexo_pos/app/middleware/owner_access_middleware.dart';
 import '../modules/pos_device/views/device_setup_view.dart';
+import '../modules/pos_plan/views/pos_plan_inactive_view.dart';
+import '../modules/pos_plan/views/pos_plan_status_view.dart';
 import '../modules/pos_device/views/owner_gate_view.dart';
 import '../modules/pos_device/views/pos_devices_view.dart';
 import '../modules/splash_screen/bindings/splash_screen_binding.dart';
@@ -52,10 +54,6 @@ import '../modules/pos_stock_activity/bindings/pos_stock_activity_binding.dart';
 import '../modules/pos_stock_activity/views/pos_stock_activity_view.dart';
 import '../modules/pos_customers/bindings/pos_customers_binding.dart';
 import '../modules/pos_customers/views/pos_customers_view.dart';
-import '../modules/pos_subscription_paywall/bindings/pos_subscription_paywall_binding.dart';
-import '../modules/pos_subscription_paywall/views/pos_subscription_paywall_view.dart';
-import '../modules/pos_subscription_checkout/bindings/pos_subscription_checkout_binding.dart';
-import '../modules/pos_subscription_checkout/views/pos_subscription_checkout_view.dart';
 part 'app_routes.dart';
 
 class AppPages {
@@ -215,20 +213,7 @@ class AppPages {
       binding: PosCustomersBinding(),
       middlewares: [PosAccessMiddleware(requireActiveSession: true), OwnerAccessMiddleware()],
     ),
-    // Reached from the seller dashboard (SellerPosManagementController
-    // .openPosTerminal) before PIN login, so only the base seller-auth
-    // check applies — no PIN-logged-in employee/register session exists yet.
-    GetPage(
-      name: Routes.posSubscriptionPaywall,
-      page: () => PosSubscriptionPaywallView(),
-      binding: PosSubscriptionPaywallBinding(),
-      middlewares: [PosAccessMiddleware()],
-    ),
-    GetPage(
-      name: Routes.posSubscriptionCheckout,
-      page: () => PosSubscriptionCheckoutView(),
-      binding: PosSubscriptionCheckoutBinding(),
-      middlewares: [PosAccessMiddleware()],
-    ),
+    GetPage(name: Routes.posPlanInactive, page: () => const PosPlanInactiveView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posPlanStatus, page: () => const PosPlanStatusView(), middlewares: [PosAccessMiddleware(), OwnerAccessMiddleware()]),
   ];
 }

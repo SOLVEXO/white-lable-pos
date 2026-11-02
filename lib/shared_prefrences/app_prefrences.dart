@@ -18,7 +18,6 @@ class AppPreferences {
   static const String _userProfileImageKey = 'user_profile_image';
   static const String _storeIdKey = 'store_id';
   static const String _storeNameKey = 'store_name';
-  static const String _brandingConfigKey = 'branding_config_json';
   static const String _hasSeenOnboardingKey = 'has_seen_onboarding';
 
   // ── POS employee / session context ────────────────────────────────────────────
@@ -446,19 +445,6 @@ class AppPreferences {
   static Future<int> getPosAutoLockMinutes() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_posAutoLockMinutesKey) ?? 5;
-  }
-
-  // ── White-label branding cache (last successfully fetched config, so a
-  // cold start can paint the right brand instantly instead of flashing
-  // defaults first — see BrandingService) ──────────────────────────────────
-  static Future<void> saveBrandingConfigJson(String json) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_brandingConfigKey, json);
-  }
-
-  static Future<String?> getBrandingConfigJson() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_brandingConfigKey);
   }
 
   // ── First-launch onboarding flag ─────────────────────────────────────────

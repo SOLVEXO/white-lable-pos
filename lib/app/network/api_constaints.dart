@@ -10,16 +10,6 @@ class ApiConstants {
 
   static const String apiPrefix = "$baseUrl/api";
 
-  // ============ White-Label Branding (Phase 4) ============
-  // ⚠️ Backend does NOT implement this endpoint yet — requested from the
-  // backend team as part of the white-label transformation. Expected shape:
-  // GET, public or JWT-optional, response `{ success, data: { appName,
-  // marketplaceName, logoUrl, primaryColor, secondaryColor, accentColor,
-  // featureFlags: { [key: string]: boolean } } }`. Until it exists,
-  // `BrandingRepository` calls this, gets a 404, and silently falls back to
-  // `BrandingConfigModel.defaults()` — see that class's doc comment.
-  static const String brandingConfig = "$apiPrefix/branding/config";
-
   // Timeouts
   static const int connectTimeout = 30000; // 30 seconds
   static const int receiveTimeout = 30000;
@@ -313,11 +303,8 @@ class ApiConstants {
   // Admin-managed POS plans + per-store purchase status (Stripe-backed,
   // fixed-term one-time purchase — no recurring subscription/billing
   // portal, see backend spec).
-  static const String posPlans = '$apiPrefix/pos-plans';
   static String posSubscriptionStatus(String storeId) =>
       '$apiPrefix/pos/subscription/$storeId'; // read-only status a registered device may call
-  static String posSubscriptionCheckoutSession(String storeId) =>
-      '$apiPrefix/pos-subscriptions/$storeId/checkout-session';
 
   // Employees
   static String posEmployees(String storeId) =>

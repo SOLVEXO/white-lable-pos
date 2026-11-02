@@ -1,6 +1,6 @@
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/components/svg_icon.dart';
-import 'package:solvexo_pos/app/data/services/branding_service.dart';
+import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/controllers/seller_onboarding_controller.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/widgets/onboarding_bottom_bar.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/widgets/onboarding_step_bar.dart';
@@ -99,7 +99,7 @@ class _TopHeader extends StatelessWidget {
           SvgIcon(assetName: AppImages.logoImage, size: 40),
           const SizedBox(width: 5),
           CustomText(
-            text: Get.find<BrandingService>().config.value.appName.toUpperCase(),
+            text: AppBrand.appName.toUpperCase(),
             fontFamily: AppTextStyles.headingFontFamily,
             fontSize: AppFontSize.medium,
             fontWeight: FontWeight.bold,

@@ -99,7 +99,6 @@ void main() {
         ('POST', '/api/pos/devices'),
         ('POST', '/api/pos/devices/s1/d1/revoke'),
         ('POST', '/api/pos/sessions/abc/force-close'),
-        ('POST', '/api/pos-subscriptions/s1/checkout-session'),
         ('POST', '/api/inventory/s1/variant/v1/adjust'),
         ('GET', '/api/products/p1/variants'),
         ('GET', '/api/activity-log/s1'),

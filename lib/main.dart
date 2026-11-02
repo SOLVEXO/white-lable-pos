@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:solvexo_pos/app/components/network_status_banner.dart';
 import 'package:solvexo_pos/app/data/repositories/auth_repository.dart';
-import 'package:solvexo_pos/app/data/services/branding_service.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
 import 'package:solvexo_pos/app/data/services/idle_lock_service.dart';
+import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
 import 'package:solvexo_pos/app/modules/pos_device/views/pos_lock_overlay.dart';
@@ -48,7 +48,7 @@ void main() async {
   Money.configure(currency: cachedCurrency.code, exponent: cachedCurrency.exponent);
   // Re-verifies the cached role against a fresh server call rather than
   // trusting it indefinitely (Phase 4) — fired in the background, same
-  // non-blocking pattern as BrandingService.refreshFromBackend below,
+  // non-blocking pattern as the other background refreshes,
   // rather than delaying boot on a network round-trip. Only worth calling
   // if a session already exists; a fresh install has no token to check.
   // (A registered device's token can't read the account profile — and its role was set locally at registration.)
@@ -59,9 +59,6 @@ void main() async {
       }),
     );
   }
-  // Loads any cached branding instantly, then refreshes from the backend in
-  // the background; see BrandingService's doc comment.
-  await Get.put(BrandingService(), permanent: true).init();
   await Get.put(NetworkStatusService(), permanent: true).init();
   // Must come after NetworkStatusService — it looks that up in its own
   // init() to listen for reconnects and drain the offline sale queue.
@@ -88,7 +85,7 @@ class MyApp extends StatelessWidget {
       builder: (context, orientation, screenType) {
         return GetMaterialApp(
           debugShowCheckedModeBanner: false,
-          title: '${Get.find<BrandingService>().config.value.appName} POS',
+          title: AppBrand.posName,
           initialRoute: AppPages.initialRoute,
           getPages: AppPages.routes,
           // Clamp OS accessibility text scaling so extreme settings can't

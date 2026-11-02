@@ -56,7 +56,6 @@ class OwnerRoutes {
     if (p.startsWith('/pos/shifts/') && m != 'GET') return true;
     if (p.startsWith('/pos/settings/') && m != 'GET') return true;
     if (RegExp(r'^/pos/sessions/[^/]+/force-close$').hasMatch(p)) return true;
-    if (RegExp(r'^/pos-subscriptions/[^/]+/checkout-session$').hasMatch(p)) return true;
     if (p.startsWith('/inventory/') || p.startsWith('/activity-log/') || p.startsWith('/store/') || p.startsWith('/products/')) return true;
     return false;
   }

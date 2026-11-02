@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
@@ -31,6 +32,7 @@ class SellerPosManagementController extends GetxController {
   final RxBool isSavingRegister  = false.obs;
   final RxBool isSavingShift     = false.obs;
   final RxBool isCheckingPosAccess = false.obs;
+  final Rx<PosSubscriptionStatusModel?> planStatus = Rx(null);
 
   // ── Data ──────────────────────────────────────────────────────────────────
   final RxList<PosEmployeeModel>  employees       = <PosEmployeeModel>[].obs;
@@ -101,6 +103,8 @@ class SellerPosManagementController extends GetxController {
       ]);
 
       employees.assignAll(results[0] as List<PosEmployeeModel>);
+      // For the owner's expiry heads-up (read-only; a failed call just leaves the banner off)
+      unawaited(_subscriptionRepo.getStatus(sid).then((s) => planStatus.value = s.isUnknown ? null : s));
 
       final store = results[1] as StoreModel?;
       if (store != null) {
@@ -346,15 +350,11 @@ class SellerPosManagementController extends GetxController {
         Get.toNamed(Routes.posPinLogin);
         return;
       }
-      Get.toNamed(
-        Routes.posSubscriptionPaywall,
-        arguments: {
-          'storeId': storeId.value,
-          'storeName': storeName.value,
-          'isExpired': status.status == PosSubscriptionStatusValue.expired,
-          'expiresAt': status.expiresAt?.toIso8601String(),
-        },
-      );
+      if (status.isUnknown || !status.enforced) {
+        Get.toNamed(Routes.posPinLogin); // can't tell / the backend isn't enforcing: it decides at the first sale
+        return;
+      }
+      Get.toNamed(Routes.posPlanInactive);
     } finally {
       isCheckingPosAccess.value = false;
     }

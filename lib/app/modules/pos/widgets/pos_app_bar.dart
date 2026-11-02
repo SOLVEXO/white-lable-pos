@@ -1,10 +1,9 @@
 import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/data/services/branding_service.dart';
+import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 class PosAppBar extends StatelessWidget {
   final String title;
@@ -16,7 +15,7 @@ class PosAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveSubtitle = subtitle ?? '${Get.find<BrandingService>().config.value.appName} POS';
+    final effectiveSubtitle = subtitle ?? '${AppBrand.appName} POS';
     return Container(
       decoration: BoxDecoration(gradient: AppColors.appbarGradient),
       padding: EdgeInsets.only(

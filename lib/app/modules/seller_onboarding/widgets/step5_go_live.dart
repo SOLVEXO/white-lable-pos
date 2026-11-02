@@ -1,5 +1,5 @@
 import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/data/services/branding_service.dart';
+import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/controllers/seller_onboarding_controller.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_text_styles.dart';
@@ -15,7 +15,7 @@ class Step5GoLive extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final marketplaceName = Get.find<BrandingService>().config.value.marketplaceName;
+    final marketplaceName = AppBrand.marketplaceName;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppDimen.allPadding),
       child: Column(
@@ -60,7 +60,6 @@ class Step5GoLive extends StatelessWidget {
                 const SizedBox(height: 14),
                 const _NextStepsTimeline(),
                 const SizedBox(height: 20),
-                _UpgradeNote(),
               ],
             ),
           ),
@@ -79,7 +78,7 @@ class _SetupSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appName = Get.find<BrandingService>().config.value.appName;
+    final appName = AppBrand.appName;
     return Obx(
       () => Container(
         padding: const EdgeInsets.all(14),
@@ -203,7 +202,7 @@ class _NextStepsTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final marketplaceName = Get.find<BrandingService>().config.value.marketplaceName;
+    final marketplaceName = AppBrand.marketplaceName;
     return Column(
       children: [
         const _TimelineStep(
@@ -295,23 +294,6 @@ class _TimelineConnector extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(left: 16.5),
       child: Container(width: 1.5, height: 18, color: AppColors.lightGrey2),
-    );
-  }
-}
-
-// ── Upgrade note ──────────────────────────────────────────────────────────────
-// Plan upgrades are managed on Seller Web, not in this app — static text only.
-
-class _UpgradeNote extends StatelessWidget {
-  const _UpgradeNote();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Text(
-      "You're on the free Starter plan. Upgrade anytime to unlock unlimited "
-      'products, AI Studio, POS, and custom domain.',
-      textAlign: TextAlign.center,
-      style: TextStyle(fontSize: 11, color: AppColors.grey),
     );
   }
 }

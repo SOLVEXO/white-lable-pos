@@ -1,23 +1,10 @@
-import 'package:solvexo_pos/app/data/services/branding_service.dart';
+import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 class AppColors {
-  /// Tenant-swappable — reads through `BrandingService` (see Phase 4 white-
-  /// label work); falls back to the hardcoded Solvexo terracotta before the
-  /// service is registered (e.g. very first frame, or in widget tests that
-  /// don't bootstrap it).
-  static Color get primaryColor => Get.isRegistered<BrandingService>()
-      ? Get.find<BrandingService>().config.value.primaryColor
-      : const Color(0xFFd97757);
-
-  static Color get secondryColor => Get.isRegistered<BrandingService>()
-      ? Get.find<BrandingService>().config.value.secondaryColor
-      : const Color(0xFF6FBF4A);
-
-  static Color get accentColor => Get.isRegistered<BrandingService>()
-      ? Get.find<BrandingService>().config.value.accentColor
-      : const Color(0xFFd97757);
+  static Color get primaryColor => AppBrand.primary;
+  static Color get secondryColor => AppBrand.secondary;
+  static Color get accentColor => AppBrand.accent;
 
   static Gradient get appbarGradient => LinearGradient(
     colors: [AppColors.primaryColor, AppColors.lightgradianColor],

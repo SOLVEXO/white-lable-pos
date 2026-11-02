@@ -357,7 +357,7 @@ void main() {
     when(() => mockPosRepo.getSessionReport(any())).thenAnswer((_) async => null);
 
     // ── Jump straight to PIN login (see header comment) ─────────────────────
-    await pumpFor(tester, const Duration(seconds: 3)); // let boot (Firebase/BrandingService/etc) settle
+    await pumpFor(tester, const Duration(seconds: 3)); // let boot (Firebase/etc) settle
     // the splash screen decides where to go when its animation ends — wait for it, or it navigates OVER the PIN page
     await pumpUntil(tester, () => Get.currentRoute != Routes.splashScreen, timeout: const Duration(seconds: 40));
     await pumpFor(tester, const Duration(seconds: 1));

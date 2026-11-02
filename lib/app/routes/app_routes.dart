@@ -31,9 +31,9 @@ abstract class Routes {
   static const posPinLogin = '/pos/pin-login';
   static const posOpenRegister = '/pos/open-register';
 
-  // POS subscription gate
-  static const posSubscriptionPaywall = '/pos/subscription-paywall';
-  static const posSubscriptionCheckout = '/pos/subscription-checkout';
+  // POS plan: read-only status (owner) and the neutral "plan isn't active" screen — the app never sells a plan
+  static const posPlanInactive = '/pos/plan-inactive';
+  static const posPlanStatus = '/pos/plan-status';
 
   // POS operational screens
   static const posHeldSales = '/pos/held-sales';

@@ -68,7 +68,6 @@ dependencies:
   # Hosted Stripe Checkout / Billing Portal for per-store POS subscriptions —
   # opened in-app rather than a native payment sheet, same pattern as the
   # buyer app's gateway_payment flow. Version matches solvexo-app's pubspec.
-  webview_flutter: ^4.13.0
   cryptography: ^2.9.0
 
 dev_dependencies:

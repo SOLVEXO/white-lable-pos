@@ -1,14 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:solvexo_pos/app/data/models/pos/pos_plan_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.dart';
 import 'package:solvexo_pos/app/network/api_constaints.dart';
 import 'package:solvexo_pos/app/network/base_client.dart';
 import 'package:solvexo_pos/app/network/dio_exception_handler.dart';
 
-/// Per-store POS plan purchase gate — admin-managed plans, one-time Stripe
-/// Checkout, fixed-term expiry, no recurring subscription/billing portal
-/// (see backend spec for the endpoint contract).
+/// Reads a store's POS plan entitlement. READ-ONLY by design: plans are bought on the web (Solvexo's own site / admin grant),
+/// never in this app — there is no plan list, price or checkout call here (store-policy compliance).
 ///
 /// Duplicates PosRepository's `_data`/`_ok` envelope helpers rather than
 /// sharing them via a mixin/base class: they're two three-line methods, and
@@ -34,23 +32,6 @@ class PosSubscriptionRepository {
     debugPrint('   Response: ${e.response?.data}');
   }
 
-  /// Active plans available for purchase — admin-authored, entirely dynamic
-  /// (name/price/duration), never hardcoded on the client.
-  Future<List<PosPlanModel>> getPlans() async {
-    try {
-      final res = await _client.get(ApiConstants.posPlans, requiresAuth: true);
-      final list = _data(res) as List<dynamic>? ?? [];
-      return list.map((e) => PosPlanModel.fromJson(e as Map<String, dynamic>)).toList();
-    } on DioException catch (e) {
-      _logDioError('getPlans', e);
-      DioExceptionHandler.handleDioException(e, showToast: false);
-      return [];
-    } catch (e) {
-      debugPrint('❌ getPlans: $e');
-      return [];
-    }
-  }
-
   Future<PosSubscriptionStatusModel> getStatus(String storeId) async {
     try {
       final res = await _client.get(
@@ -67,30 +48,6 @@ class PosSubscriptionRepository {
     } catch (e) {
       debugPrint('❌ getStatus: $e');
       return PosSubscriptionStatusModel.unknown();
-    }
-  }
-
-  Future<String?> createCheckoutSession(
-    String storeId, {
-    required String planId,
-    required String successUrl,
-    required String cancelUrl,
-  }) async {
-    try {
-      final res = await _client.post(
-        ApiConstants.posSubscriptionCheckoutSession(storeId),
-        data: {'planId': planId, 'successUrl': successUrl, 'cancelUrl': cancelUrl},
-        requiresAuth: true,
-      );
-      final data = _data(res) as Map<String, dynamic>?;
-      return data?['url'] as String?;
-    } on DioException catch (e) {
-      _logDioError('createCheckoutSession', e);
-      DioExceptionHandler.handleDioException(e, showToast: false);
-      return null;
-    } catch (e) {
-      debugPrint('❌ createCheckoutSession: $e');
-      return null;
     }
   }
 }
