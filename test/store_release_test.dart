@@ -126,7 +126,7 @@ void main() {
     final gradle = File('android/app/build.gradle.kts').readAsStringSync();
 
     test('Android: minimal permissions, BT scan never for location, backup excluded, no cleartext', () {
-      final perms = RegExp(r'uses-permission android:name="([^"]+)"').allMatches(manifest).map((m) => m.group(1)!.split('.').last).toSet();
+      final perms = RegExp(r'uses-permission android:name="([^"]+)"(?![^>]*tools:node="remove")').allMatches(manifest).map((m) => m.group(1)!.split('.').last).toSet();
       expect(perms, {'INTERNET', 'ACCESS_NETWORK_STATE', 'CAMERA', 'BLUETOOTH_SCAN', 'BLUETOOTH_CONNECT', 'BLUETOOTH', 'BLUETOOTH_ADMIN', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION'});
       expect(manifest, contains('neverForLocation'));
       for (final legacy in ['android.permission.BLUETOOTH"', 'BLUETOOTH_ADMIN"', 'ACCESS_FINE_LOCATION"', 'ACCESS_COARSE_LOCATION"']) {
