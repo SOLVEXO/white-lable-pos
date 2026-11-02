@@ -54,4 +54,5 @@ abstract class Routes {
   static const posDeviceSetup = '/pos/device-setup';
   static const posOwnerGate = '/pos/owner-gate';
   static const posDevices = '/pos/devices';
+  static const posDeleteAccount = '/pos/delete-account';
 }

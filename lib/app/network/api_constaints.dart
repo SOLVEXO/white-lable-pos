@@ -273,6 +273,7 @@ class ApiConstants {
   static String posSaleResolveReview(String saleId) => "$apiPrefix/pos/sales/$saleId/resolve-review";
   static String get posOfflineDiscards => "$apiPrefix/pos/offline-discards";
   // Device registration (5D): register/list/revoke need the owner's session; `me` is the device itself
+  static String get sellerAccountDeletion => "$apiPrefix/seller/account-deletion";
   static String get posDevices => "$apiPrefix/pos/devices";
   static String get posDeviceMe => "$apiPrefix/pos/devices/me";
   static String get posDeviceSignOut => "$apiPrefix/pos/devices/me/sign-out";

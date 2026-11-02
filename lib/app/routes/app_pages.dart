@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:solvexo_pos/app/middleware/auth_middleware.dart';
 import 'package:solvexo_pos/app/middleware/owner_access_middleware.dart';
 import '../modules/pos_device/views/device_setup_view.dart';
+import '../modules/pos_device/views/delete_account_view.dart';
 import '../modules/pos_plan/views/pos_plan_inactive_view.dart';
 import '../modules/pos_plan/views/pos_plan_status_view.dart';
 import '../modules/pos_device/views/owner_gate_view.dart';
@@ -115,6 +116,7 @@ class AppPages {
     // 5D — shared-device security
     GetPage(name: Routes.posDeviceSetup, page: () => const DeviceSetupView()),
     GetPage(name: Routes.posOwnerGate, page: () => const OwnerGateView()),
+    GetPage(name: Routes.posDeleteAccount, page: () => const DeleteAccountView(), middlewares: [OwnerAccessMiddleware()]),
     GetPage(name: Routes.posDevices, page: () => const PosDevicesView(), middlewares: [OwnerAccessMiddleware()]),
     GetPage(
       name: Routes.posOrders,

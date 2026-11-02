@@ -312,6 +312,12 @@ class PosSettingsController extends GetxController {
         ),
         PosSettingsTile(
           emoji: AppIcons.logoutIcon,
+          title: 'Delete account',
+          trailing: 'Owner only',
+          onTap: () => Get.toNamed(Routes.posDeleteAccount),
+        ),
+        PosSettingsTile(
+          emoji: AppIcons.logoutIcon,
           title: 'Sign out this device',
           trailing: isManager ? null : 'Managers only',
           onTap: signOutDevice,

@@ -50,6 +50,7 @@ class OwnerRoutes {
 
     if (p == '/pos/devices/me' || p == '/pos/devices/me/sign-out') return false; // the device talking about itself
     if (p.startsWith('/pos/devices')) return true;
+    if (p.startsWith('/seller/account-deletion')) return true; // deleting the owner's account
     if (p.startsWith('/pos/employees')) return true;
     if (p.startsWith('/pos/locations')) return true;
     if (p.startsWith('/pos/registers/') && m != 'GET') return true;
