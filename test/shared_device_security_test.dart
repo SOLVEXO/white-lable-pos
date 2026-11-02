@@ -275,6 +275,23 @@ void main() {
       expect((await AppPreferences.getDeviceRegistration()).storeId, 's1');
     });
 
+    test('POS_LEGACY_AUTH_DISABLED (403) asks the app for device setup and wipes nothing', () async {
+      await AppPreferences.setTokens(accessToken: 'OWNER-JWT', refreshToken: 'R');
+      await AppPreferences.savePosSession(sessionId: 'sess', registerId: 'r', shiftId: 'sh');
+      _secure[AesGcmQueueCipher.storageKey] = 'k';
+      var asked = 0, forced = 0;
+      DioService.onLegacyAuthDisabled = () => asked++;
+      DioService.onForceLogout = () => forced++;
+      final dio = await DioService.getDio();
+      dio.httpClientAdapter = _FakeAdapter(403, {'statusCode': 403, 'code': 'POS_LEGACY_AUTH_DISABLED', 'message': 'x'});
+      await expectLater(dio.get('https://x.test/api/pos/sales', options: Options(extra: {'requiresAuth': true})), throwsA(isA<DioException>()));
+      expect(asked, 1);
+      expect(forced, 0);
+      expect(await AppPreferences.getAccessTokenAsync(), 'OWNER-JWT'); // the owner session is needed to register
+      expect(await AppPreferences.getPosSessionId(), 'sess');
+      expect(_secure[AesGcmQueueCipher.storageKey], 'k');
+    });
+
     test('an expired OWNER session (401 on an owner route) only ends that session — the device stays registered', () async {
       await AppPreferences.saveDeviceRegistration(deviceToken: 'D', deviceId: 'd1', name: 'Front', storeId: 's1', registerId: 'r1');
       OwnerSession.start('OLD-OWNER');

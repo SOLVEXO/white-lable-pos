@@ -33,6 +33,10 @@ void main() async {
     if (Get.currentRoute != Routes.posLogin) Get.offAllNamed(Routes.posLogin);
   };
 
+  DioService.onLegacyAuthDisabled = () {
+    if (Get.currentRoute != Routes.posDeviceSetup && !AppPreferences.cachedDeviceMode) Get.toNamed(Routes.posDeviceSetup);
+  };
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await SharedPreferences.getInstance();

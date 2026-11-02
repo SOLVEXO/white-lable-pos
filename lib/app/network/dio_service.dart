@@ -15,6 +15,10 @@ class DioService {
   /// (see AppPreferences.clearDeviceCredentials) and is sent back to setup, instead of wiping everything.
   static void Function(String code)? onDeviceRevoked;
 
+  /// The backend has switched off legacy (owner-JWT) POS access (`POS_LEGACY_AUTH_DISABLED`, a 403): this install must be
+  /// registered as a device. The host app pushes the setup screen; the cart snapshot and the offline queue are untouched.
+  static void Function()? onLegacyAuthDisabled;
+
   /// Which credential a request carries: an owner-only route uses the (short-lived, in-memory) owner session when there
   /// is one, everything else the stored access token — the device token once the terminal is registered.
   static String? tokenFor(String method, String path, String? storedToken, {bool deviceMode = false}) {
@@ -71,6 +75,10 @@ class DioService {
           // like login/register just means "wrong credentials" and must be
           // returned to the caller normally, not treated as a session drop.
           final requiresAuth = e.requestOptions.extra['requiresAuth'] ?? false;
+          final body = e.response?.data;
+          if (e.response?.statusCode == 403 && body is Map && body['code'] == 'POS_LEGACY_AUTH_DISABLED') {
+            onLegacyAuthDisabled?.call();
+          }
           // (Only a request that actually carried a credential can mean "your credential is bad".)
           final sentCredential = e.requestOptions.headers['Authorization'] != null;
           if (e.response?.statusCode == 401 && requiresAuth && sentCredential) {
