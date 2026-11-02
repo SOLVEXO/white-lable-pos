@@ -13,6 +13,9 @@ import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.da
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_subscription_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/seller_repository.dart';
+import 'package:solvexo_pos/app/data/services/idle_lock_service.dart';
+import 'package:solvexo_pos/app/data/services/owner_gate.dart';
+import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_printer_picker_sheet.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
@@ -314,6 +317,23 @@ class PosSettingsController extends GetxController {
         ),
       ],
     ),
+    PosSettingsSection(
+      header: 'THIS DEVICE',
+      tiles: [
+        PosSettingsTile(
+          emoji: AppIcons.settingIcon,
+          title: 'Devices',
+          trailing: 'Owner only',
+          onTap: () => Get.toNamed(Routes.posDevices),
+        ),
+        PosSettingsTile(
+          emoji: AppIcons.logoutIcon,
+          title: 'Sign out this device',
+          trailing: isManager ? null : 'Managers only',
+          onTap: signOutDevice,
+        ),
+      ],
+    ),
   ];
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -374,6 +394,11 @@ class PosSettingsController extends GetxController {
 
   Future<void> _loadSettings() async {
     settings.value = await _posRepo.getPosSettings(_storeId);
+    final m = settings.value?.autoLockMinutes;
+    if (m != null) {
+      autoLockMinutes.value = m;
+      await _applyAutoLock(m);
+    }
   }
 
   Future<void> _loadSubscriptionStatus() async {
@@ -393,6 +418,7 @@ class PosSettingsController extends GetxController {
   /// one-time purchase, no billing portal to manage between purchases.
   Future<void> _buyPlan() async {
     if (_storeId.isEmpty) return;
+    if (!await OwnerGate.ensure()) return; // buying a plan is the owner's
     isBuyingPlan.value = true;
     try {
       final storeName = await AppPreferences.getStoreName() ?? 'this store';
@@ -461,14 +487,16 @@ class PosSettingsController extends GetxController {
     );
   }
 
-  void _editTextSetting({
+  Future<void> _editTextSetting({
     required String title,
     required String initial,
     required Future<PosSettingsModel?> Function(String value) onSave,
-  }) {
-    final ctrl = TextEditingController(text: initial);
+  }) async {
     final ctx = Get.context;
     if (ctx == null) return;
+    // Changing store configuration is the owner's: on a registered device that means re-entering the owner password.
+    if (!await OwnerGate.ensure() || !ctx.mounted) return;
+    final ctrl = TextEditingController(text: initial);
     CustomConfirmDialog.show(
       ctx,
       title: title,
@@ -498,11 +526,51 @@ class PosSettingsController extends GetxController {
 
   static const _autoLockOptions = [1, 5, 10, 15, 30];
 
+  /// The idle time is the OWNER's setting (stored with the store's POS settings, so every device follows it).
   Future<void> _cycleAutoLock() async {
+    if (!await OwnerGate.ensure()) return;
     final idx = _autoLockOptions.indexOf(autoLockMinutes.value);
     final next = _autoLockOptions[(idx + 1) % _autoLockOptions.length];
+    final saved = await _posRepo.updatePosSettings(_storeId, {'autoLockMinutes': next});
+    if (saved == null) {
+      CustomAppSnackbar.error("Couldn't save the auto-lock time.");
+      return;
+    }
     autoLockMinutes.value = next;
-    await AppPreferences.setPosAutoLockMinutes(next);
+    await _applyAutoLock(next);
+  }
+
+  Future<void> _applyAutoLock(int minutes) async {
+    await AppPreferences.setPosAutoLockMinutes(minutes);
+    if (Get.isRegistered<IdleLockService>()) await Get.find<IdleLockService>().setMinutes(minutes);
+  }
+
+  // ── Device (5D) ───────────────────────────────────────────────────────────
+  /// Full sign-out / reset of this terminal. Managers/owner only, and never while sales are still unsynced.
+  Future<void> signOutDevice() async {
+    if (!isManager) {
+      CustomAppSnackbar.warning('Only a manager can sign this device out.');
+      return;
+    }
+    final ctx = Get.context;
+    if (ctx == null) return;
+    if (await UnsyncedGuard.blockIfUnsynced(action: 'sign this device out') || !ctx.mounted) return;
+    CustomConfirmDialog.show(
+      ctx,
+      title: 'Sign out this device?',
+      message: 'This removes the device from the store and clears everything stored on it. Someone will need the owner password to set it up again.',
+      confirmLabel: 'Sign out',
+      confirmColor: AppColors.red,
+      onConfirm: () async {
+        unawaited(_posRepo.pinLogout(_storeId));
+        final r = await Get.find<PosDeviceService>().reset();
+        if (r == DeviceResetResult.blockedByUnsyncedSales) {
+          CustomAppSnackbar.error('Some sales have not synced yet — they are still on this device.');
+          return;
+        }
+        Get.offAllNamed(Routes.posLogin);
+      },
+    );
   }
 
   // ── Close shift ───────────────────────────────────────────────────────────

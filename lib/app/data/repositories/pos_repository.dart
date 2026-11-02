@@ -179,6 +179,21 @@ class PosRepository {
     }
   }
 
+  /// Ends a SPECIFIC employee token server-side (e.g. the one that was live before the till auto-locked), independent of
+  /// whichever token is currently stored.
+  Future<void> pinLogoutWith(String storeId, String employeeToken) async {
+    try {
+      await _client.post(
+        ApiConstants.posPinLogout,
+        data: {'storeId': storeId},
+        requiresAuth: true,
+        headers: {'x-pos-employee-token': employeeToken},
+      );
+    } catch (e) {
+      debugPrint('❌ pinLogoutWith: $e');
+    }
+  }
+
   // ── Employees ────────────────────────────────────────────────────────────
 
   Future<List<PosEmployeeModel>> getEmployees(String storeId) async {

@@ -27,16 +27,22 @@ class PendingSaleSyncService extends GetxController with WidgetsBindingObserver 
     Future<String?> Function()? currentStoreId,
     DateTime Function()? clock,
     this.persistLastSync = true,
+    bool Function()? hasCredentials,
   })  : _posRepo = posRepository ?? PosRepository(),
         _store = localStore ?? PendingSaleLocalStore(),
         _currentStoreId = currentStoreId ?? AppPreferences.getStoreId,
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _hasCredentials = hasCredentials ?? (() => true);
 
   final PosRepository _posRepo;
   final PendingSaleLocalStore _store;
   final Future<String?> Function() _currentStoreId;
   final DateTime Function() _clock;
   final bool persistLastSync;
+
+  /// False while the device has no usable credential (revoked / not set up): the queue just waits — nothing is sent, nothing
+  /// is dropped — and drains once the owner registers the device again.
+  final bool Function() _hasCredentials;
 
   /// Waiting to be sent (includes ones backing off).
   final RxInt pendingCount = 0.obs;
@@ -134,7 +140,7 @@ class PendingSaleSyncService extends GetxController with WidgetsBindingObserver 
   /// Sends everything that is due. Safe to call from anywhere, any number of times (a mutex keeps it to one pass).
   /// With [ignoreBackoff] (tests, manual "sync now") rows backing off are tried immediately.
   Future<void> syncNow({bool ignoreBackoff = false}) async {
-    if (_syncing) return;
+    if (_syncing || !_hasCredentials()) return;
     _syncing = true;
     isSyncing.value = true;
     var anyBackingOff = false;

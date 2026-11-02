@@ -119,6 +119,12 @@ class SplashScreenController extends GetxController
     // otherwise land on the normal POS login screen.
     final token = await AppPreferences.getAccessTokenAsync();
     if (token != null && token.isNotEmpty) {
+      // A registered terminal goes straight to the staff PIN screen (or its running shift); the owner's management
+      // area is behind the owner gate.
+      if (AppPreferences.cachedDeviceMode) {
+        Get.offAllNamed(AppPreferences.cachedHasPosSession ? Routes.posHome : Routes.posPinLogin);
+        return;
+      }
       Get.offAllNamed(Routes.sellerHome);
       return;
     }

@@ -3,7 +3,10 @@ import 'package:solvexo_pos/app/components/network_status_banner.dart';
 import 'package:solvexo_pos/app/data/repositories/auth_repository.dart';
 import 'package:solvexo_pos/app/data/services/branding_service.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
+import 'package:solvexo_pos/app/data/services/idle_lock_service.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
+import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
+import 'package:solvexo_pos/app/modules/pos_device/views/pos_lock_overlay.dart';
 import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/network/dio_service.dart';
@@ -25,6 +28,11 @@ void main() async {
     }
   };
 
+  DioService.onDeviceRevoked = (code) async {
+    if (Get.isRegistered<PosDeviceService>()) await Get.find<PosDeviceService>().handleRevoked(code);
+    if (Get.currentRoute != Routes.posLogin) Get.offAllNamed(Routes.posLogin);
+  };
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await SharedPreferences.getInstance();
@@ -39,7 +47,8 @@ void main() async {
   // non-blocking pattern as BrandingService.refreshFromBackend below,
   // rather than delaying boot on a network round-trip. Only worth calling
   // if a session already exists; a fresh install has no token to check.
-  if ((AppPreferences.cachedToken ?? '').isNotEmpty) {
+  // (A registered device's token can't read the account profile — and its role was set locally at registration.)
+  if ((AppPreferences.cachedToken ?? '').isNotEmpty && !AppPreferences.cachedDeviceMode) {
     unawaited(
       AuthRepository().getProfile().then((role) {
         if (role != null && role.isNotEmpty) AppPreferences.setUserRole(role);
@@ -52,8 +61,16 @@ void main() async {
   await Get.put(NetworkStatusService(), permanent: true).init();
   // Must come after NetworkStatusService — it looks that up in its own
   // init() to listen for reconnects and drain the offline sale queue.
-  await Get.put(PendingSaleSyncService(), permanent: true).init();
+  await Get.put(PendingSaleSyncService(hasCredentials: () => (AppPreferences.cachedToken ?? '').isNotEmpty), permanent: true).init();
   Get.put(PosEntitlementService(), permanent: true);
+  Get.put(
+    PosDeviceService(
+      unresolvedSales: () async => Get.find<PendingSaleSyncService>().unresolvedCount.value,
+      onRegistered: () => Get.find<PendingSaleSyncService>().syncNow(ignoreBackoff: true),
+    ),
+    permanent: true,
+  );
+  Get.put(IdleLockService(), permanent: true);
   await Get.put(ThermalPrinterService(), permanent: true).init();
   runApp(const MyApp());
 }
@@ -81,7 +98,7 @@ class MyApp extends StatelessWidget {
                   mq.textScaler.scale(1).clamp(0.9, 1.2),
                 ),
               ),
-              child: NetworkStatusBanner(child: child!),
+              child: PosLockOverlay(child: NetworkStatusBanner(child: child!)),
             );
           },
         );

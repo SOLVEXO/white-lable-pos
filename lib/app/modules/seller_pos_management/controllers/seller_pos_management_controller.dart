@@ -334,6 +334,11 @@ class SellerPosManagementController extends GetxController {
   /// PIN-login/register-open for this store.
   Future<void> openPosTerminal() async {
     if (storeId.value.isEmpty) return;
+    // First time on this terminal (or after it was revoked): the owner registers it for a register before any PIN login.
+    if (!AppPreferences.cachedDeviceMode) {
+      Get.toNamed(Routes.posDeviceSetup);
+      return;
+    }
     isCheckingPosAccess.value = true;
     try {
       final status = await _subscriptionRepo.getStatus(storeId.value);

@@ -1,5 +1,9 @@
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/middleware/auth_middleware.dart';
+import 'package:solvexo_pos/app/middleware/owner_access_middleware.dart';
+import '../modules/pos_device/views/device_setup_view.dart';
+import '../modules/pos_device/views/owner_gate_view.dart';
+import '../modules/pos_device/views/pos_devices_view.dart';
 import '../modules/splash_screen/bindings/splash_screen_binding.dart';
 import '../modules/splash_screen/views/splash_screen_view.dart';
 import '../modules/onboarding/bindings/onboarding_binding.dart';
@@ -90,6 +94,7 @@ class AppPages {
       name: Routes.sellerHome,
       page: () => SellerPosManagementView(),
       binding: SellerPosManagementBinding(),
+      middlewares: [OwnerAccessMiddleware()],
     ),
     GetPage(
       name: Routes.posHome,
@@ -101,12 +106,18 @@ class AppPages {
       name: Routes.sellerPosManagement,
       page: () => SellerPosManagementView(),
       binding: SellerPosManagementBinding(),
+      middlewares: [OwnerAccessMiddleware()],
     ),
     GetPage(
       name: Routes.sellerPosLocations,
       page: () => SellerPosLocationsView(),
       binding: SellerPosLocationsBinding(),
+      middlewares: [OwnerAccessMiddleware()],
     ),
+    // 5D — shared-device security
+    GetPage(name: Routes.posDeviceSetup, page: () => const DeviceSetupView()),
+    GetPage(name: Routes.posOwnerGate, page: () => const OwnerGateView()),
+    GetPage(name: Routes.posDevices, page: () => const PosDevicesView(), middlewares: [OwnerAccessMiddleware()]),
     GetPage(
       name: Routes.posOrders,
       page: () => PosOrdersView(),
@@ -196,13 +207,13 @@ class AppPages {
       name: Routes.posStockActivity,
       page: () => PosStockActivityView(),
       binding: PosStockActivityBinding(),
-      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+      middlewares: [PosAccessMiddleware(requireActiveSession: true), OwnerAccessMiddleware()],
     ),
     GetPage(
       name: Routes.posCustomers,
       page: () => PosCustomersView(),
       binding: PosCustomersBinding(),
-      middlewares: [PosAccessMiddleware(requireActiveSession: true)],
+      middlewares: [PosAccessMiddleware(requireActiveSession: true), OwnerAccessMiddleware()],
     ),
     // Reached from the seller dashboard (SellerPosManagementController
     // .openPosTerminal) before PIN login, so only the base seller-auth

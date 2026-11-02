@@ -28,7 +28,9 @@ class AesGcmQueueCipher implements QueueCipher {
       : _storage = storage ?? const FlutterSecureStorage(),
         _key = fixedKey;
 
-  static const _storageKey = 'pos_queue_encryption_key';
+  /// Secure-storage slot of the queue's AES key. Anything that wipes secure storage must keep it while sales are unsynced.
+  static const storageKey = 'pos_queue_encryption_key';
+  static const _storageKey = storageKey;
   static const _prefix = 'v1:';
   static final _algo = AesGcm.with256bits();
 

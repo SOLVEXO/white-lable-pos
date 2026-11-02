@@ -48,6 +48,27 @@ class AuthRepository {
     }
   }
 
+  /// Owner re-authentication on a registered device: checks the password with the normal login endpoint but does NOT
+  /// persist anything — the returned JWT goes into the in-memory [OwnerSession] only, so the device token in secure storage
+  /// is never replaced by the owner's session. Null when the credentials are wrong or the account is not this store's owner.
+  Future<String?> verifyOwnerPassword({required String email, required String password}) async {
+    try {
+      final response = await _baseClient.post(
+        ApiConstants.login,
+        data: {'email': email, 'password': password, 'role': 'seller'},
+        requiresAuth: false,
+      );
+      if (response.data['success'] == true) return AuthResponseModel.fromJson(response.data).token.accessToken;
+      return null;
+    } on DioException catch (e) {
+      DioExceptionHandler.handleDioException(e);
+      return null;
+    } catch (e) {
+      debugPrint('❌ verifyOwnerPassword: $e');
+      return null;
+    }
+  }
+
   Future<AuthResponseModel?> socialLogin(SocialLoginModel dto) async {
     try {
       debugPrint('🔄 Social login: ${dto.authProvider} - ${dto.email}');

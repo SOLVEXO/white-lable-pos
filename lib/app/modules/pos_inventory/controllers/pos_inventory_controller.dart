@@ -8,6 +8,7 @@ import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/data/services/owner_gate.dart';
 import 'package:get/get.dart';
 
 class PosInventoryController extends GetxController {
@@ -111,6 +112,8 @@ class PosInventoryController extends GetxController {
   /// directly or the cashier picks which one (mirrors
   /// PosHomeController._showVariantSheet's pattern).
   Future<void> openAdjustStock(String productId, String productName) async {
+    // Adjusting stock changes the store's books — the owner's on a registered device (viewing stock is open to staff).
+    if (!await OwnerGate.ensure()) return;
     final variants = await _inventoryRepo.getProductVariants(productId);
     if (variants.isEmpty) {
       CustomAppSnackbar.error('Could not load stock details for this product.');

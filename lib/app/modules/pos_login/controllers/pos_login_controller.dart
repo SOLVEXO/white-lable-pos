@@ -1,4 +1,6 @@
+import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/repositories/auth_repository.dart';
+import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
 import 'package:solvexo_pos/app/data/services/social_auth_service.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/toast_util.dart';
@@ -50,8 +52,13 @@ class PosLoginController extends GetxController {
   Future<void> _restoreSession() async {
     final token = await AppPreferences.getAccessTokenAsync();
     if (token != null && token.isNotEmpty) {
-      Get.offAllNamed(Routes.sellerStores);
+      Get.offAllNamed(AppPreferences.cachedDeviceMode ? Routes.posPinLogin : Routes.sellerStores);
       return;
+    }
+    // The device lost its registration (revoked by the owner): say so, and that its unsynced sales are safe.
+    if (Get.isRegistered<PosDeviceService>()) {
+      final notice = Get.find<PosDeviceService>().revokedNotice.value;
+      if (notice != null) CustomAppSnackbar.warning(notice);
     }
     isCheckingSession.value = false;
   }

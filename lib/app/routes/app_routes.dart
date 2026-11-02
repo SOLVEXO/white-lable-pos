@@ -49,4 +49,9 @@ abstract class Routes {
   static const posStockActivity = '/pos/stock-activity';
   static const posNeedsAttention = '/pos/needs-attention';
   static const posCustomers = '/pos/customers';
+
+  // 5D — shared-device security
+  static const posDeviceSetup = '/pos/device-setup';
+  static const posOwnerGate = '/pos/owner-gate';
+  static const posDevices = '/pos/devices';
 }

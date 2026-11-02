@@ -268,9 +268,9 @@ class ApiConstants {
   static String productVariant(String productId, String variantId) =>
       "$apiPrefix/products/$productId/variants/$variantId";
   static String getStoreInventory(String storeId) =>
-      "$apiPrefix/inventory/getStoreInventory/$storeId";
+      "$apiPrefix/pos/inventory/$storeId"; // read-only view a registered device may call
   static String lowStockSummary(String storeId) =>
-      "$apiPrefix/inventory/low-stock-summary/$storeId";
+      "$apiPrefix/pos/inventory/$storeId/low-stock";
   // Phase 2 (POS Customers): real past-buyers list for a store (paginated,
   // no search param) and a separate global registered-user search used to
   // attach a customer to a sale — see CustomerRepository.
@@ -286,6 +286,12 @@ class ApiConstants {
   static String posSalesNeedsReview(String storeId) => "$apiPrefix/pos/sales/needs-review?storeId=$storeId";
   static String posSaleResolveReview(String saleId) => "$apiPrefix/pos/sales/$saleId/resolve-review";
   static String get posOfflineDiscards => "$apiPrefix/pos/offline-discards";
+  // Device registration (5D): register/list/revoke need the owner's session; `me` is the device itself
+  static String get posDevices => "$apiPrefix/pos/devices";
+  static String get posDeviceMe => "$apiPrefix/pos/devices/me";
+  static String get posDeviceSignOut => "$apiPrefix/pos/devices/me/sign-out";
+  static String posDevicesOfStore(String storeId) => "$apiPrefix/pos/devices/$storeId";
+  static String posDeviceRevoke(String storeId, String deviceId) => "$apiPrefix/pos/devices/$storeId/$deviceId/revoke";
   static String inventoryAdjustStock(String storeId, String variantId) =>
       "$apiPrefix/inventory/$storeId/variant/$variantId/adjust";
   static String sellerOrders(String storeId) =>
@@ -309,7 +315,7 @@ class ApiConstants {
   // portal, see backend spec).
   static const String posPlans = '$apiPrefix/pos-plans';
   static String posSubscriptionStatus(String storeId) =>
-      '$apiPrefix/pos-subscriptions/$storeId';
+      '$apiPrefix/pos/subscription/$storeId'; // read-only status a registered device may call
   static String posSubscriptionCheckoutSession(String storeId) =>
       '$apiPrefix/pos-subscriptions/$storeId/checkout-session';
 

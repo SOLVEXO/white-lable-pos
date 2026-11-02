@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:solvexo_pos/app/data/local/queue_cipher.dart';
 
 class AppPreferences {
   // Auth tokens live in Keychain/Keystore-backed secure storage (Phase 4
@@ -28,6 +29,17 @@ class AppPreferences {
   static const String _posSessionIdKey = 'pos_session_id';
   static const String _posRegisterIdKey = 'pos_register_id';
   static const String _posShiftIdKey = 'pos_shift_id';
+  static const String _posEmployeeEmailKey = 'pos_employee_email';
+
+  // ── POS device registration (5D) ───────────────────────────────────────────────
+  // Once the owner registers this terminal, the long-lived DEVICE token replaces the owner's session in the access-token
+  // slot (the owner's JWT and refresh token are discarded). The binding below survives a revocation so the unsynced
+  // queue can only be re-registered against the SAME store.
+  static const String _deviceModeKey = 'pos_device_mode';
+  static const String _deviceIdKey = 'pos_device_id';
+  static const String _deviceNameKey = 'pos_device_name';
+  static const String _deviceStoreKey = 'pos_device_store_id';
+  static const String _deviceRegisterKey = 'pos_device_register_id';
 
   // ── POS device-local preferences (not backend-tracked) ─────────────────────
   static const String _posSoundEffectsKey = 'pos_sound_effects';
@@ -47,10 +59,12 @@ class AppPreferences {
   static String? _cachedToken;
   static String? _cachedRole;
   static bool _cachedHasPosSession = false;
+  static bool _cachedDeviceMode = false;
 
   static String? get cachedToken => _cachedToken;
   static String? get cachedRole => _cachedRole;
   static bool get cachedHasPosSession => _cachedHasPosSession;
+  static bool get cachedDeviceMode => _cachedDeviceMode;
 
   /// Populates the sync cache from disk. Call once at app boot, after
   /// `SharedPreferences.getInstance()` has resolved.
@@ -60,6 +74,7 @@ class AppPreferences {
     _cachedRole = prefs.getString(_userRoleKey);
     final sessionId = prefs.getString(_posSessionIdKey);
     _cachedHasPosSession = sessionId != null && sessionId.isNotEmpty;
+    _cachedDeviceMode = prefs.getBool(_deviceModeKey) ?? false;
   }
 
   // Save access token
@@ -193,15 +208,75 @@ class AppPreferences {
     await prefs.remove(_userProfileImageKey);
   }
 
-  // Clear all preferences
-  static Future<void> clearPreference() async {
+  /// Clears everything. The offline queue's encryption key is KEPT unless [wipeQueueKey] — wiping it would turn every
+  /// unsynced sale on the device into unreadable ciphertext. Only a device reset with an EMPTY queue passes true.
+  static Future<void> clearPreference({bool wipeQueueKey = false}) async {
     final prefs = await SharedPreferences.getInstance();
+    final queueKey = wipeQueueKey ? null : await _secureStorage.read(key: AesGcmQueueCipher.storageKey);
     await prefs.clear();
     await _secureStorage.deleteAll();
+    if (queueKey != null) await _secureStorage.write(key: AesGcmQueueCipher.storageKey, value: queueKey);
     _cachedToken = null;
     _cachedRole = null;
     _cachedHasPosSession = false;
+    _cachedDeviceMode = false;
   }
+
+  // ── POS device registration ───────────────────────────────────────────────────
+  /// Swaps the owner's session for the device token. The owner's refresh token is dropped on purpose.
+  static Future<void> saveDeviceRegistration({
+    required String deviceToken,
+    required String deviceId,
+    required String name,
+    required String storeId,
+    required String registerId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await _secureStorage.write(key: _accessTokenKey, value: deviceToken);
+    await _secureStorage.delete(key: _refreshTokenKey);
+    await prefs.setBool(_deviceModeKey, true);
+    await prefs.setString(_deviceIdKey, deviceId);
+    await prefs.setString(_deviceNameKey, name);
+    await prefs.setString(_deviceStoreKey, storeId);
+    await prefs.setString(_deviceRegisterKey, registerId);
+    await prefs.setString(_storeIdKey, storeId);
+    await prefs.setString(_posRegisterIdKey, registerId);
+    await prefs.setString(_userRoleKey, 'seller'); // the device acts as its store's seller for the existing role gates
+    _cachedToken = deviceToken;
+    _cachedRole = 'seller';
+    _cachedDeviceMode = true;
+  }
+
+  static Future<({String? deviceId, String? name, String? storeId, String? registerId})> getDeviceRegistration() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (
+      deviceId: prefs.getString(_deviceIdKey),
+      name: prefs.getString(_deviceNameKey),
+      storeId: prefs.getString(_deviceStoreKey),
+      registerId: prefs.getString(_deviceRegisterKey),
+    );
+  }
+
+  /// The device was revoked (or its token is dead): drop every credential and the signed-in employee/session context, but
+  /// KEEP the store binding, the caches and — above all — the offline queue and its key, so the unsynced sales can still
+  /// be uploaded once the owner registers this device again for the same store.
+  static Future<void> clearDeviceCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await _secureStorage.delete(key: _accessTokenKey);
+    await _secureStorage.delete(key: _refreshTokenKey);
+    await _secureStorage.delete(key: _posEmployeeTokenKey);
+    await prefs.setBool(_deviceModeKey, false);
+    await prefs.remove(_deviceIdKey);
+    for (final k in [_posEmployeeIdKey, _posEmployeeNameKey, _posEmployeeRoleKey, _posEmployeeEmailKey, _posSessionIdKey, _posShiftIdKey]) {
+      await prefs.remove(k);
+    }
+    _cachedToken = null;
+    _cachedHasPosSession = false;
+    _cachedDeviceMode = false;
+  }
+
+  static Future<String?> getPosEmployeeEmail() async => (await SharedPreferences.getInstance()).getString(_posEmployeeEmailKey);
+  static Future<void> setPosEmployeeEmail(String email) async => (await SharedPreferences.getInstance()).setString(_posEmployeeEmailKey, email);
 
   // Check if user is logged in
   static Future<bool> isLoggedIn() async {
@@ -307,6 +382,7 @@ class AppPreferences {
     await prefs.remove(_posEmployeeIdKey);
     await prefs.remove(_posEmployeeNameKey);
     await prefs.remove(_posEmployeeRoleKey);
+    await prefs.remove(_posEmployeeEmailKey);
     await _secureStorage.delete(key: _posEmployeeTokenKey);
   }
 

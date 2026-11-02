@@ -52,6 +52,16 @@ class PosPinLoginController extends GetxController {
         return;
       }
       storeId.value = sid;
+      // A registered device is bound to ONE register (the backend refuses to open a session on any other), and its token
+      // can't read the store document — so there is nothing to choose.
+      if (AppPreferences.cachedDeviceMode) {
+        final reg = await AppPreferences.getDeviceRegistration();
+        if (reg.registerId != null) {
+          registers.assignAll([{'id': reg.registerId!, 'name': reg.name ?? 'This register'}]);
+          selectedRegister.value = registers.first;
+        }
+        return;
+      }
       final store = await _sellerRepo.getStoreById(sid);
       if (store != null && store.registers.isNotEmpty) {
         registers.assignAll(
@@ -118,6 +128,7 @@ class PosPinLoginController extends GetxController {
         name: employee.name,
         role: employee.role,
       );
+      await AppPreferences.setPosEmployeeEmail(emailVal);
       if (result.employeeToken != null) {
         await AppPreferences.setPosEmployeeToken(result.employeeToken!);
       }
