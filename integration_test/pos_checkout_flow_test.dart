@@ -81,6 +81,11 @@
 // exists, this test is written and internally consistent, but will fail at
 // the `expect(pinController.selectedRegister...)` line below once the
 // force-logout fires — see the session report for the exact run output.
+import 'package:solvexo_pos/app/modules/pos_products/controllers/pos_products_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_settings/controllers/pos_settings_controller.dart';
+import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
+import 'package:solvexo_pos/app/data/repositories/pos_subscription_repository.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart' hide Response, FormData, MultipartFile;
@@ -108,6 +113,8 @@ import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/main.dart' as app;
 
 class MockPosRepository extends Mock implements PosRepository {}
+
+class MockPosSubscriptionRepository extends Mock implements PosSubscriptionRepository {}
 
 class MockSellerRepository extends Mock implements SellerRepository {}
 
@@ -140,9 +147,18 @@ void main() {
   testWidgets('PIN login -> open register -> add item, discount+tax -> cash checkout -> appears in Orders',
       (tester) async {
     // ── Seed local state PosAccessMiddleware checks synchronously ──────────
-    await AppPreferences.setTokens(accessToken: 'e2e-seed-token', refreshToken: 'e2e-seed-refresh');
-    await AppPreferences.setUserRole('seller');
+    // The simulator keeps SharedPreferences/Keychain between runs: start from a clean slate, or a token left by a
+    // previous run makes boot take the signed-in path (real getProfile / dashboard calls) and navigate over the test.
+    await AppPreferences.clearPreference();
+    // the iOS simulator has no usable audio output: the sale sound's AudioPlayer.prepare() never completes and its 30 s
+    // TimeoutException surfaces as an unrelated test failure. Sound effects are a device-local preference, so switch them off.
+    await AppPreferences.setPosSoundEffects(false);
+    // NOTE: the seller token is deliberately NOT seeded before main(): with a token present, boot calls
+    // AuthRepository.getProfile() against the REAL server, whose 401 (fake token) triggers the correct force-logout at
+    // an unpredictable moment. It is seeded below, once boot has settled, so nothing in the test races it.
     await AppPreferences.saveStoreId('store-1');
+    // the splash routes a first-time user to onboarding, which would sit ON TOP of the PIN screen this test drives
+    await AppPreferences.setHasSeenOnboarding(true);
 
     app.main();
     await tester.pump();
@@ -238,7 +254,14 @@ void main() {
     );
 
     final mockPosRepo = MockPosRepository();
+    // the server can't be reached for a quote → the till prices with its local numbers (the offline-capable path)
+    when(() => mockPosRepo.quoteSale(storeId: any(named: 'storeId'), items: any(named: 'items'), discountType: any(named: 'discountType'), discountValue: any(named: 'discountValue'), settingsVersion: any(named: 'settingsVersion')))
+        .thenAnswer((_) async => (quote: null, message: null, code: null));
     final mockSellerRepo = MockSellerRepository();
+    final mockSubRepo = MockPosSubscriptionRepository();
+    when(() => mockSubRepo.getStatus(any())).thenAnswer(
+      (_) async => const PosSubscriptionStatusModel(status: PosSubscriptionStatusValue.active, enforced: true),
+    );
 
     when(() => mockSellerRepo.getStoreById(any())).thenAnswer((_) async => store);
     // PosLoginController._restoreSession() unconditionally does
@@ -324,15 +347,42 @@ void main() {
     );
     Get.lazyPut<PosHomeController>(() => PosHomeController(posRepository: mockPosRepo), fenix: false);
     Get.lazyPut<PosOrdersController>(() => PosOrdersController(posRepository: mockPosRepo), fenix: false);
+    // PosBinding also builds these tab controllers; with their default (real) repositories they would call the REAL
+    // server with the fake token, and its 401 triggers the (correct) force-logout mid-test — so they get mocks too.
+    Get.lazyPut<PosSettingsController>(
+      () => PosSettingsController(posRepository: mockPosRepo, sellerRepository: mockSellerRepo, posSubscriptionRepository: mockSubRepo),
+      fenix: false,
+    );
+    Get.lazyPut<PosProductsController>(() => PosProductsController(posRepository: mockPosRepo), fenix: false);
+    when(() => mockPosRepo.getSessionReport(any())).thenAnswer((_) async => null);
 
     // ── Jump straight to PIN login (see header comment) ─────────────────────
     await pumpFor(tester, const Duration(seconds: 3)); // let boot (Firebase/BrandingService/etc) settle
+    // the splash screen decides where to go when its animation ends — wait for it, or it navigates OVER the PIN page
+    await pumpUntil(tester, () => Get.currentRoute != Routes.splashScreen, timeout: const Duration(seconds: 40));
+    await pumpFor(tester, const Duration(seconds: 1));
+
+    // main() fires AuthRepository.getProfile() at boot with our fake token; the REAL server answers 401 and the
+    // (correct) force-logout handler wipes the session — including the store id PIN login needs. That is production
+    // behaviour for an expired token, so the test must not depend on racing it: re-seed the signed-in state once
+    // boot has settled, then go to PIN login.
+    await AppPreferences.setTokens(accessToken: 'e2e-seed-token', refreshToken: 'e2e-seed-refresh');
+    await AppPreferences.setUserRole('seller');
+    await AppPreferences.saveStoreId('store-1');
+    await AppPreferences.setHasSeenOnboarding(true);
+
+    // PIN login asks the backend whether the store's POS plan is active (PosEntitlementService). Against the real
+    // server our fake token would get a 401 → force-logout, so give the service a mocked subscription repository
+    // that says "active" (the restricted-mode path has its own unit tests).
+    Get.delete<PosEntitlementService>(force: true);
+    Get.put<PosEntitlementService>(PosEntitlementService(repository: mockSubRepo), permanent: true);
     Get.offAllNamed(Routes.posPinLogin);
     await pumpUntil(tester, () => Get.currentRoute == Routes.posPinLogin);
     final pinController = Get.find<PosPinLoginController>();
     await pumpUntil(tester, () => !pinController.isLoadingStore.value);
     print('✅ Landed on PIN login with the mocked register auto-selected');
     expect(pinController.selectedRegister.value?['id'], 'register-1');
+    await pumpFor(tester, const Duration(seconds: 1)); // let the page transition finish so its fields are in the tree
 
     // ── PIN login ────────────────────────────────────────────────────────
     await tester.enterText(
@@ -425,5 +475,8 @@ void main() {
     expect(find.byType(PosTransactionCard), findsWidgets, reason: 'the just-completed sale should appear in Orders');
     expect(find.text('S-0001'), findsOneWidget);
     print('✅ Completed sale (S-0001) appears in Orders');
+
+    // let the last snackbars finish animating so nothing is still ticking when the widget tree is torn down
+    await pumpFor(tester, const Duration(seconds: 8));
   });
 }
