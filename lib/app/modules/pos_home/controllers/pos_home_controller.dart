@@ -974,6 +974,8 @@ class PosHomeController extends GetxController {
             'productId': c.product.productId,
             if (c.variant != null) 'variantId': c.variant!.variantId,
             'qty': c.quantity.value,
+            // the price this till shows/charges — the server uses it only when the sale is replayed offline
+            'unitPrice': c.unitPrice,
           },
         )
         .toList();

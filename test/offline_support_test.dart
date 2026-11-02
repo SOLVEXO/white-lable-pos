@@ -103,6 +103,32 @@ void main() {
     });
   });
 
+  group('cashier attribution survives a different login at sync time', () {
+    test('the queued payload keeps the cashier who rang the sale, whoever is signed in when it syncs', () async {
+      final tmp = await Directory.systemTemp.createTemp('attr_');
+      final store = PendingSaleLocalStore(dbPath: '${tmp.path}/q.db', cipher: testCipher());
+      final repo = MockPosRepository();
+      final sent = <Map<String, dynamic>>[];
+      when(() => repo.submitRawSale(any(), employeeToken: any(named: 'employeeToken'))).thenAnswer((i) async {
+        sent.add(i.positionalArguments.first as Map<String, dynamic>);
+        return (success: true, connectivityError: false, retryable: false, message: null, code: null);
+      });
+      final svc = PendingSaleSyncService(posRepository: repo, localStore: store, currentStoreId: () async => 's1', persistLastSync: false);
+
+      // Cashier A rings the sale while offline …
+      await store.enqueue('k1', {'storeId': 's1', 'sessionId': 'A', 'employeeId': 'cashier-A', 'employeeName': 'Ann', 'items': <dynamic>[]});
+      // … then cashier B signs in (forced re-login) before connectivity returns. Nothing about B is consulted by the queue.
+      SharedPreferences.setMockInitialValues({'pos_employee_id': 'cashier-B'});
+      await svc.syncNow();
+
+      expect(sent, hasLength(1));
+      expect(sent.single['employeeId'], 'cashier-A');
+      expect(sent.single['employeeName'], 'Ann');
+      await store.close();
+      await tmp.delete(recursive: true);
+    });
+  });
+
   group('UnsyncedGuard (close shift / sign out)', () {
     late Directory tmp;
     late PendingSaleLocalStore store;

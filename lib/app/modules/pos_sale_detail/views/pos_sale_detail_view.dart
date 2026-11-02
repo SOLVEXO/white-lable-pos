@@ -1,4 +1,6 @@
 import 'package:solvexo_pos/utils/money.dart';
+import 'package:solvexo_pos/utils/offline_gate.dart';
+import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_button.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
@@ -330,7 +332,26 @@ class _ActionsSection extends StatelessWidget {
       // real, signed-token-verified enforcement — see PosRole's doc
       // comment. A cashier sees why instead of a dead-end or a 403.
       final needsManagerNote = (sale.canRefund || sale.canVoid) && !c.isManager.value;
+      final offline = OfflineGate.isOffline;
+      // Refund/void need the server — offline they explain themselves instead of failing half-way.
+      void gate(String t, String b, Future<void> Function() ok) {
+        if (offline) {
+          CustomAppSnackbar.error(OfflineGate.message);
+          return;
+        }
+        _confirm(context, t, b, ok);
+      }
       return Column(children: [
+        if (offline && (sale.canRefund || sale.canVoid))
+          const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: CustomText(
+              text: "You're offline — refunds and voids are disabled until the connection is back.",
+              fontSize: AppFontSize.tiny,
+              color: AppColors.orange,
+              textAlign: TextAlign.center,
+            ),
+          ),
         if (sale.canDiscard)
           _ActionButton(
             label: 'Discard Held Sale',
@@ -351,15 +372,15 @@ class _ActionsSection extends StatelessWidget {
           if (hasSelection)
             _ActionButton(
               label: 'Refund Selected (${Money.format(c.selectedRefundAmount)})',
-              color: AppColors.red,
-              onTap: () => _confirm(context, 'Partial Refund',
+              color: offline ? AppColors.iosGrey : AppColors.red,
+              onTap: () => gate('Partial Refund',
                   'Refund ${Money.format(c.selectedRefundAmount, currency: sale.currency, exponent: sale.currencyExponent)} for the selected items?\n\n${c.refundPlan(c.selectedRefundAmount).map((l) => '• $l').join('\n')}', c.refundPartial),
             ),
           _ActionButton(
             label: 'Refund Full Sale',
-            color: AppColors.red,
+            color: offline ? AppColors.iosGrey : AppColors.red,
             outline: hasSelection,
-            onTap: () => _confirm(context, 'Full Refund',
+            onTap: () => gate('Full Refund',
                 'Refund the entire sale (${Money.format(sale.total - sale.refundedAmount, currency: sale.currency, exponent: sale.currencyExponent)})?\n\n${c.refundPlan(sale.total - sale.refundedAmount).map((l) => '• $l').join('\n')}', c.refundFull),
           ),
         ],
@@ -367,7 +388,7 @@ class _ActionsSection extends StatelessWidget {
           _ActionButton(
             label: 'Void Sale',
             color: AppColors.iosGrey,
-            onTap: () => _confirm(context, 'Void Sale', 'This reverses the sale and restores stock. This cannot be undone.',
+            onTap: () => gate('Void Sale', 'This reverses the sale and restores stock. This cannot be undone.',
                 () => c.voidSale()),
           ),
       ]);

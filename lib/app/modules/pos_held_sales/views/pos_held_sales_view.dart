@@ -1,4 +1,6 @@
 import 'package:solvexo_pos/utils/money.dart';
+import 'package:solvexo_pos/utils/offline_gate.dart';
+import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/components/buttons/app_button.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
@@ -261,13 +263,18 @@ class _HeldSaleTile extends StatelessWidget {
                 // Complete
                 Expanded(
                   flex: 2,
-                  child: _ActionBtn(
-                    label: 'Complete',
-                    icon: Icons.check_circle_outline_rounded,
-                    bgColor: AppColors.green2.withOpacity(0.1),
-                    textColor: AppColors.green2,
-                    onTap: () => _pickPaymentAndComplete(context, sale),
-                  ),
+                  child: Obx(() {
+                    final off = OfflineGate.isOffline;
+                    return _ActionBtn(
+                      label: 'Complete',
+                      icon: Icons.check_circle_outline_rounded,
+                      bgColor: off ? AppColors.iosGrey.withOpacity(0.12) : AppColors.green2.withOpacity(0.1),
+                      textColor: off ? AppColors.iosGrey : AppColors.green2,
+                      onTap: off
+                          ? () => CustomAppSnackbar.error(OfflineGate.message)
+                          : () => _pickPaymentAndComplete(context, sale),
+                    );
+                  }),
                 ),
                 const SizedBox(width: 8),
                 // Discard
