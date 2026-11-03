@@ -7,6 +7,8 @@ class SocialLoginModel {
   final String? image;
   final String? fcmToken;
   final String? token;
+  /// Apple only: one-time authorization code the backend exchanges server-side for a revocable refresh token. Never logged.
+  final String? authorizationCode;
 
   const SocialLoginModel({
     required this.authProvider,
@@ -16,6 +18,7 @@ class SocialLoginModel {
     this.image,
     this.fcmToken,
     this.token,
+    this.authorizationCode,
   });
 
   Map<String, dynamic> toJson() {
@@ -28,6 +31,7 @@ class SocialLoginModel {
       if (image != null) 'image': image,
       if (fcmToken != null) 'fcmToken': fcmToken,
       if (token != null) 'token': token,
+      if (authProvider == 'apple' && authorizationCode != null && authorizationCode!.isNotEmpty) 'authorizationCode': authorizationCode,
     };
   }
 }

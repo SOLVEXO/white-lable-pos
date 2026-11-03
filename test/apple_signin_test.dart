@@ -28,4 +28,12 @@ void main() {
     final json = const SocialLoginModel(authProvider: 'google', socialId: 'g', userName: 'A', email: 'a@b.co', token: 't').toJson();
     expect(json['email'], 'a@b.co');
   });
+
+  test('authorizationCode: sent for Apple, omitted when null/empty, never sent for Google', () {
+    final withCode = const SocialLoginModel(authProvider: 'apple', socialId: 's', userName: 'A', token: 't', authorizationCode: 'code-1').toJson();
+    expect(withCode['authorizationCode'], 'code-1');
+    expect(const SocialLoginModel(authProvider: 'apple', socialId: 's', userName: 'A', token: 't').toJson().containsKey('authorizationCode'), isFalse);
+    expect(const SocialLoginModel(authProvider: 'apple', socialId: 's', userName: 'A', token: 't', authorizationCode: '').toJson().containsKey('authorizationCode'), isFalse);
+    expect(const SocialLoginModel(authProvider: 'google', socialId: 'g', userName: 'A', token: 't', authorizationCode: 'x').toJson().containsKey('authorizationCode'), isFalse);
+  });
 }

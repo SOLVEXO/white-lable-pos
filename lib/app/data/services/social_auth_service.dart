@@ -43,6 +43,7 @@ class SocialAuthService {
         userName: name.isEmpty ? 'Apple user' : name,
         email: credential.email,
         token: token,
+        authorizationCode: credential.authorizationCode,
       );
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) return null;
