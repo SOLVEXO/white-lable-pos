@@ -250,17 +250,17 @@ class _LoginCard extends StatelessWidget {
               disabled: controller.isBusy && !controller.isGoogleLoading.value,
             ),
           ),
-          if (SocialAuthService.appleSupported) ...[
-            SizedBox(height: BaseSpacing.md),
-            // Same height and width as the Google button — Apple's guideline asks for equal prominence.
-            Obx(
-              () => _AppleButton(
-                onTap: controller.continueWithApple,
-                isLoading: controller.isAppleLoading.value,
-                disabled: controller.isBusy && !controller.isAppleLoading.value,
-              ),
-            ),
-          ],
+          // if (SocialAuthService.appleSupported) ...[
+          //   SizedBox(height: BaseSpacing.md),
+          //   // Same height and width as the Google button — Apple's guideline asks for equal prominence.
+          //   Obx(
+          //     () => _AppleButton(
+          //       onTap: controller.continueWithApple,
+          //       isLoading: controller.isAppleLoading.value,
+          //       disabled: controller.isBusy && !controller.isAppleLoading.value,
+          //     ),
+          //   ),
+          // ],
         ],
       ),
     );
@@ -288,38 +288,54 @@ class _OrDivider extends StatelessWidget {
   }
 }
 
-class _AppleButton extends StatelessWidget {
-  const _AppleButton({required this.onTap, required this.isLoading, this.disabled = false});
-  final VoidCallback onTap;
-  final bool isLoading;
-  final bool disabled;
+// class _AppleButton extends StatelessWidget {
+//   const _AppleButton({
+//     required this.onTap,
+//     required this.isLoading,
+//     this.disabled = false,
+//   });
+//   final VoidCallback onTap;
+//   final bool isLoading;
+//   final bool disabled;
 
-  @override
-  Widget build(BuildContext context) {
-    final inactive = isLoading || disabled;
-    return IgnorePointer(
-      ignoring: inactive,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 150),
-        opacity: inactive ? 0.6 : 1,
-        child: isLoading
-            ? Container(
-                key: const Key('appleLoading'),
-                height: 56,
-                decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(BaseRadius.pill)),
-                child: const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))),
-              )
-            : SignInWithAppleButton(
-                key: const Key('appleSignIn'),
-                text: 'Sign in with Apple',
-                height: 56,
-                borderRadius: BorderRadius.circular(BaseRadius.pill),
-                onPressed: onTap,
-              ),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     final inactive = isLoading || disabled;
+//     return IgnorePointer(
+//       ignoring: inactive,
+//       child: AnimatedOpacity(
+//         duration: const Duration(milliseconds: 150),
+//         opacity: inactive ? 0.6 : 1,
+//         child: isLoading
+//             ? Container(
+//                 key: const Key('appleLoading'),
+//                 height: 56,
+//                 decoration: BoxDecoration(
+//                   color: Colors.black,
+//                   borderRadius: BorderRadius.circular(BaseRadius.pill),
+//                 ),
+//                 child: const Center(
+//                   child: SizedBox(
+//                     width: 22,
+//                     height: 22,
+//                     child: CircularProgressIndicator(
+//                       strokeWidth: 2.4,
+//                       color: Colors.white,
+//                     ),
+//                   ),
+//                 ),
+//               )
+//             : SignInWithAppleButton(
+//                 key: const Key('appleSignIn'),
+//                 text: 'Sign in with Apple',
+//                 height: 56,
+//                 borderRadius: BorderRadius.circular(BaseRadius.pill),
+//                 onPressed: onTap,
+//               ),
+//       ),
+//     );
+//   }
+// }
 
 class _GoogleButton extends StatelessWidget {
   const _GoogleButton({

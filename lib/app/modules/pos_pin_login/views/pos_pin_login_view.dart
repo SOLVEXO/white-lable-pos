@@ -3,6 +3,7 @@ import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/components/svg_icon.dart';
 import 'package:solvexo_pos/app/modules/pos_pin_login/controllers/pos_pin_login_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_pin_login/widgets/pos_pin_login_shimmer.dart';
+import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_icons.dart';
 import 'package:solvexo_pos/config/resources/app_text_styles.dart';
@@ -39,6 +40,19 @@ class PosPinLoginView extends StatelessWidget {
                 const SizedBox(height: 32),
                 _PinKeypad(c: c),
                 const SizedBox(height: 16),
+                // Owner way back to the management screens (staff, registers, devices, plan) on a registered device:
+                // the owner password gate (OwnerAccessMiddleware) is shown first; cashiers cannot get past it.
+                TextButton.icon(
+                  key: const Key('ownerAccessButton'),
+                  onPressed: () => Get.toNamed(Routes.sellerHome),
+                  icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: kPinSub),
+                  label: const CustomText(
+                    text: 'Owner access',
+                    fontSize: AppFontSize.verySmall,
+                    color: kPinSub,
+                  ),
+                ),
+                const SizedBox(height: 8),
               ],
             ),
           );

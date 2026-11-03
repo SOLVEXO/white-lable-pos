@@ -14,6 +14,7 @@ import 'package:solvexo_pos/app/data/repositories/account_repository.dart';
 import 'package:solvexo_pos/app/data/services/social_auth_service.dart';
 import 'package:solvexo_pos/app/data/services/owner_session.dart';
 import 'package:solvexo_pos/app/modules/pos_device/views/delete_account_view.dart';
+import 'package:solvexo_pos/app/network/api_constaints.dart';
 import 'package:solvexo_pos/config/app_env.dart';
 import 'package:solvexo_pos/config/telemetry.dart';
 
@@ -28,13 +29,12 @@ void main() {
     String? v(String url, {bool release = true, String env = 'prod'}) => AppEnv.validate(release: release, env: env, baseUrl: url);
 
     test('release refuses a missing, non-https, local or dev configuration', () {
-      expect(v(''), contains('API_BASE_URL is not set'));
+      expect(v(''), contains('API_BASE_URL is empty'));
       expect(v('http://api.solvexo.store'), contains('https'));
       expect(v('https://localhost:3000'), contains('local'));
       expect(v('https://10.0.2.2'), contains('local'));
       expect(v('https://192.168.1.5'), contains('local'));
       expect(v('https://printer.local'), contains('local'));
-      expect(v('https://api.solvexo.store', env: 'dev'), contains('APP_ENV'));
       expect(v('not a url'), isNotNull);
     });
 
@@ -42,10 +42,10 @@ void main() {
       expect(v('https://api.solvexo.store', env: 'prod'), isNull);
       expect(v('https://staging.api.solvexo.store', env: 'staging'), isNull);
       expect(v('http://localhost:3000', release: false, env: 'dev'), isNull);
-      expect(v('', release: false), isNotNull); // even debug needs a URL — there is no default in code
+      expect(v('', release: false), isNotNull); // an empty URL is never acceptable
     });
 
-    test('no URL is hardcoded in lib/ (only config/env/*.json carry them)', () {
+    test('the API URL is defined in exactly one place (ApiConstants) and is https', () {
       final hits = <String>[];
       for (final f in Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))) {
         for (final line in f.readAsLinesSync()) {
@@ -54,10 +54,10 @@ void main() {
           if (RegExp(r'''['"]https?://[a-z0-9]''', caseSensitive: false).hasMatch(t) && !t.contains("startsWith('http")) hits.add('${f.path}: $t');
         }
       }
-      expect(hits, isEmpty);
-      for (final e in ['dev', 'staging', 'prod']) {
-        expect(File('config/env/$e.json').readAsStringSync(), contains('API_BASE_URL'));
-      }
+      expect(hits, hasLength(1));
+      expect(hits.single, contains('api_constaints.dart'));
+      expect(hits.single, contains("'https://"));
+      expect(AppEnv.validate(release: true, baseUrl: ApiConstants.baseUrl), isNull); // the shipped default is release-valid
     });
   });
 

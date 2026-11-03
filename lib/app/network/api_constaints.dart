@@ -1,8 +1,7 @@
-import 'package:solvexo_pos/config/app_env.dart';
-
 class ApiConstants {
-  // Injected at build time (see lib/config/app_env.dart); never hardcoded.
-  static const String baseUrl = AppEnv.apiBaseUrl;
+  // Change the API URL HERE. Plain `flutter run` / IDE Run just works. (Optional override for a local backend:
+  // flutter run --dart-define=API_BASE_URL=http://localhost:3102)
+  static const String baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://api.solvexo.store');
 
   static const String apiPrefix = "$baseUrl/api";
 
