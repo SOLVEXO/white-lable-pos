@@ -85,7 +85,7 @@ class PosSaleDetailView extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppDimen.allPadding),
             children: [
-              _HeaderCard(sale: sale, currencySymbol: c.currencySymbol.value),
+              _HeaderCard(sale: sale, currencySymbol: c.currencySymbol.value, offlineRef: c.offlineRef.value),
               const SizedBox(height: 16),
               _ItemsCard(sale: sale, c: c),
               const SizedBox(height: 16),
@@ -103,7 +103,8 @@ class PosSaleDetailView extends StatelessWidget {
 class _HeaderCard extends StatelessWidget {
   final PosSaleModel sale;
   final String currencySymbol;
-  const _HeaderCard({required this.sale, required this.currencySymbol});
+  final String? offlineRef;
+  const _HeaderCard({required this.sale, required this.currencySymbol, this.offlineRef});
 
   @override
   Widget build(BuildContext context) {
@@ -130,6 +131,10 @@ class _HeaderCard extends StatelessWidget {
           fontSize: AppFontSize.tiny,
           color: AppColors.iosGrey,
         ),
+        if (offlineRef != null) ...[
+          const SizedBox(height: 4),
+          CustomText(text: 'Offline receipt ref $offlineRef', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+        ],
         const SizedBox(height: 10),
         Row(children: [
           PosPaymentBadge(method: sale.paymentMethod),

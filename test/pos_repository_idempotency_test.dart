@@ -20,6 +20,10 @@ class MockBaseClient extends Mock implements BaseClient {}
 class FakeSync extends PendingSaleSyncService {
   final List<MapEntry<String, Map<String, dynamic>>> enqueued = [];
   int scheduled = 0;
+  final List<({String key, String realNumber, String? saleId})> synced = [];
+
+  @override
+  Future<void> noteSynced(String key, {required String realNumber, String? saleId}) async => synced.add((key: key, realNumber: realNumber, saleId: saleId));
 
   @override
   Future<void> enqueue(String id, Map<String, dynamic> payload, {String? employeeToken}) async => enqueued.add(MapEntry(id, payload));
@@ -270,6 +274,23 @@ void main() {
       final r = await repo.submitRawSale(payload);
       expect(r.success, isTrue);
       expect(sentHeaders.single['Idempotency-Key'], 'queued-key-1');
+    });
+
+    test('a successful replay records the server\'s real receipt number against the queued key (provisional → real)', () async {
+      final sync = FakeSync();
+      Get.put<PendingSaleSyncService>(sync);
+      scriptPosts([_res({'success': true, 'data': _saleJson()})]);
+      expect((await repo.submitRawSale(payload)).success, isTrue);
+      expect(sync.synced.single, (key: 'queued-key-1', realNumber: 'S-1', saleId: 'sale-1'));
+    });
+
+    test('a failed replay records nothing, and the provisional number is never in the request body', () async {
+      final sync = FakeSync();
+      Get.put<PendingSaleSyncService>(sync);
+      scriptPosts([_fail(DioExceptionType.badResponse, status: 400, body: {'message': 'no'})]);
+      await repo.submitRawSale(payload);
+      expect(sync.synced, isEmpty);
+      expect(sentData.toString(), isNot(contains('OFF-')));
     });
 
     test('replay: IDEMPOTENCY_IN_PROGRESS stays queued; a business 409 is final (marked failed, shown, never retried)', () async {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/local/pending_sale_local_store.dart';
+import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
@@ -28,7 +29,9 @@ class PendingSaleSyncService extends GetxController with WidgetsBindingObserver 
     DateTime Function()? clock,
     this.persistLastSync = true,
     bool Function()? hasCredentials,
-  })  : _posRepo = posRepository ?? PosRepository(),
+    Future<String?> Function()? currentDeviceId,
+  })  : _currentDeviceId = currentDeviceId ?? (() async => (await AppPreferences.getDeviceRegistration()).deviceId),
+        _posRepo = posRepository ?? PosRepository(),
         _store = localStore ?? PendingSaleLocalStore(),
         _currentStoreId = currentStoreId ?? AppPreferences.getStoreId,
         _clock = clock ?? DateTime.now,
@@ -37,6 +40,7 @@ class PendingSaleSyncService extends GetxController with WidgetsBindingObserver 
   final PosRepository _posRepo;
   final PendingSaleLocalStore _store;
   final Future<String?> Function() _currentStoreId;
+  final Future<String?> Function() _currentDeviceId;
   final DateTime Function() _clock;
   final bool persistLastSync;
 
@@ -95,9 +99,23 @@ class PendingSaleSyncService extends GetxController with WidgetsBindingObserver 
   }
 
   Future<void> enqueue(String id, Map<String, dynamic> payload, {String? employeeToken}) async {
-    await _store.enqueue(id, payload, employeeToken: employeeToken);
+    await _store.enqueue(id, payload, employeeToken: employeeToken, deviceShort: await _currentDeviceId());
     await refreshCounts();
   }
+
+  /// The provisional receipt number a queued sale was given (null if unknown). Never sent to the server.
+  Future<String?> provisionalNumberFor(String key) async => (await _store.getById(key))?.provisionalNumber ?? (await _store.receiptByKey(key))?.provisionalNumber;
+
+  Future<void> saveOfflineReceipt(String key, ReceiptData receipt) => _store.saveReceiptSnapshot(key, receipt);
+
+  /// The server accepted (or already had) the sale: remember its real receipt number against the provisional one.
+  Future<void> noteSynced(String key, {required String realNumber, String? saleId}) async {
+    if (realNumber.isEmpty) return;
+    await _store.noteSynced(key, realNumber: realNumber, saleId: saleId);
+  }
+
+  Future<OfflineReceiptRecord?> offlineReceiptFor(String key) => _store.receiptByKey(key);
+  Future<OfflineReceiptRecord?> offlineReceiptForSale(String realNumberOrSaleId) => _store.receiptByRealNumber(realNumberOrSaleId);
 
   /// One sync attempt shortly from now (replaces a pending one) — for a sale queued while the device is *online*
   /// (timeout / 5xx), where no reconnect event will ever fire.

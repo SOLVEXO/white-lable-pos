@@ -954,7 +954,16 @@ class PosRepository {
         requiresAuth: true,
         headers: headers,
       );
-      if (_ok(res)) return (success: true, connectivityError: false, retryable: false, message: null, code: null);
+      if (_ok(res)) {
+        // Remember which real receipt number this offline sale got (best effort — never affects the sync result).
+        try {
+          final d = _data(res);
+          if (key != null && d is Map && Get.isRegistered<PendingSaleSyncService>()) {
+            await Get.find<PendingSaleSyncService>().noteSynced(key, realNumber: (d['saleNumber'] ?? '').toString(), saleId: (d['_id'] ?? d['id'])?.toString());
+          }
+        } catch (_) {}
+        return (success: true, connectivityError: false, retryable: false, message: null, code: null);
+      }
       return (success: false, connectivityError: false, retryable: false, message: res.data['message'] as String?, code: null);
     } on DioException catch (e) {
       _logDioError('submitRawSale', e);

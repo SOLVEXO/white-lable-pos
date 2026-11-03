@@ -50,6 +50,7 @@ class ReceiptPdfBuilder {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             if (data.banner != null) center('*** ${data.banner} ***', size: 13, bold: true, color: _red),
+            if (data.offlineNote != null) center('*** ${data.offlineNote} ***', size: 10, bold: true, color: _red),
             if (data.isCopy) center('COPY', size: 9, bold: true),
             if (data.businessName != null) center(data.businessName!, size: 14, bold: true),
             if (data.header != null) center(data.header!),
@@ -57,6 +58,7 @@ class ReceiptPdfBuilder {
             if (data.taxId != null) center(data.taxId!, size: 8),
             pw.SizedBox(height: 8),
             center('Receipt ${data.receiptNumber}', size: 11, bold: true, color: _accent),
+            if (data.offlineRef != null) center('Offline ref ${data.offlineRef}', size: 8),
             center(data.dateText, size: 8),
             if (data.cashier != null) center('Cashier: ${data.cashier}', size: 8),
             pw.SizedBox(height: 6),

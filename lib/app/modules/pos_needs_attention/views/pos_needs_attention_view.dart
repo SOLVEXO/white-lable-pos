@@ -116,6 +116,10 @@ class _UnsyncedTile extends StatelessWidget {
           Expanded(child: CustomText(text: '${r.deviceTotal != null ? Money.format(r.deviceTotal!) : 'Sale'} · ${r.summary}', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2)),
           CustomText(text: PosNeedsAttentionView._fmt.format(r.madeAt.toLocal()), fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
         ]),
+        if (r.provisionalNumber != null) ...[
+          const SizedBox(height: 2),
+          CustomText(text: 'Receipt ${r.provisionalNumber} (offline — real number after sync)', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+        ],
         const SizedBox(height: 4),
         CustomText(text: status, fontSize: AppFontSize.tiny, fontWeight: FontWeight.w600, color: color),
         if ((r.errorMessage ?? '').isNotEmpty) ...[

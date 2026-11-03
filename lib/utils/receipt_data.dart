@@ -9,6 +9,10 @@ class ReceiptLine {
   final String total;
   final String? note; // "1 refunded"
   const ReceiptLine({required this.name, required this.qtyAndPrice, required this.total, this.note});
+
+  Map<String, dynamic> toJson() => {'name': name, 'qtyAndPrice': qtyAndPrice, 'total': total, if (note != null) 'note': note};
+  factory ReceiptLine.fromJson(Map<String, dynamic> j) =>
+      ReceiptLine(name: j['name'] as String, qtyAndPrice: j['qtyAndPrice'] as String, total: j['total'] as String, note: j['note'] as String?);
 }
 
 class ReceiptPaymentRow {
@@ -16,12 +20,19 @@ class ReceiptPaymentRow {
   final String amount;
   final String? detail; // "Ref AUTH-77" / "Tendered $50.00"
   const ReceiptPaymentRow({required this.label, required this.amount, this.detail});
+
+  Map<String, dynamic> toJson() => {'label': label, 'amount': amount, if (detail != null) 'detail': detail};
+  factory ReceiptPaymentRow.fromJson(Map<String, dynamic> j) =>
+      ReceiptPaymentRow(label: j['label'] as String, amount: j['amount'] as String, detail: j['detail'] as String?);
 }
 
 class ReceiptRefundRow {
   final String label;
   final String amount;
   const ReceiptRefundRow({required this.label, required this.amount});
+
+  Map<String, dynamic> toJson() => {'label': label, 'amount': amount};
+  factory ReceiptRefundRow.fromJson(Map<String, dynamic> j) => ReceiptRefundRow(label: j['label'] as String, amount: j['amount'] as String);
 }
 
 /// Everything a receipt shows, computed ONCE from the sale + store settings — the PDF, the thermal (ESC/POS)
@@ -55,6 +66,12 @@ class ReceiptData {
   final bool isCopy;
   final String? footer;
 
+  /// Offline sales (Q7): the receipt of a sale that is still only on this device carries a PROVISIONAL number
+  /// (`OFF-<device>-<seq>`) and this note; it is never the server's receipt number. After the sale syncs, [offlineRef]
+  /// keeps the provisional number on the real receipt so a customer holding the offline paper can be matched to it.
+  final String? offlineNote;
+  final String? offlineRef;
+
   const ReceiptData({
     this.businessName,
     this.header,
@@ -78,7 +95,93 @@ class ReceiptData {
     this.banner,
     this.isCopy = true,
     this.footer,
+    this.offlineNote,
+    this.offlineRef,
   });
+
+  /// The note printed on a provisional (not yet synced) receipt.
+  static const offlinePendingNote = 'OFFLINE - PENDING SYNC';
+
+  ReceiptData copyWith({String? receiptNumber, bool? isCopy, String? offlineNote, bool clearOfflineNote = false, String? offlineRef}) => ReceiptData(
+        businessName: businessName,
+        header: header,
+        address: address,
+        taxId: taxId,
+        receiptNumber: receiptNumber ?? this.receiptNumber,
+        dateText: dateText,
+        cashier: cashier,
+        customer: customer,
+        lines: lines,
+        subtotal: subtotal,
+        discountLabel: discountLabel,
+        discount: discount,
+        taxLabel: taxLabel,
+        tax: tax,
+        total: total,
+        payments: payments,
+        change: change,
+        refunds: refunds,
+        totalRefunded: totalRefunded,
+        banner: banner,
+        isCopy: isCopy ?? this.isCopy,
+        footer: footer,
+        offlineNote: clearOfflineNote ? null : (offlineNote ?? this.offlineNote),
+        offlineRef: offlineRef ?? this.offlineRef,
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (businessName != null) 'businessName': businessName,
+        if (header != null) 'header': header,
+        if (address != null) 'address': address,
+        if (taxId != null) 'taxId': taxId,
+        'receiptNumber': receiptNumber,
+        'dateText': dateText,
+        if (cashier != null) 'cashier': cashier,
+        'customer': customer,
+        'lines': [for (final l in lines) l.toJson()],
+        'subtotal': subtotal,
+        if (discountLabel != null) 'discountLabel': discountLabel,
+        if (discount != null) 'discount': discount,
+        if (taxLabel != null) 'taxLabel': taxLabel,
+        if (tax != null) 'tax': tax,
+        'total': total,
+        'payments': [for (final p in payments) p.toJson()],
+        if (change != null) 'change': change,
+        'refunds': [for (final r in refunds) r.toJson()],
+        if (totalRefunded != null) 'totalRefunded': totalRefunded,
+        if (banner != null) 'banner': banner,
+        'isCopy': isCopy,
+        if (footer != null) 'footer': footer,
+        if (offlineNote != null) 'offlineNote': offlineNote,
+        if (offlineRef != null) 'offlineRef': offlineRef,
+      };
+
+  factory ReceiptData.fromJson(Map<String, dynamic> j) => ReceiptData(
+        businessName: j['businessName'] as String?,
+        header: j['header'] as String?,
+        address: j['address'] as String?,
+        taxId: j['taxId'] as String?,
+        receiptNumber: j['receiptNumber'] as String,
+        dateText: j['dateText'] as String,
+        cashier: j['cashier'] as String?,
+        customer: j['customer'] as String,
+        lines: [for (final l in (j['lines'] as List)) ReceiptLine.fromJson(Map<String, dynamic>.from(l as Map))],
+        subtotal: j['subtotal'] as String,
+        discountLabel: j['discountLabel'] as String?,
+        discount: j['discount'] as String?,
+        taxLabel: j['taxLabel'] as String?,
+        tax: j['tax'] as String?,
+        total: j['total'] as String,
+        payments: [for (final p in (j['payments'] as List)) ReceiptPaymentRow.fromJson(Map<String, dynamic>.from(p as Map))],
+        change: j['change'] as String?,
+        refunds: [for (final r in (j['refunds'] as List? ?? const [])) ReceiptRefundRow.fromJson(Map<String, dynamic>.from(r as Map))],
+        totalRefunded: j['totalRefunded'] as String?,
+        banner: j['banner'] as String?,
+        isCopy: j['isCopy'] as bool? ?? true,
+        footer: j['footer'] as String?,
+        offlineNote: j['offlineNote'] as String?,
+        offlineRef: j['offlineRef'] as String?,
+      );
 
   /// How a refund slice is handed back, per tender.
   static String refundHow(String m) => switch (m) { 'cash' => 'cash returned', 'card' => 'to card', _ => 'bank / other' };
@@ -92,6 +195,7 @@ class ReceiptData {
     PosSettingsModel? settings, {
     bool isCopy = true,
     bool asciiSafeMoney = false,
+    String? offlineRef,
   }) {
     final code = sale.currency;
     final exp = sale.currencyExponent;
@@ -173,6 +277,66 @@ class ReceiptData {
       banner: banner,
       isCopy: isCopy,
       footer: clean(settings?.receiptFooter),
+      offlineRef: offlineRef,
+    );
+  }
+
+  /// The receipt for a sale rung up while offline, built from what the till had on screen (the server has not priced
+  /// it yet). It carries the provisional number and [offlinePendingNote]; amounts follow the sale currency, ASCII-safe for
+  /// thermal printers like the online print.
+  factory ReceiptData.forOfflineSale({
+    required String provisionalNumber,
+    required DateTime madeAt,
+    PosSettingsModel? settings,
+    required String currency,
+    required int exponent,
+    required List<({String name, int qty, double unitPrice})> items,
+    required double subtotal,
+    required double discount,
+    String? discountLabel,
+    String? taxLabel,
+    required double tax,
+    required double total,
+    required List<({String method, double amount, String? reference})> payments,
+    double? cashTendered,
+    required double change,
+    String? cashier,
+    String customer = 'Walk-in',
+  }) {
+    String m(num v) => '$currency ${NumberFormat.decimalPatternDigits(locale: 'en_US', decimalDigits: exponent).format(Money.round(v, exponent))}';
+    String? clean(String? x) => (x ?? '').trim().isEmpty ? null : x!.trim();
+    String? detailOf(({String method, double amount, String? reference}) p) {
+      final d = [
+        if (p.method == 'cash' && cashTendered != null && cashTendered > p.amount) 'Tendered ${m(cashTendered)}',
+        if (clean(p.reference) != null) 'Ref ${p.reference!.trim()}',
+      ];
+      return d.isEmpty ? null : d.join(' · ');
+    }
+
+    return ReceiptData(
+      businessName: clean(settings?.businessName),
+      header: clean(settings?.receiptHeader),
+      address: clean(settings?.businessAddress),
+      taxId: clean(settings?.businessTaxId),
+      receiptNumber: provisionalNumber,
+      dateText: DateFormat('yyyy-MM-dd HH:mm').format(madeAt.toLocal()),
+      cashier: clean(cashier),
+      customer: customer.trim().isEmpty ? 'Walk-in' : customer.trim(),
+      lines: [for (final i in items) ReceiptLine(name: i.name, qtyAndPrice: '${i.qty} × ${m(i.unitPrice)}', total: m(i.unitPrice * i.qty))],
+      subtotal: m(subtotal),
+      discountLabel: discount > 0 ? (discountLabel ?? 'Discount') : null,
+      discount: discount > 0 ? '-${m(discount)}' : null,
+      taxLabel: tax > 0 ? (taxLabel ?? 'Tax') : null,
+      tax: tax > 0 ? m(tax) : null,
+      total: m(total),
+      payments: [
+        for (final p in payments)
+          ReceiptPaymentRow(label: methodLabel(p.method), amount: m(p.amount), detail: detailOf(p)),
+      ],
+      change: change > 0 ? m(change) : null,
+      isCopy: false,
+      footer: clean(settings?.receiptFooter),
+      offlineNote: offlinePendingNote,
     );
   }
 
@@ -186,12 +350,14 @@ class ReceiptData {
     }
 
     if (banner != null) b.writeln(center('*** $banner ***'));
+    if (offlineNote != null) b.writeln(center('*** $offlineNote ***'));
     if (isCopy) b.writeln(center('COPY'));
     if (businessName != null) b.writeln(center(businessName!));
     if (header != null) b.writeln(center(header!));
     if (address != null) b.writeln(center(address!));
     if (taxId != null) b.writeln(center(taxId!));
     b.writeln(center('Receipt $receiptNumber'));
+    if (offlineRef != null) b.writeln(center('Offline ref $offlineRef'));
     b.writeln(center(dateText));
     if (cashier != null) b.writeln(center('Cashier: $cashier'));
     b.writeln('-' * width);

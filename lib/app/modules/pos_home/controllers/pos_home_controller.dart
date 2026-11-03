@@ -15,6 +15,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/app/data/repositories/category_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
+import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/modules/category/models/category_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/hid_scan_detector.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_customer_picker_sheet.dart';
@@ -791,10 +792,14 @@ class PosHomeController extends GetxController {
         status: 'completed',
       );
       if (result.queued) {
+        // Receipt for the customer NOW, under the provisional number (the server assigns the real one at sync).
+        final offline = await _offlineReceiptForQueued(pay, chargeTotal);
         clearSale();
         Get.back(); // close cart sheet
-        _afterSalePrint(null, hadCash: _paidWithCash(pay));
-        CustomAppSnackbar.warning('Sale saved on this device and will sync automatically — do not ring it up again.');
+        _afterSalePrint(offline, hadCash: _paidWithCash(pay));
+        CustomAppSnackbar.warning(
+          'Sale saved on this device${offline != null ? ' as receipt ${offline.receiptNumber}' : ''} and will sync automatically — do not ring it up again.',
+        );
         return;
       }
       if (!result.success) {
@@ -820,6 +825,52 @@ class PosHomeController extends GetxController {
       }
     } finally {
       isChargingOrHolding.value = false;
+    }
+  }
+
+  /// Builds, stores and returns the provisional receipt of the sale that was just queued (null if it can't be — the
+  /// sale itself is safe in the queue either way).
+  Future<ReceiptData?> _offlineReceiptForQueued(({List<Map<String, dynamic>>? payments, double? amountTendered, String? reference, String method}) pay, double chargeTotal) async {
+    try {
+      final key = _pendingKey;
+      if (key == null || !Get.isRegistered<PendingSaleSyncService>()) return null;
+      final sync = Get.find<PendingSaleSyncService>();
+      final number = await sync.provisionalNumberFor(key);
+      if (number == null) return null;
+      final entries = paymentEntries;
+      final check = PosPaymentCheck.evaluate(chargeTotal, entries, exponent: Money.exponent);
+      final cashEntries = entries.where((e) => e.method == PosPaymentMethod.cash).toList();
+      final tenders = <({String method, double amount, String? reference})>[];
+      // what each tender covered: non-cash exactly as entered, cash = the rest of the total (the overage is change)
+      var remaining = chargeTotal;
+      for (final e in entries.where((e) => e.method != PosPaymentMethod.cash)) {
+        tenders.add((method: e.method, amount: e.amount, reference: null));
+        remaining -= e.amount;
+      }
+      if (cashEntries.isNotEmpty) tenders.add((method: PosPaymentMethod.cash, amount: remaining < 0 ? 0 : remaining, reference: null));
+      final receipt = ReceiptData.forOfflineSale(
+        provisionalNumber: number,
+        madeAt: _pendingAt ?? DateTime.now(),
+        settings: settings.value,
+        currency: Money.currency,
+        exponent: Money.exponent,
+        items: [for (final c in cartItems) (name: c.product.name, qty: c.quantity.value, unitPrice: c.unitPrice)],
+        subtotal: subtotal,
+        discount: discountValue,
+        taxLabel: taxValue > 0 ? 'Tax ($taxLabel)' : null,
+        tax: taxValue,
+        total: chargeTotal,
+        payments: tenders,
+        cashTendered: cashEntries.isEmpty ? null : cashEntries.fold<double>(0, (a, e) => a + e.amount),
+        change: check.change,
+        cashier: await AppPreferences.getPosEmployeeName(),
+        customer: customerController.text,
+      );
+      await sync.saveOfflineReceipt(key, receipt);
+      return receipt;
+    } catch (e) {
+      debugPrint('offline receipt: $e');
+      return null;
     }
   }
 

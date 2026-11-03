@@ -10,6 +10,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
+import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/utils/pos_role.dart';
 import 'package:solvexo_pos/utils/receipt_pdf_builder.dart';
 import 'package:get/get.dart';
@@ -35,6 +36,9 @@ class PosSaleDetailController extends GetxController {
   final RxBool isManager = false.obs;
   PosSettingsModel? _settings;
 
+  /// Set when this sale was rung up offline: the provisional number (`OFF-…`) printed on the customer's first receipt.
+  final RxnString offlineRef = RxnString();
+
   /// saleItemId -> qty selected for partial refund
   final RxMap<String, int> refundSelection = <String, int>{}.obs;
 
@@ -53,6 +57,7 @@ class PosSaleDetailController extends GetxController {
     isLoading.value = true;
     try {
       sale.value = await _posRepo.getSaleById(saleId);
+      await _loadOfflineRef();
       final storeId = sale.value?.storeId;
       if (storeId != null && storeId.isNotEmpty) {
         _settings = await _posRepo.getPosSettings(storeId);
@@ -64,6 +69,18 @@ class PosSaleDetailController extends GetxController {
   }
 
   Future<void> refreshData() => _load();
+
+  Future<void> _loadOfflineRef() async {
+    try {
+      final s = sale.value;
+      if (s == null || !Get.isRegistered<PendingSaleSyncService>()) return;
+      final rec = await Get.find<PendingSaleSyncService>().offlineReceiptForSale(s.saleNumber.isNotEmpty ? s.saleNumber : s.id) ??
+          await Get.find<PendingSaleSyncService>().offlineReceiptForSale(s.id);
+      offlineRef.value = rec?.provisionalNumber;
+    } catch (_) {
+      offlineRef.value = null; // purely informational
+    }
+  }
 
   void setRefundQty(String saleItemId, int qty) {
     if (qty <= 0) {
@@ -180,7 +197,7 @@ class PosSaleDetailController extends GetxController {
 
   /// A reprint/copy of the sale's receipt, rendered from the single [ReceiptData] model.
   ReceiptData _receipt(PosSaleModel s, {bool asciiSafeMoney = false}) =>
-      ReceiptData.fromSale(s, _settings, isCopy: true, asciiSafeMoney: asciiSafeMoney);
+      ReceiptData.fromSale(s, _settings, isCopy: true, asciiSafeMoney: asciiSafeMoney, offlineRef: offlineRef.value);
 
   void shareReceipt() {
     final s = sale.value;

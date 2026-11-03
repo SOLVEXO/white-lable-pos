@@ -78,12 +78,14 @@ class ReceiptEscPosBuilder {
     void one() {
       bytes.addAll(g.reset());
       if (data.banner != null) big('*** ${data.banner} ***');
+      if (data.offlineNote != null) center('*** ${data.offlineNote} ***', bold: true);
       if (data.isCopy) center('COPY', bold: true);
       if (data.businessName != null) big(data.businessName!);
       if (data.header != null) center(data.header!);
       if (data.address != null) center(data.address!);
       if (data.taxId != null) center(data.taxId!);
       center('Receipt ${data.receiptNumber}', bold: true);
+      if (data.offlineRef != null) center('Offline ref ${data.offlineRef}');
       center(data.dateText);
       if (data.cashier != null) center('Cashier: ${data.cashier}');
       bytes.addAll(g.hr());
