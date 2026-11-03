@@ -47,6 +47,8 @@
 		<true/>
 		<key>NSBluetoothAlwaysUsageDescription</key>
 		<string>Solvexo POS uses Bluetooth only to find and connect to your receipt printer and print receipts. It is not used to track your location or connect to any other device.</string>
+		<key>NSLocalNetworkUsageDescription</key>
+		<string>Solvexo POS connects to a receipt printer on your shop's Wi-Fi/Ethernet network (and can look for one) only to print receipts and open the cash drawer. It does not scan for or talk to any other device.</string>
 		<key>NSBluetoothPeripheralUsageDescription</key>
 		<string>Solvexo POS uses Bluetooth only to connect to your receipt printer and print receipts.</string>
 		<key>NSCameraUsageDescription</key>

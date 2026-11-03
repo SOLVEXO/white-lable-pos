@@ -235,7 +235,7 @@ void main() {
 
     test('iOS: usage strings for every used permission, export-compliance key, privacy manifest in the target', () {
       final plist = File('ios/Runner/Info.plist').readAsStringSync();
-      for (final k in ['NSCameraUsageDescription', 'NSPhotoLibraryUsageDescription', 'NSBluetoothAlwaysUsageDescription', 'ITSAppUsesNonExemptEncryption']) {
+      for (final k in ['NSCameraUsageDescription', 'NSPhotoLibraryUsageDescription', 'NSBluetoothAlwaysUsageDescription', 'NSLocalNetworkUsageDescription', 'ITSAppUsesNonExemptEncryption']) {
         expect(plist, contains(k));
       }
       expect(plist, contains('Solvexo POS'));

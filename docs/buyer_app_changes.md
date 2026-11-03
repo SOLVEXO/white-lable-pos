@@ -37,3 +37,8 @@ Variants with `allowBackorder: true` (and `unlimitedStock: true`) are **exempt**
 2. Trust `stock >= 0` and `inStock` for display; hide/disable Add-to-cart when `inStock` is false.
 3. Keep treating backorder/unlimited variants as purchasable.
 4. On checkout `Insufficient stock…` errors, refresh the cart rather than showing a generic failure.
+
+## 5F.1 / 5G — auth changes that touch shared endpoints (all backward compatible)
+- `POST /api/auth/social-login`: `email` in the body is now **optional** (buyer-app callers that still send it behave exactly as before; a mismatch with the provider-verified email is still rejected). Apple: `APPLE_CLIENT_ID` is a comma-separated list of accepted audiences, and Apple's email only counts as *verified* when the token says `email_verified` — an unverified Apple email no longer links to an existing password account (matched by provider id only).
+- Refresh tokens now carry `typ:'refresh'` and a new `POST /api/auth/refresh` exists (buyer/seller/admin). Access-token payloads are unchanged. A refresh token can no longer be used as a bearer on other routes (JwtStrategy rejects `typ:'refresh'`). Refresh tokens issued before this change have no `typ` and are refused by `/auth/refresh` (they were never usable before).
+- CORS: new env `PORTAL_ORIGINS` (exact https origins) adds the Solvexo Account portal; existing origins unchanged.
