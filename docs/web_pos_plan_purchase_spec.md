@@ -1,6 +1,6 @@
 # Web spec — "Buy / extend POS plan" (seller web dashboard)
 
-**Status update:** the purchase page is now implemented in the new `solvexo-account-web` portal (`/stores/:id/plan`, `/plan/success`, `/plan/cancel`; success polls the status endpoint every 2 s for up to 30 s). The original note follows. Original status: no seller web dashboard or admin web code exists in this workspace (searched all sibling projects for `pos-plans` / `pos-subscriptions` — only the API and the POS app reference them), so this page could not be built here and nothing was invented. **Until it exists, an admin manual grant/extend (`POST /api/admin/pos-purchases/grant|extend`) is the only way to activate a store.** The mobile POS app has no purchase path at all (store-policy compliance) — it only reads the entitlement.
+**Status update:** the purchase page is now implemented in the new `solvexo-account-web` portal (`/stores/:id/plan`, `/plan/success`, `/plan/cancel`; as of 5G.1 the success URL carries `session_id={CHECKOUT_SESSION_ID}` and the success page is public: it reads `GET /api/pos-checkout/session-status?sessionId=…` (no login needed) and polls with backoff for up to ~60 s). The original note follows. Original status: no seller web dashboard or admin web code exists in this workspace (searched all sibling projects for `pos-plans` / `pos-subscriptions` — only the API and the POS app reference them), so this page could not be built here and nothing was invented. **Until it exists, an admin manual grant/extend (`POST /api/admin/pos-purchases/grant|extend`) is the only way to activate a store.** The mobile POS app has no purchase path at all (store-policy compliance) — it only reads the entitlement.
 
 ## Screens
 1. **POS plan** (seller panel → Settings/Billing). Shows, for the selected store: status (Active / Expired / None), plan name, started, **expires**, days remaining; a banner at ≤ 7 days. Below it the plan catalog and a **Buy** / **Extend** button per plan (label "Extend" while a plan is active — a purchase made before expiry **stacks**: the new term starts when the current one ends).
@@ -19,10 +19,10 @@ Errors: `404` plan not found/inactive; `403` store not the seller's; `400` Strip
 Suggested URLs: `successUrl = https://<panel>/pos-plan?checkout=success`, `cancelUrl = https://<panel>/pos-plan?checkout=cancelled`.
 
 ## Webhook expectations (already implemented — for whoever configures Stripe)
-Endpoint `POST /api/pos-subscriptions/webhooks/stripe`, secret `POS_PLANS_STRIPE_WEBHOOK_SECRET`. Subscribe to: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded`, `charge.dispute.created`.
+Endpoint `POST /api/pos-subscriptions/webhooks/stripe`, secret `POS_PLANS_STRIPE_WEBHOOK_SECRET`. Subscribe to: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`.
 - Paid session → one purchase row (idempotent on the session id; redeliveries are no-ops). Unpaid async sessions grant nothing until `async_payment_succeeded`.
 - Buying before expiry **stacks** (new expiry = current expiry + plan days); after expiry it starts from now.
-- **Full refund** or **dispute** takes the purchase's *unused* days back (shortening the current expiry, never below now); partial refunds are ignored; manual admin rows are never touched by Stripe events. A won dispute is not auto-restored — an admin can extend manually.
+- **Full refund** or **dispute** takes the purchase's *unused* days back (shortening the current expiry, never below now); partial refunds are ignored; manual admin rows are never touched by Stripe events. A **won** dispute (`charge.dispute.closed`) gives back exactly the days the dispute removed (5E.1); subscribe to that event too.
 - Admin revoke ends all running purchases immediately; a later paid purchase starts from now.
 
 ## Admin (already in the API, `billing.manage` permission)
