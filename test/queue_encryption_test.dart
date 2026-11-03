@@ -58,7 +58,7 @@ void main() {
       final c = cipher();
       final a = await c.encrypt('hello 123');
       final b = await c.encrypt('hello 123');
-      expect(a, startsWith('v1:'));
+      expect(a, startsWith('v2:'));
       expect(a, isNot(b));
       expect(await c.decrypt(a), 'hello 123');
       expect(await c.decrypt(b), 'hello 123');
@@ -69,12 +69,33 @@ void main() {
       final enc = await c.encrypt('{"total":10}');
       final bytes = base64Decode(enc.substring(3));
       bytes[bytes.length ~/ 2] ^= 0x01;
-      expect(() => c.decrypt('v1:${base64Encode(bytes)}'), throwsA(isA<QueueDecryptException>()));
+      expect(() => c.decrypt('v2:${base64Encode(bytes)}'), throwsA(isA<QueueDecryptException>()));
     });
 
     test('a different key cannot read it', () async {
       final enc = await cipher(1).encrypt('secret');
       expect(() => cipher(2).decrypt(enc), throwsA(isA<QueueDecryptException>()));
+    });
+
+    test('values written by app versions up to 5F (`v1:`, same AES-256-GCM layout) still decrypt unchanged', () async {
+      final c = cipher();
+      final v2 = await c.encrypt('legacy value');
+      final asV1 = 'v1:${v2.substring(3)}';
+      expect(await c.decrypt(asV1), 'legacy value');
+    });
+
+    test('a pinned AES-256-GCM vector decrypts (the OS providers must produce/accept exactly this standard layout)', () async {
+      // key = 32 x 0x07, nonce = 12 x 0x01, plaintext "pos-queue" — produced independently by the package's reference AES-GCM
+      final algo = AesGcm.with256bits();
+      final box = await algo.encrypt(utf8.encode('pos-queue'), secretKey: SecretKey(List.filled(32, 7)), nonce: List.filled(12, 1));
+      final bytes = box.concatenation();
+      expect(bytes.length, 12 + 9 + 16);
+      expect(bytes.sublist(0, 12), List.filled(12, 1));
+      expect(await cipher().decrypt('v2:${base64Encode(bytes)}'), 'pos-queue');
+    });
+
+    test('which provider runs is observable (host VM has no OS plugin → pure-Dart fallback, same output format)', () {
+      expect(AesGcmQueueCipher.usesOsCrypto, isFalse);
     });
 
     test('plaintext is refused (not an encrypted value)', () {
@@ -120,8 +141,8 @@ void main() {
       for (final secret in ['secret-variant', '123.45', 'eyJ.manager', 'eyJ.mgr2', 'Insufficient stock', 'customer left']) {
         expect(everything, isNot(contains(secret)), reason: '"$secret" must not be readable on disk');
       }
-      expect(rows.every((r) => r['enc'] == 1), isTrue);
-      expect((rows.first['payload'] as String), startsWith('v1:'));
+      expect(rows.every((r) => r['enc'] == 2), isTrue);
+      expect((rows.first['payload'] as String), startsWith('v2:'));
       // routing columns stay queryable
       expect(rows.first['storeId'], 's1');
       expect(rows.first['sessionId'], 'A');
@@ -195,7 +216,7 @@ void main() {
       final raw = await rawRows();
       expect(raw.map((r) => r.values.join('|')).join(), isNot(contains('secret-variant')));
       expect(raw.map((r) => r.values.join('|')).join(), isNot(contains('plain.token')));
-      expect(raw.every((r) => r['enc'] == 1), isTrue);
+      expect(raw.every((r) => r['enc'] == 2), isTrue);
     });
 
     test('migration is idempotent (opening again changes nothing)', () async {
@@ -219,14 +240,96 @@ void main() {
       expect(during.map((r) => r.payload['clientTotal']), [123.45, 123.45, 123.45]);
       await store.close();
       var raw = await rawRows();
-      expect(raw.where((r) => r['enc'] == 1).length, 1);
+      expect(raw.where((r) => r['enc'] == 2).length, 1);
       expect(raw.where((r) => r['enc'] == 0).length, 2);
 
       store = PendingSaleLocalStore(dbPath: dbFile, cipher: cipher());
       expect((await store.getAll()).length, 3);
       await store.close();
       raw = await rawRows();
-      expect(raw.every((r) => r['enc'] == 1), isTrue);
+      expect(raw.every((r) => r['enc'] == 2), isTrue);
+    });
+
+    /// A database written by 5F: schema v3, enc = 1, every value `v1:`-tagged.
+    Future<void> seedEncV1({int rows = 3}) async {
+      final c = cipher();
+      Future<String> v1(String plain) async => 'v1:${(await c.encrypt(plain)).substring(3)}';
+      final db = await databaseFactoryFfi.openDatabase(dbFile, options: OpenDatabaseOptions(version: 3, onCreate: (db, _) async {
+        await db.execute('''CREATE TABLE pending_sales (id TEXT PRIMARY KEY, payload TEXT NOT NULL, status TEXT NOT NULL, errorMessage TEXT, errorCode TEXT,
+          createdAt TEXT NOT NULL, storeId TEXT, sessionId TEXT, employeeToken TEXT, attempts INTEGER NOT NULL DEFAULT 0, nextAttemptAt TEXT, lastAttemptAt TEXT,
+          discardReason TEXT, discardedBy TEXT, enc INTEGER NOT NULL DEFAULT 1)''');
+        for (var i = 1; i <= rows; i++) {
+          await db.insert('pending_sales', {
+            'id': '5f-$i', 'payload': await v1(jsonEncode(payload('$i'))), 'status': i == 2 ? 'failed' : 'pending', 'errorMessage': i == 2 ? await v1('5F failure') : null,
+            'errorCode': i == 2 ? 'X' : null, 'createdAt': '2026-11-01T09:0$i:00.000', 'storeId': 's1', 'sessionId': 'A', 'employeeToken': i == 1 ? await v1('tok.5f') : null, 'enc': 1,
+          });
+        }
+      }));
+      await db.close();
+    }
+
+    test('5F rows (enc=1, v1:) are re-encrypted with the OS-crypto cipher as v2: — every id/status/content preserved', () async {
+      await seedEncV1();
+      final store = PendingSaleLocalStore(dbPath: dbFile, cipher: cipher());
+      final rows = await store.getAll();
+      expect(rows.map((r) => r.id), ['5f-1', '5f-2', '5f-3']);
+      expect(rows[0].payload['clientTotal'], 123.45);
+      expect(rows[0].employeeToken, 'tok.5f');
+      expect(rows[1].errorMessage, '5F failure');
+      expect(rows[1].isFailed, isTrue);
+      expect(rows.every((r) => !r.unreadable), isTrue);
+      await store.close();
+      final raw = await rawRows();
+      expect(raw.every((r) => r['enc'] == 2), isTrue);
+      for (final r in raw) {
+        for (final f in ['payload', 'employeeToken', 'errorMessage']) {
+          final v = r[f] as String?;
+          if (v != null) expect(v, startsWith('v2:'), reason: f);
+        }
+      }
+    });
+
+    test('v1 → v2 migration is idempotent', () async {
+      await seedEncV1();
+      var store = PendingSaleLocalStore(dbPath: dbFile, cipher: cipher());
+      await store.getAll();
+      await store.close();
+      final before = await rawRows();
+      store = PendingSaleLocalStore(dbPath: dbFile, cipher: cipher());
+      await store.getAll();
+      await store.close();
+      expect((await rawRows()).map((r) => r['payload']), before.map((r) => r['payload']));
+    });
+
+    test('crash midway through v1 → v2 loses nothing; the next open finishes', () async {
+      await seedEncV1();
+      // row 1 = payload + token = 2 encryptions allowed, then the keystore "fails"
+      var store = PendingSaleLocalStore(dbPath: dbFile, cipher: FlakyCipher(cipher(), 2));
+      final during = await store.getAll();
+      expect(during.length, 3);
+      expect(during.map((r) => r.payload['clientTotal']), [123.45, 123.45, 123.45]);
+      expect(during.every((r) => !r.unreadable), isTrue);
+      await store.close();
+      var raw = await rawRows();
+      expect(raw.where((r) => r['enc'] == 2).length, 1);
+      expect(raw.where((r) => r['enc'] == 1).length, 2);
+      store = PendingSaleLocalStore(dbPath: dbFile, cipher: cipher());
+      expect((await store.getAll()).length, 3);
+      await store.close();
+      raw = await rawRows();
+      expect(raw.every((r) => r['enc'] == 2), isTrue);
+    });
+
+    test('a v1 row whose key is gone is NOT touched by the migration and stays discardable', () async {
+      await seedEncV1(rows: 1);
+      final before = (await rawRows()).single['payload'];
+      final store = PendingSaleLocalStore(dbPath: dbFile, cipher: cipher(99)); // wrong key
+      final r = (await store.getById('5f-1'))!;
+      expect(r.unreadable, isTrue);
+      await store.close();
+      final after = (await rawRows()).single;
+      expect(after['payload'], before);
+      expect(after['enc'], 1);
     });
 
     test('v1 → v3 in one go (the original schema) also ends encrypted', () async {
@@ -240,7 +343,7 @@ void main() {
       expect(r.payload['clientTotal'], 123.45);
       expect(r.sessionId, 'A');
       await store.close();
-      expect((await rawRows()).single['enc'], 1);
+      expect((await rawRows()).single['enc'], 2);
     });
   });
 }

@@ -54,7 +54,7 @@
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Solvexo POS accesses a photo you choose from your library to use as your store logo or as a business verification document. Only the photo you select is read and uploaded.</string>
 		<key>ITSAppUsesNonExemptEncryption</key>
-		<true/>
+		<false/>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>
