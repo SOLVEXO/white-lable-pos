@@ -2,16 +2,17 @@ class SocialLoginModel {
   final String authProvider; // 'google', 'facebook', 'apple'
   final String socialId;
   final String userName;
-  final String email;
+  /// Apple may withhold the email; the backend then uses the verified one inside the identity token.
+  final String? email;
   final String? image;
   final String? fcmToken;
   final String? token;
 
-  SocialLoginModel({
+  const SocialLoginModel({
     required this.authProvider,
     required this.socialId,
     required this.userName,
-    required this.email,
+    this.email,
     this.image,
     this.fcmToken,
     this.token,
@@ -22,7 +23,7 @@ class SocialLoginModel {
       'authProvider': authProvider,
       'socialId': socialId,
       'userName': userName,
-      'email': email,
+      if (email != null && email!.isNotEmpty) 'email': email,
       'role': 'seller',
       if (image != null) 'image': image,
       if (fcmToken != null) 'fcmToken': fcmToken,

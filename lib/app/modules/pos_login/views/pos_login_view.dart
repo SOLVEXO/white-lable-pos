@@ -1,6 +1,8 @@
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/components/svg_icon.dart';
+import 'package:solvexo_pos/app/data/services/social_auth_service.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_icons.dart';
 import 'package:solvexo_pos/core/theme/base_shadows.dart';
@@ -248,6 +250,17 @@ class _LoginCard extends StatelessWidget {
               disabled: controller.isBusy && !controller.isGoogleLoading.value,
             ),
           ),
+          if (SocialAuthService.appleSupported) ...[
+            SizedBox(height: BaseSpacing.md),
+            // Same height and width as the Google button — Apple's guideline asks for equal prominence.
+            Obx(
+              () => _AppleButton(
+                onTap: controller.continueWithApple,
+                isLoading: controller.isAppleLoading.value,
+                disabled: controller.isBusy && !controller.isAppleLoading.value,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -271,6 +284,39 @@ class _OrDivider extends StatelessWidget {
         ),
         Expanded(child: Divider(color: AppColors.lightGrey2, thickness: 1)),
       ],
+    );
+  }
+}
+
+class _AppleButton extends StatelessWidget {
+  const _AppleButton({required this.onTap, required this.isLoading, this.disabled = false});
+  final VoidCallback onTap;
+  final bool isLoading;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final inactive = isLoading || disabled;
+    return IgnorePointer(
+      ignoring: inactive,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: inactive ? 0.6 : 1,
+        child: isLoading
+            ? Container(
+                key: const Key('appleLoading'),
+                height: 56,
+                decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(BaseRadius.pill)),
+                child: const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))),
+              )
+            : SignInWithAppleButton(
+                key: const Key('appleSignIn'),
+                text: 'Sign in with Apple',
+                height: 56,
+                borderRadius: BorderRadius.circular(BaseRadius.pill),
+                onPressed: onTap,
+              ),
+      ),
     );
   }
 }

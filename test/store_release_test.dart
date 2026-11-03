@@ -9,13 +9,17 @@ import 'package:get/get.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:solvexo_pos/app/data/models/common_models/social_login_model.dart';
 import 'package:solvexo_pos/app/data/repositories/account_repository.dart';
+import 'package:solvexo_pos/app/data/services/social_auth_service.dart';
 import 'package:solvexo_pos/app/data/services/owner_session.dart';
 import 'package:solvexo_pos/app/modules/pos_device/views/delete_account_view.dart';
 import 'package:solvexo_pos/config/app_env.dart';
 import 'package:solvexo_pos/config/telemetry.dart';
 
 class MockAccountRepo extends Mock implements AccountRepository {}
+
+class MockSocial extends Mock implements SocialAuthService {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -81,15 +85,17 @@ void main() {
       OwnerSession.end();
       SharedPreferences.setMockInitialValues({'pos_sound_effects': false});
       repo = MockAccountRepo();
+      when(() => repo.authMethods()).thenAnswer((_) async => const DeletionAuthMethods());
     });
-    Widget app() => ResponsiveSizer(builder: (_, __, ___) => GetMaterialApp(home: DeleteAccountView(repository: repo, skipUnsyncedGuard: true)));
+    Widget app({SocialAuthService? social}) => ResponsiveSizer(builder: (_, __, ___) => GetMaterialApp(home: DeleteAccountView(repository: repo, socialAuth: social, skipUnsyncedGuard: true)));
 
     testWidgets('states the consequences and cannot be submitted without the password AND the confirmation', (tester) async {
       await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
       expect(find.textContaining('permanently removes'), findsOneWidget);
       expect(find.textContaining('30 days'), findsOneWidget);
       expect(find.textContaining('kept as the law requires'), findsOneWidget);
-      FilledButton btn() => tester.widget<FilledButton>(find.byKey(const Key('deleteSubmit')));
+      FilledButton btn() => tester.widget<FilledButton>(find.byKey(const Key('deleteSubmit'), skipOffstage: false));
       expect(btn().onPressed, isNull);
       await tester.enterText(find.byKey(const Key('deletePassword')), 'pw');
       await tester.pump();
@@ -97,11 +103,12 @@ void main() {
       await tester.tap(find.byKey(const Key('deleteConfirm')));
       await tester.pump();
       expect(btn().onPressed, isNotNull);
-      verifyNever(() => repo.requestDeletion(any()));
+      verifyNever(() => repo.requestDeletion(password: any(named: 'password'), reauth: any(named: 'reauth')));
     });
 
     testWidgets('wrong password / open shift / social-only account show a clear message and delete nothing', (tester) async {
       await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const Key('deletePassword')), 'bad');
       await tester.ensureVisible(find.byKey(const Key('deleteConfirm')));
       await tester.tap(find.byKey(const Key('deleteConfirm')));
@@ -109,15 +116,81 @@ void main() {
       for (final c in [
         (DeletionOutcome.wrongPassword, 'not correct'),
         (DeletionOutcome.openSessions, 'Close every open register shift'),
-        (DeletionOutcome.needsWeb, 'from your account settings on the web'),
+        (DeletionOutcome.needsWeb, 'no password to confirm with'),
       ]) {
-        when(() => repo.requestDeletion('bad')).thenAnswer((_) async => (outcome: c.$1, scheduledFor: null, message: null));
+        when(() => repo.requestDeletion(password: 'bad')).thenAnswer((_) async => (outcome: c.$1, scheduledFor: null, message: null));
         await tester.ensureVisible(find.byKey(const Key('deleteSubmit')));
         await tester.tap(find.byKey(const Key('deleteSubmit')));
         await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
         await tester.pump();
         expect(find.textContaining(c.$2, findRichText: true, skipOffstage: false), findsWidgets, reason: '${c.$1}');
       }
+    });
+
+    group('social owners', () {
+      const googleId = SocialLoginModel(authProvider: 'google', socialId: 'g-1', userName: 'A', token: 'tok-g');
+      const appleId = SocialLoginModel(authProvider: 'apple', socialId: 'a-1', userName: 'A', token: 'tok-a');
+
+      testWidgets('Google-only owner: no password field, re-authenticates with Google and the provider payload is sent', (tester) async {
+        when(() => repo.authMethods()).thenAnswer((_) async => const DeletionAuthMethods(hasPassword: false, authProvider: 'google'));
+        final social = MockSocial();
+        when(() => social.signInWithGoogle()).thenAnswer((_) async => googleId);
+        when(() => repo.requestDeletion(reauth: any(named: 'reauth'))).thenAnswer((_) async => (outcome: DeletionOutcome.wrongIdentity, scheduledFor: null, message: null));
+        await tester.pumpWidget(app(social: social));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('deletePassword')), findsNothing);
+        FilledButton btn() => tester.widget<FilledButton>(find.byKey(const Key('deleteWithProvider')));
+        expect(btn().onPressed, isNull); // confirmation first
+        await tester.ensureVisible(find.byKey(const Key('deleteConfirm')));
+        await tester.tap(find.byKey(const Key('deleteConfirm')));
+        await tester.pump();
+        await tester.ensureVisible(find.byKey(const Key('deleteWithProvider')));
+        await tester.tap(find.byKey(const Key('deleteWithProvider')));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+        await tester.pump();
+        final sent = verify(() => repo.requestDeletion(reauth: captureAny(named: 'reauth'))).captured.single as SocialLoginModel;
+        expect((sent.authProvider, sent.socialId, sent.token), ('google', 'g-1', 'tok-g'));
+        expect(find.textContaining('does not match this owner account', skipOffstage: false), findsWidgets);
+      });
+
+      testWidgets('Apple owner uses Apple (on iOS only)', (tester) async {
+        when(() => repo.authMethods()).thenAnswer((_) async => const DeletionAuthMethods(hasPassword: false, authProvider: 'apple'));
+        final social = MockSocial();
+        when(() => social.signInWithApple()).thenAnswer((_) async => appleId);
+        await tester.pumpWidget(app(social: social));
+        await tester.pumpAndSettle();
+        if (SocialAuthService.appleSupported) {
+          expect(find.textContaining('with Apple and delete'), findsOneWidget);
+        } else {
+          expect(find.byKey(const Key('deleteWithProvider')), findsNothing);
+          expect(find.textContaining('only available on iPhone'), findsOneWidget);
+        }
+      });
+
+      testWidgets('cancelled provider sign-in deletes nothing', (tester) async {
+        when(() => repo.authMethods()).thenAnswer((_) async => const DeletionAuthMethods(hasPassword: false, authProvider: 'google'));
+        final social = MockSocial();
+        when(() => social.signInWithGoogle()).thenAnswer((_) async => null);
+        await tester.pumpWidget(app(social: social));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byKey(const Key('deleteConfirm')));
+        await tester.tap(find.byKey(const Key('deleteConfirm')));
+        await tester.pump();
+        await tester.ensureVisible(find.byKey(const Key('deleteWithProvider')));
+        await tester.tap(find.byKey(const Key('deleteWithProvider')));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+        await tester.pump();
+        verifyNever(() => repo.requestDeletion(reauth: any(named: 'reauth')));
+        expect(find.textContaining('Nothing was deleted', skipOffstage: false), findsWidgets);
+      });
+
+      testWidgets('password + Google owner sees both ways', (tester) async {
+        when(() => repo.authMethods()).thenAnswer((_) async => const DeletionAuthMethods(hasPassword: true, authProvider: 'google'));
+        await tester.pumpWidget(app(social: MockSocial()));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('deletePassword')), findsOneWidget);
+        expect(find.byKey(const Key('deleteWithProvider'), skipOffstage: false), findsOneWidget);
+      });
     });
   });
 

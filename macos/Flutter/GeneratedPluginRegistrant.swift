@@ -7,6 +7,7 @@ import Foundation
 
 import audioplayers_darwin
 import connectivity_plus
+import cryptography_flutter
 import file_selector_macos
 import firebase_core
 import firebase_crashlytics
@@ -17,11 +18,13 @@ import path_provider_foundation
 import print_bluetooth_thermal
 import share_plus
 import shared_preferences_foundation
+import sign_in_with_apple
 import sqflite_darwin
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   AudioplayersDarwinPlugin.register(with: registry.registrar(forPlugin: "AudioplayersDarwinPlugin"))
   ConnectivityPlusPlugin.register(with: registry.registrar(forPlugin: "ConnectivityPlusPlugin"))
+  CryptographyFlutterPlugin.register(with: registry.registrar(forPlugin: "CryptographyFlutterPlugin"))
   FileSelectorPlugin.register(with: registry.registrar(forPlugin: "FileSelectorPlugin"))
   FLTFirebaseCorePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseCorePlugin"))
   FLTFirebaseCrashlyticsPlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseCrashlyticsPlugin"))
@@ -32,5 +35,6 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   PrintBluetoothThermalPlugin.register(with: registry.registrar(forPlugin: "PrintBluetoothThermalPlugin"))
   SharePlusMacosPlugin.register(with: registry.registrar(forPlugin: "SharePlusMacosPlugin"))
   SharedPreferencesPlugin.register(with: registry.registrar(forPlugin: "SharedPreferencesPlugin"))
+  SignInWithApplePlugin.register(with: registry.registrar(forPlugin: "SignInWithApplePlugin"))
   SqflitePlugin.register(with: registry.registrar(forPlugin: "SqflitePlugin"))
 }

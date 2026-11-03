@@ -17,11 +17,12 @@ import 'package:solvexo_pos/app/routes/app_pages.dart';
 /// Either path then routes to [Routes.sellerStores], which sends a seller
 /// with no store yet into [Routes.sellerOnboarding] to create one.
 class PosLoginController extends GetxController {
-  PosLoginController({AuthRepository? authRepository})
-      : _authRepository = authRepository ?? AuthRepository();
+  PosLoginController({AuthRepository? authRepository, SocialAuthService? socialAuth})
+      : _authRepository = authRepository ?? AuthRepository(),
+        _socialAuth = socialAuth ?? SocialAuthService();
 
   final AuthRepository _authRepository;
-  final SocialAuthService _socialAuth = SocialAuthService();
+  final SocialAuthService _socialAuth;
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -29,12 +30,13 @@ class PosLoginController extends GetxController {
   final RxBool obscurePassword = true.obs;
   final RxBool isEmailLoading = false.obs;
   final RxBool isGoogleLoading = false.obs;
+  final RxBool isAppleLoading = false.obs;
   // True while checking for an already-saved session on launch — the view
   // shows a bare loading state instead of the form during this, so a
   // returning seller never sees a flash of the login screen.
   final RxBool isCheckingSession = true.obs;
 
-  bool get isBusy => isEmailLoading.value || isGoogleLoading.value;
+  bool get isBusy => isEmailLoading.value || isGoogleLoading.value || isAppleLoading.value;
 
   @override
   void onInit() {
@@ -110,6 +112,28 @@ class PosLoginController extends GetxController {
       ToastUtil.showToast('Google sign in failed. Please try again.');
     } finally {
       isGoogleLoading.value = false;
+    }
+  }
+
+  /// Sign in with Apple (iOS). Same account-linking as Google happens on the server: the verified email decides.
+  Future<void> continueWithApple() async {
+    if (isBusy) return;
+    isAppleLoading.value = true;
+    try {
+      final dto = await _socialAuth.signInWithApple();
+      if (dto == null) return; // cancelled
+
+      final auth = await _authRepository.socialLogin(dto);
+      if (auth == null) {
+        ToastUtil.showToast('Apple sign in failed. Please try again.');
+        return;
+      }
+      Get.offAllNamed(Routes.sellerStores);
+    } catch (e) {
+      debugPrint('❌ Apple sign in error: ${e.runtimeType}');
+      ToastUtil.showToast('Apple sign in failed. Please try again.');
+    } finally {
+      isAppleLoading.value = false;
     }
   }
 

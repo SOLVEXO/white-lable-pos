@@ -69,6 +69,9 @@ dependencies:
   # buyer app's gateway_payment flow. Version matches solvexo-app's pubspec.
   cryptography: ^2.9.0
   firebase_crashlytics: ^4.3.10
+  sign_in_with_apple: ^7.0.1
+  cryptography_flutter: ^2.3.4
+  crypto: ^3.0.8
 
 dev_dependencies:
   flutter_test:
