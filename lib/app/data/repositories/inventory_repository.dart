@@ -15,9 +15,11 @@ import 'package:flutter/material.dart';
 /// activity-log.controller.ts directly) — they just weren't wired to any
 /// Flutter repository before Phase 2.
 class InventoryRepository {
-  InventoryRepository({IdempotencyIntentStore? intents}) : _intents = intents ?? IdempotencyIntentStore.instance;
+  InventoryRepository({IdempotencyIntentStore? intents, BaseClient? client})
+      : _intents = intents ?? IdempotencyIntentStore.instance,
+        _client = client ?? BaseClient();
 
-  final BaseClient _client = BaseClient();
+  final BaseClient _client;
   final IdempotencyIntentStore _intents;
 
   dynamic _data(Response response) {

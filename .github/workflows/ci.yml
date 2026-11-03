@@ -1,0 +1,19 @@
+name: CI (solvexo_pos)
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.6   # keep in step with the version the release builds are made with
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-pub      # must stay at 0 issues (phase 5F)
+      - run: flutter test --no-pub
+      # integration_test/* needs a simulator/emulator and the local API (docs/local_stack.md); run it before a release, not per push.
