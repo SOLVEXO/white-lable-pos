@@ -28,7 +28,7 @@ class SellerStoresView extends StatelessWidget {
           AppDimen.allPadding,
           12 + bottomInset,
         ),
-        child: AppButton(
+        child: LegacyAppButton(
           onPressed: controller.createNewStore,
           label: 'Create New Store',
           iconWidget: SvgIcon(

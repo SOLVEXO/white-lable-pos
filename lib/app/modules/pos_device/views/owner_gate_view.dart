@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/repositories/auth_repository.dart';
 import 'package:solvexo_pos/app/data/services/owner_session.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 
 /// Owner re-authentication. Shown before any owner-only screen/action on a registered device: the owner's password gives a
@@ -61,35 +61,69 @@ class _OwnerGateViewState extends State<OwnerGateView> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      appBar: AppBar(title: const Text('Owner access'), leading: BackButton(onPressed: () => Get.back(result: false))),
+      backgroundColor: p.background,
+      appBar: AppBar(
+        title: const Text('Owner access'),
+        leading: BackButton(onPressed: () => Get.back(result: false)),
+      ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('This area is for the store owner.', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text('Enter the password of $_email to continue. Access ends after ${OwnerSession.ttl.inMinutes} minutes of inactivity or when the till locks.',
-                style: const TextStyle(color: AppColors.iosGrey)),
-            const SizedBox(height: 20),
-            TextField(
-              key: const Key('ownerGatePassword'),
-              controller: _password,
-              obscureText: true,
-              autofocus: true,
-              onSubmitted: (_) => _submit(),
-              decoration: InputDecoration(border: const OutlineInputBorder(), labelText: 'Owner password', errorText: _error),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const Key('ownerGateContinue'),
-                onPressed: _busy ? null : _submit,
-                child: _busy ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Continue'),
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(Space.s6),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: box.maxHeight - Space.s12),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: AutofillGroup(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const GateHeader(
+                          icon: Icons.admin_panel_settings_outlined,
+                          title: 'This area is for the store owner.',
+                        ),
+                        const SizedBox(height: Space.s3),
+                        Text(
+                          'Enter the password of $_email to continue. Access ends after ${OwnerSession.ttl.inMinutes} minutes of inactivity or when the till locks.',
+                          textAlign: TextAlign.center,
+                          style: context.type.body.copyWith(
+                            color: p.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: Space.s6),
+                        AppTextField(
+                          key: const Key('ownerGatePassword'),
+                          label: 'Owner password',
+                          controller: _password,
+                          prefixIcon: Icons.lock_outline_rounded,
+                          obscureText: true,
+                          showObscureToggle: true,
+                          autofocus: true,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          errorText: _error,
+                          onSubmitted: (_) => _submit(),
+                        ),
+                        const SizedBox(height: Space.s5),
+                        AppButton(
+                          key: const Key('ownerGateContinue'),
+                          label: 'Continue',
+                          size: AppButtonSize.lg,
+                          loading: _busy,
+                          onPressed: _submit,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ]),
+          ),
         ),
       ),
     );

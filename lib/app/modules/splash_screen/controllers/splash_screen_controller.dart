@@ -1,118 +1,55 @@
-import 'dart:async';
-import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
+import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 
-const _kSlogans = [
-  'Fast · Reliable · Simple',
-  'Your Business, In Your Pocket',
-  'Sell Smarter, Grow Faster',
-];
-
+/// Runs the splash animation and the session check IN PARALLEL and navigates the
+/// moment both are done — no fixed delay. The animation is 1.0 s (200 ms under
+/// reduced motion); the session check is a handful of cached preference reads, so
+/// in practice the animation is the longer of the two.
 class SplashScreenController extends GetxController
-    with GetTickerProviderStateMixin {
-  // ── Animation controllers ─────────────────────────────────────────────────
-  late AnimationController logoController; // logo entrance + brand fade
-  late AnimationController glowController; // repeating logo pulse
-  late AnimationController sloganController; // per-slogan fade in/out
+    with GetSingleTickerProviderStateMixin {
+  /// 0 → 1 over the splash timeline; the view derives every motion from it.
+  late final AnimationController animation;
 
-  // ── Animations ────────────────────────────────────────────────────────────
-  late Animation<double> scaleAnim;
-  late Animation<Offset> slideAnim;
-  late Animation<double> brandFade;
-  late Animation<double> glowAnim;
-  late Animation<double> sloganFade;
+  static const Duration fullDuration = Duration(milliseconds: 1000);
+  static const Duration reducedDuration = Duration(milliseconds: 200);
 
-  // ── Reactive state ────────────────────────────────────────────────────────
-  final RxInt sloganIndex = 0.obs;
-
-  Timer? _sloganTimer;
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
+  bool _animationDone = false;
+  String? _target;
+  bool _navigated = false;
 
   @override
   void onInit() {
     super.onInit();
-    _setupLogoController();
-    _setupGlowController();
-    _setupSloganController();
-
-    logoController.forward().then((_) => _startSloganCycle());
-    _navigate();
-  }
-
-  void _setupLogoController() {
-    logoController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    );
-
-    slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.6),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: logoController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic),
-    ));
-
-    scaleAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: logoController,
-        curve: const Interval(0.0, 0.65, curve: Curves.elasticOut),
-      ),
-    );
-
-    brandFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: logoController,
-        curve: const Interval(0.55, 1.0, curve: Curves.easeIn),
-      ),
-    );
-  }
-
-  void _setupGlowController() {
-    glowController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-
-    glowAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: glowController, curve: Curves.easeInOut),
-    );
-  }
-
-  void _setupSloganController() {
-    sloganController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-
-    sloganFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: sloganController, curve: Curves.easeInOut),
-    );
-  }
-
-  void _startSloganCycle() {
-    sloganController.forward();
-    _sloganTimer = Timer.periodic(const Duration(milliseconds: 1600), (_) async {
-      await sloganController.reverse();
-      sloganIndex.value = (sloganIndex.value + 1) % _kSlogans.length;
-      sloganController.forward();
+    animation = AnimationController(vsync: this, duration: fullDuration);
+    // Session check starts immediately, alongside the animation.
+    _resolveRoute().then((route) {
+      _target = route;
+      _tryNavigate();
     });
   }
 
-  String get currentSlogan => _kSlogans[sloganIndex.value];
+  /// Called by the view once its first frame is up (it knows about reduced motion).
+  void start({required bool reducedMotion}) {
+    animation.duration = reducedMotion ? reducedDuration : fullDuration;
+    animation.forward().whenComplete(() {
+      _animationDone = true;
+      _tryNavigate();
+    });
+  }
 
-  // ── Navigation ────────────────────────────────────────────────────────────
+  void _tryNavigate() {
+    if (_navigated || !_animationDone || _target == null) return;
+    _navigated = true;
+    Get.offAllNamed(_target!);
+  }
 
-  void _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 5200));
-
+  /// The routing decision — branch for branch what the splash always did.
+  Future<String> _resolveRoute() async {
     final hasSeenOnboarding = await AppPreferences.getHasSeenOnboarding();
     if (!hasSeenOnboarding) {
-      Get.offAllNamed(Routes.onboarding);
-      return;
+      return Routes.onboarding;
     }
 
     // Returning device — a valid seller session skips straight past login;
@@ -122,21 +59,18 @@ class SplashScreenController extends GetxController
       // A registered terminal goes straight to the staff PIN screen (or its running shift); the owner's management
       // area is behind the owner gate.
       if (AppPreferences.cachedDeviceMode) {
-        Get.offAllNamed(AppPreferences.cachedHasPosSession ? Routes.posHome : Routes.posPinLogin);
-        return;
+        return AppPreferences.cachedHasPosSession
+            ? Routes.posHome
+            : Routes.posPinLogin;
       }
-      Get.offAllNamed(Routes.sellerHome);
-      return;
+      return Routes.sellerHome;
     }
-    Get.offAllNamed(Routes.posLogin);
+    return Routes.posLogin;
   }
 
   @override
   void onClose() {
-    _sloganTimer?.cancel();
-    logoController.dispose();
-    glowController.dispose();
-    sloganController.dispose();
+    animation.dispose();
     super.onClose();
   }
 }

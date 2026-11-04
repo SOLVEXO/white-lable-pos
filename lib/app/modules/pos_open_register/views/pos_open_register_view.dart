@@ -113,7 +113,7 @@ class PosOpenRegisterView extends StatelessWidget {
 
               // ── Open button ────────────────────────────────────────
               Obx(
-                () => AppButton(
+                () => LegacyAppButton(
                   label: c.isOpening.value
                       ? 'Opening...'
                       : 'Open Register & Start Shift',

@@ -1,17 +1,15 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/components/custom_text_field.dart';
-import 'package:solvexo_pos/app/components/svg_icon.dart';
-import 'package:solvexo_pos/app/modules/pos_pin_login/controllers/pos_pin_login_controller.dart';
-import 'package:solvexo_pos/app/modules/pos_pin_login/widgets/pos_pin_login_shimmer.dart';
-import 'package:solvexo_pos/app/routes/app_pages.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/config/resources/app_icons.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/modules/pos_pin_login/controllers/pos_pin_login_controller.dart';
+import 'package:solvexo_pos/app/routes/app_pages.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
+// Still imported from here by the legacy Open Register screen (until it is migrated).
+export 'package:solvexo_pos/app/modules/pos_pin_login/widgets/pin_legacy_theme.dart'
+    show kPinBg, kPinSurface, kPinBorder, kPinText, kPinSub;
+
+/// Cashier sign-in on a shared till: employee email + register + 4-digit PIN.
+/// Phone: one column. Tablet landscape: who-you-are on the left, PIN pad on the right.
 class PosPinLoginView extends StatelessWidget {
   PosPinLoginView({super.key});
 
@@ -19,42 +17,103 @@ class PosPinLoginView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: kPinBg,
+      backgroundColor: p.background,
       body: SafeArea(
         child: Obx(() {
-          if (c.isLoadingStore.value) {
-            return const PosPinLoginShimmer();
-          }
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-            child: Column(
-              children: [
-                _Header(),
-                const SizedBox(height: 28),
-                _RegisterSelector(c: c),
-                const SizedBox(height: 20),
-                _EmailField(c: c),
-                const SizedBox(height: 32),
-                _PinDots(c: c),
-                const SizedBox(height: 32),
-                _PinKeypad(c: c),
-                const SizedBox(height: 16),
-                // Owner way back to the management screens (staff, registers, devices, plan) on a registered device:
-                // the owner password gate (OwnerAccessMiddleware) is shown first; cashiers cannot get past it.
-                TextButton.icon(
-                  key: const Key('ownerAccessButton'),
-                  onPressed: () => Get.toNamed(Routes.sellerHome),
-                  icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: kPinSub),
-                  label: const CustomText(
-                    text: 'Owner access',
-                    fontSize: AppFontSize.verySmall,
-                    color: kPinSub,
+          if (c.isLoadingStore.value) return const _LoadingSkeleton();
+          return LayoutBuilder(
+            builder: (context, box) {
+              final wide = box.maxWidth >= 840;
+              final identity = _Identity(c: c);
+              final pin = _PinSection(c: c);
+              final owner = TextButton.icon(
+                key: const Key('ownerAccessButton'),
+                onPressed: () => Get.toNamed(Routes.sellerHome),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(Space.minTouch, Space.minTouch),
+                  foregroundColor: p.textSecondary,
+                ),
+                icon: Icon(
+                  Icons.admin_panel_settings_outlined,
+                  size: 18,
+                  color: p.textSecondary,
+                ),
+                label: Text(
+                  'Owner access',
+                  style: context.type.label.copyWith(
+                    color: p.textSecondary,
+                    fontSize: context.type.body.fontSize,
                   ),
                 ),
-                const SizedBox(height: 8),
-              ],
-            ),
+              );
+              return SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Space.s6,
+                  vertical: Space.s6,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: box.maxHeight - Space.s12,
+                  ),
+                  child: Center(
+                    child: wide
+                        ? ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 960),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: Space.s8,
+                                        ),
+                                        child: identity,
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 1,
+                                      height: 420,
+                                      color: p.border,
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: Space.s8,
+                                        ),
+                                        child: Center(child: pin),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: Space.s4),
+                                owner,
+                              ],
+                            ),
+                          )
+                        : ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                identity,
+                                const SizedBox(height: Space.s8),
+                                pin,
+                                const SizedBox(height: Space.s4),
+                                owner,
+                              ],
+                            ),
+                          ),
+                  ),
+                ),
+              );
+            },
           );
         }),
       ),
@@ -62,352 +121,254 @@ class PosPinLoginView extends StatelessWidget {
   }
 }
 
-// ── Theme constants ────────────────────────────────────────────────────────────
-const kPinBg = AppColors.posThemeBg;
-const kPinSurface = AppColors.posThemeSurface;
-const kPinBorder = AppColors.posThemeBorder;
-const kPinText = AppColors.posThemeText;
-const kPinSub = AppColors.posThemeSubText;
+class _Identity extends StatelessWidget {
+  const _Identity({required this.c});
+  final PosPinLoginController c;
 
-// ── Header ─────────────────────────────────────────────────────────────────────
-class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    return AutofillGroup(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const GateHeader(
+            icon: Icons.point_of_sale_rounded,
+            title: 'Employee login',
+            subtitle: 'Enter your email and 4-digit PIN',
+          ),
+          const SizedBox(height: Space.s8),
+          _RegisterSelector(c: c),
+          const SizedBox(height: Space.s4),
+          AppTextField(
+            label: 'Employee email',
+            controller: c.emailController,
+            prefixIcon: Icons.mail_outline_rounded,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.email, AutofillHints.username],
+            onChanged: (v) => c.email.value = v,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RegisterSelector extends StatelessWidget {
+  const _RegisterSelector({required this.c});
+  final PosPinLoginController c;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Obx(() {
+      if (c.registers.isEmpty) {
+        return AppCard(
+          color: p.fill,
+          radius: Radii.rMd,
+          child: Row(
+            children: [
+              Icon(Icons.point_of_sale_outlined, color: p.textMuted, size: 20),
+              const SizedBox(width: Space.s3),
+              Text(
+                'No registers configured',
+                style: context.type.body.copyWith(color: p.textMuted),
+              ),
+            ],
+          ),
+        );
+      }
+      final name = c.selectedRegister.value?['name'] ?? 'Select register';
+      return AppCard(
+        onTap: () => _pick(context),
+        color: p.fill,
+        radius: Radii.rMd,
+        semanticLabel: 'Register: $name. Tap to change',
+        child: Row(
+          children: [
+            Icon(Icons.point_of_sale_outlined, color: p.accentFg, size: 20),
+            const SizedBox(width: Space.s3),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.type.subtitle.copyWith(color: p.textPrimary),
+              ),
+            ),
+            Icon(Icons.keyboard_arrow_down_rounded, color: p.textMuted),
+          ],
+        ),
+      );
+    });
+  }
+
+  void _pick(BuildContext context) {
+    AppBottomSheet.show<void>(
+      context,
+      title: 'Select register',
+      builder: (ctx) {
+        final p = ctx.palette;
+        return Column(
+          children: [
+            for (final reg in c.registers)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Space.s2),
+                child: Obx(() {
+                  final selected = c.selectedRegister.value?['id'] == reg['id'];
+                  return AppCard(
+                    onTap: () {
+                      c.selectRegister(reg);
+                      Navigator.of(ctx).pop();
+                    },
+                    color: selected ? p.accentSoft : p.fill,
+                    radius: Radii.rMd,
+                    semanticLabel:
+                        '${reg['name'] ?? ''}${selected ? ', selected' : ''}',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.point_of_sale_outlined,
+                          color: selected ? p.accentFg : p.textMuted,
+                          size: 20,
+                        ),
+                        const SizedBox(width: Space.s3),
+                        Expanded(
+                          child: Text(
+                            reg['name'] ?? '',
+                            style: ctx.type.subtitle.copyWith(
+                              color: p.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (selected)
+                          Icon(Icons.check_rounded, color: p.accentFg),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// PIN dots + keypad. Watches the PIN: when a full PIN is cleared by the controller (a failed attempt), the dots
+/// shake and buzz. No PIN logic lives here.
+class _PinSection extends StatefulWidget {
+  const _PinSection({required this.c});
+  final PosPinLoginController c;
+
+  @override
+  State<_PinSection> createState() => _PinSectionState();
+}
+
+class _PinSectionState extends State<_PinSection> {
+  late final Worker _worker;
+  int _prevLen = 0;
+  int _errorTick = 0;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _worker = ever<String>(widget.c.pin, (v) {
+      if (_prevLen >= 4 && v.isEmpty) {
+        setState(() {
+          _errorTick++;
+          _hasError = true;
+        });
+      } else if (v.isNotEmpty && _hasError) {
+        setState(() => _hasError = false);
+      }
+      _prevLen = v.length;
+    });
+  }
+
+  @override
+  void dispose() {
+    _worker.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          padding: EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.primaryColor.withOpacity(0.15),
-            shape: BoxShape.circle,
-          ),
-          child: SvgIcon(
-            assetName: AppIcons.posIcon,
-            color: AppColors.primaryColor,
-            size: 32,
+        Obx(
+          () => PinDots(
+            length: 4,
+            filled: c.pin.value.length,
+            errorTick: _errorTick,
+            hasError: _hasError,
           ),
         ),
-        const SizedBox(height: 14),
-        const CustomText(
-          text: 'Employee Login',
-          fontFamily: AppTextStyles.headingFontFamily,
-          fontSize: AppFontSize.large,
-          fontWeight: FontWeight.bold,
-          color: kPinText,
+        const SizedBox(height: Space.s2),
+        SizedBox(
+          height: 22,
+          child: Obx(
+            () => c.isLoading.value
+                ? Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: context.palette.accent,
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ),
-        const SizedBox(height: 6),
-        const CustomText(
-          text: 'Enter your email and 4-digit PIN',
-          fontSize: AppFontSize.verySmall,
-          color: kPinSub,
+        const SizedBox(height: Space.s4),
+        Obx(
+          () => PinPad(
+            enabled: !c.isLoading.value,
+            onDigit: c.appendDigit,
+            onBackspace: c.backspace,
+            onClear: c.clearPin,
+          ),
         ),
       ],
     );
   }
 }
 
-// ── Register selector ──────────────────────────────────────────────────────────
-class _RegisterSelector extends StatelessWidget {
-  final PosPinLoginController c;
-  const _RegisterSelector({required this.c});
+class _LoadingSkeleton extends StatelessWidget {
+  const _LoadingSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      if (c.registers.isEmpty) {
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: kPinSurface,
-            borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-            border: Border.all(color: kPinBorder),
-          ),
-          child: const Row(
-            children: [
-              SvgIcon(assetName: AppIcons.posIcon, color: kPinSub, size: 18),
-              SizedBox(width: 10),
-              CustomText(
-                text: 'No registers configured',
-                fontSize: AppFontSize.verySmall,
-                color: kPinSub,
-              ),
-            ],
-          ),
-        );
-      }
-      return GestureDetector(
-        onTap: () => _showRegisterSheet(context, c),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: kPinSurface,
-            borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-            border: Border.all(color: kPinBorder),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.point_of_sale_outlined,
-                color: AppColors.primaryColor,
-                size: 18,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: CustomText(
-                  text: c.selectedRegister.value?['name'] ?? 'Select Register',
-                  fontSize: AppFontSize.verySmall,
-                  fontWeight: FontWeight.w600,
-                  color: kPinText,
-                ),
-              ),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: kPinSub,
-                size: 20,
-              ),
-            ],
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: const Padding(
+          padding: EdgeInsets.all(Space.s6),
+          child: SkeletonShimmer(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SkeletonBox(width: 64, height: 64, radius: 32),
+                SizedBox(height: Space.s4),
+                SkeletonBox(width: 180, height: 22),
+                SizedBox(height: Space.s2),
+                SkeletonBox(width: 220, height: 14),
+                SizedBox(height: Space.s8),
+                SkeletonBox(height: 56, radius: Radii.md),
+                SizedBox(height: Space.s4),
+                SkeletonBox(height: 56, radius: Radii.md),
+                SizedBox(height: Space.s8),
+                SkeletonBox(width: 160, height: 18, radius: 9),
+              ],
+            ),
           ),
         ),
-      );
-    });
-  }
-
-  void _showRegisterSheet(BuildContext context, PosPinLoginController c) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: kPinSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: kPinBorder,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const CustomText(
-              text: 'Select Register',
-              fontSize: AppFontSize.small,
-              fontWeight: FontWeight.bold,
-              color: kPinText,
-            ),
-            const SizedBox(height: 12),
-            ...c.registers.map(
-              (reg) => GestureDetector(
-                onTap: () {
-                  c.selectRegister(reg);
-                  Get.back();
-                },
-                child: Obx(
-                  () => Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      color: c.selectedRegister.value?['id'] == reg['id']
-                          ? AppColors.primaryColor.withOpacity(0.15)
-                          : kPinBg,
-                      borderRadius: BorderRadius.circular(
-                        AppDimen.borderRadius,
-                      ),
-                      border: Border.all(
-                        color: c.selectedRegister.value?['id'] == reg['id']
-                            ? AppColors.primaryColor
-                            : kPinBorder,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.point_of_sale_outlined,
-                          color: c.selectedRegister.value?['id'] == reg['id']
-                              ? AppColors.primaryColor
-                              : kPinSub,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 10),
-                        CustomText(
-                          text: reg['name'] ?? '',
-                          fontSize: AppFontSize.verySmall,
-                          fontWeight: FontWeight.w600,
-                          color: kPinText,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Email field ────────────────────────────────────────────────────────────────
-class _EmailField extends StatelessWidget {
-  final PosPinLoginController c;
-  const _EmailField({required this.c});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomTextField(
-      controller: c.emailController,
-      hintText: 'Employee Email',
-      textColor: AppColors.white,
-      keyboardType: TextInputType.emailAddress,
-      borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-      fillColor: kPinSurface,
-      onChanged: (v) => c.email.value = v,
-      prefixIcon: SvgIcon(
-        assetName: AppIcons.emailIcon,
-        color: kPinSub,
-        size: 20,
-      ),
-    );
-  }
-}
-
-// ── PIN dots ───────────────────────────────────────────────────────────────────
-class _PinDots extends StatelessWidget {
-  final PosPinLoginController c;
-  const _PinDots({required this.c});
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final len = c.pin.value.length;
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(4, (i) {
-          final filled = i < len;
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            margin: const EdgeInsets.symmetric(horizontal: 10),
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: filled ? AppColors.primaryColor : AppColors.transparent,
-              border: Border.all(
-                color: filled ? AppColors.primaryColor : kPinBorder,
-                width: 2,
-              ),
-            ),
-          );
-        }),
-      );
-    });
-  }
-}
-
-// ── Keypad ─────────────────────────────────────────────────────────────────────
-class _PinKeypad extends StatelessWidget {
-  final PosPinLoginController c;
-  const _PinKeypad({required this.c});
-
-  static const _keys = [
-    ['1', '2', '3'],
-    ['4', '5', '6'],
-    ['7', '8', '9'],
-    ['', '0', '⌫'],
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(
-      () => Column(
-        children: _keys
-            .map(
-              (row) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: row.map((key) {
-                    if (key.isEmpty) {
-                      return const SizedBox(width: 80, height: 72);
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: _KeyButton(
-                        label: key,
-                        isLoading: key == '⌫' && c.isLoading.value,
-                        onTap: () {
-                          if (key == '⌫') {
-                            c.backspace();
-                          } else {
-                            c.appendDigit(key);
-                          }
-                        },
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-
-class _KeyButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final bool isLoading;
-  const _KeyButton({
-    required this.label,
-    required this.onTap,
-    this.isLoading = false,
-  });
-
-  bool get isBackspace => label == '⌫';
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        width: 80,
-        height: 72,
-        decoration: BoxDecoration(
-          color: isBackspace ? AppColors.primaryColor.withOpacity(0.12) : kPinSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kPinBorder),
-        ),
-        alignment: Alignment.center,
-        child: isLoading
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primaryColor,
-                ),
-              )
-            : isBackspace
-            ? Icon(Icons.backspace_outlined, color: AppColors.primaryColor, size: 22)
-            : CustomText(
-                text: label,
-                fontSize: AppFontSize.veryLarge,
-                fontWeight: FontWeight.w600,
-                color: kPinText,
-              ),
       ),
     );
   }

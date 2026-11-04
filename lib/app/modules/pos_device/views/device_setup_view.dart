@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/repositories/seller_repository.dart';
 import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 
 /// One-time (and after a revocation) setup: the signed-in OWNER picks which register this terminal is, and the app swaps the
@@ -77,37 +78,143 @@ class _DeviceSetupViewState extends State<DeviceSetupView> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
+      backgroundColor: p.background,
       appBar: AppBar(title: const Text('Set up this device')),
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Obx(() => _device.revokedNotice.value == null
-                      ? const SizedBox.shrink()
-                      : Padding(padding: const EdgeInsets.only(bottom: 14), child: Text(_device.revokedNotice.value!, style: const TextStyle(color: Colors.orange)))),
-                  const Text('Which register is this device?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  const Text('After this, staff sign in with their PIN and your owner password is not kept on the device.'),
-                  const SizedBox(height: 18),
-                  DropdownButtonFormField<String>(
-                    key: const Key('setupRegister'),
-                    value: _registerId,
-                    items: [for (final r in _registers) DropdownMenuItem(value: r.id, child: Text(r.name))],
-                    onChanged: (v) => setState(() => _registerId = v),
-                    decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Register'),
+            ? Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.6,
+                    color: p.accent,
                   ),
-                  const SizedBox(height: 12),
-                  TextField(key: const Key('setupName'), controller: _name, decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Device name')),
-                  if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: Colors.red))),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(key: const Key('setupConfirm'), onPressed: _busy || _registerId == null ? null : _go, child: _busy ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Register this device')),
+                ),
+              )
+            : LayoutBuilder(
+                builder: (context, box) => SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.all(Space.s6),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: box.maxHeight - Space.s12,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Obx(
+                              () => _device.revokedNotice.value == null
+                                  ? const SizedBox.shrink()
+                                  : Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: Space.s4,
+                                      ),
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: p.warningSoft,
+                                          borderRadius: Radii.rMd,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(
+                                            Space.s3,
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Icon(
+                                                Icons.info_outline_rounded,
+                                                size: 20,
+                                                color: p.warningFg,
+                                              ),
+                                              const SizedBox(width: Space.s3),
+                                              Expanded(
+                                                child: Text(
+                                                  _device.revokedNotice.value!,
+                                                  style: context.type.bodySmall
+                                                      .copyWith(
+                                                        color: p.warningFg,
+                                                      ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                            const GateHeader(
+                              icon: Icons.tablet_mac_rounded,
+                              title: 'Which register is this device?',
+                              subtitle:
+                                  'After this, staff sign in with their PIN and your owner password is not kept on the device.',
+                            ),
+                            const SizedBox(height: Space.s6),
+                            DropdownButtonFormField<String>(
+                              key: const Key('setupRegister'),
+                              value: _registerId,
+                              items: [
+                                for (final r in _registers)
+                                  DropdownMenuItem(
+                                    value: r.id,
+                                    child: Text(r.name),
+                                  ),
+                              ],
+                              onChanged: (v) => setState(() => _registerId = v),
+                              style: context.type.body.copyWith(
+                                color: p.textPrimary,
+                              ),
+                              dropdownColor: p.surfaceRaised,
+                              borderRadius: Radii.rMd,
+                              decoration: const InputDecoration(
+                                labelText: 'Register',
+                                prefixIcon: Icon(Icons.point_of_sale_outlined),
+                              ),
+                            ),
+                            const SizedBox(height: Space.s4),
+                            AppTextField(
+                              key: const Key('setupName'),
+                              label: 'Device name',
+                              controller: _name,
+                              prefixIcon: Icons.badge_outlined,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => _go(),
+                            ),
+                            if (_error != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: Space.s3),
+                                child: Semantics(
+                                  liveRegion: true,
+                                  child: Text(
+                                    _error!,
+                                    style: context.type.bodySmall.copyWith(
+                                      color: p.dangerFg,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: Space.s6),
+                            AppButton(
+                              key: const Key('setupConfirm'),
+                              label: 'Register this device',
+                              size: AppButtonSize.lg,
+                              loading: _busy,
+                              onPressed: _registerId == null ? null : _go,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ]),
+                ),
               ),
       ),
     );

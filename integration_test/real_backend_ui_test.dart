@@ -8,6 +8,7 @@ import 'package:get/get.dart' hide Response, FormData, MultipartFile;
 import 'package:integration_test/integration_test.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/widgets/store_card.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
+import 'package:solvexo_pos/core/design/design.dart' show AppButton;
 import 'package:solvexo_pos/main.dart' as app;
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 
@@ -24,7 +25,8 @@ void main() {
     }
   }
 
-  Finder field(String hint) => find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == hint);
+  // Phase 2 redesign: fields now carry floating LABELS (not hints) — match on the label text
+  Finder field(String label) => find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == label);
 
   testWidgets('owner login → store → set up device → PIN keypad → open-register, against the real backend', (tester) async {
     final owner = await Api.ownerLogin(ownerEmail, ownerPassword);
@@ -39,11 +41,11 @@ void main() {
     await tester.pump();
 
     // ── owner login screen ─────────────────────────────────────────────────────────────────────────────────────────
-    await pumpUntil(tester, () => field('Enter Email').evaluate().isNotEmpty, what: 'the owner login screen');
-    await tester.enterText(field('Enter Email'), ownerEmail);
+    await pumpUntil(tester, () => field('Email').evaluate().isNotEmpty, what: 'the owner login screen');
+    await tester.enterText(field('Email'), ownerEmail);
     await tester.enterText(field('Password'), ownerPassword);
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Log in'));
+    await tester.tap(find.text('Sign in').last);
     await pumpUntil(tester, () => find.text('Dev Coffee').evaluate().isNotEmpty, what: 'the store list with Dev Coffee');
     expect(AppPreferences.cachedToken, isNotEmpty, reason: 'owner session stored');
 
@@ -54,7 +56,7 @@ void main() {
     Get.toNamed(Routes.posDeviceSetup);
     await pumpUntil(tester, () => find.byKey(const Key('setupConfirm')).evaluate().isNotEmpty, what: 'device setup screen');
     await pumpUntil(tester, () {
-      final b = find.byKey(const Key('setupConfirm')).evaluate().firstOrNull?.widget as FilledButton?;
+      final b = find.byKey(const Key('setupConfirm')).evaluate().firstOrNull?.widget as AppButton?;
       return b?.onPressed != null;
     }, what: 'a register to be selected');
     await tester.enterText(find.byKey(const Key('setupName')), 'UI e2e iPhone');
@@ -67,8 +69,8 @@ void main() {
     expect((await owner.devices(store.storeId)).any((d) => d['name'] == 'UI e2e iPhone' && d['status'] == 'active'), isTrue, reason: 'the backend registered this device');
 
     // ── employee PIN login on the keypad: wrong PIN first, then the right one ─────────────────────────────────────
-    await pumpUntil(tester, () => field('Employee Email').evaluate().isNotEmpty, what: 'PIN email field');
-    await tester.enterText(field('Employee Email'), cashierEmail);
+    await pumpUntil(tester, () => field('Employee email').evaluate().isNotEmpty, what: 'PIN email field');
+    await tester.enterText(field('Employee email'), cashierEmail);
     await tester.pump(const Duration(milliseconds: 300));
     Future<void> keys(String pin) async {
       for (final d in pin.split('')) {
