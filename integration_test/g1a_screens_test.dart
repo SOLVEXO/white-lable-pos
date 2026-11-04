@@ -168,6 +168,9 @@ void main() {
     await AppPreferences.savePosSession(sessionId: 'session-1', registerId: 'register-1', shiftId: 'shift-1');
     Get.offAllNamed(Routes.posHome);
     await pumpUntil(tester, () => Get.currentRoute == Routes.posHome, what: 'POS home');
+    await pumpUntil(tester, () => Get.isRegistered<PosBottomNavController>(), what: 'the shell');
+    Get.find<PosBottomNavController>().changeTab(PosBottomNavController.saleTab); // a manager lands on Home (G1a)
+    await pumpFor(tester, const Duration(seconds: 6)); // let the "no internet" toast from the categories request come and go
     await pumpUntil(tester, () => find.byType(ProductTile).evaluate().isNotEmpty, what: 'the product grid');
     await pumpFor(tester, const Duration(seconds: 1));
     print('✅ On the sale screen');

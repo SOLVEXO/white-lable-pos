@@ -16,6 +16,7 @@ import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_subscription_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/seller_repository.dart';
 import 'package:solvexo_pos/app/modules/pos_held_sales/controllers/pos_held_sales_controller.dart';
+import 'package:solvexo_pos/app/modules/pos/controllers/pos_bottom_nav_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/app/data/repositories/inventory_repository.dart';
 import 'package:solvexo_pos/app/modules/pos/controllers/pos_home_tab_controller.dart';
@@ -156,6 +157,10 @@ void main() {
     Get.offAllNamed(Routes.posHome);
     await pumpUntil(tester, () => Get.currentRoute == Routes.posHome, what: 'POS home');
     final c = Get.find<PosHomeController>();
+    // a manager lands on the Home tab (G1a); the flows below start on Sell
+    await pumpUntil(tester, () => Get.isRegistered<PosBottomNavController>(), what: 'the shell');
+    Get.find<PosBottomNavController>().changeTab(PosBottomNavController.saleTab);
+    await pumpFor(tester, const Duration(seconds: 6)); // let the "no internet" toast from the categories request come and go
     await pumpUntil(tester, () => find.byType(ProductTile).evaluate().isNotEmpty, what: 'the product grid');
     await pumpFor(tester, const Duration(seconds: 1));
     print('✅ On the sale screen');

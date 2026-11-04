@@ -419,6 +419,11 @@ void main() {
     await tester.tap(find.text('Open Register & Start Shift'));
     await pumpUntil(tester, () => Get.currentRoute == Routes.posHome, timeout: const Duration(seconds: 15));
     print('✅ Register opened, landed on POS Home');
+    // a manager lands on the Home tab (G1a); the till flow below starts on Sell
+    Get.find<PosBottomNavController>().changeTab(PosBottomNavController.saleTab);
+    // the Sell tab now loads after the switch: its categories request (no server in this mocked test) raises a bottom toast that would
+    // cover the Charge button — let it come and go
+    await pumpFor(tester, const Duration(seconds: 6));
 
     // ── Add item to cart ─────────────────────────────────────────────────
     final homeController = Get.find<PosHomeController>();

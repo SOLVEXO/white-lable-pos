@@ -106,6 +106,11 @@ void main() {
       expect([PosBottomNavController.homeTab, PosBottomNavController.saleTab, PosBottomNavController.ordersTab, PosBottomNavController.stockTab, PosBottomNavController.moreTab], [0, 1, 2, 3, 4]);
       expect(PosBottomNavController.initialTab, PosBottomNavController.saleTab);
     });
+    test('landing by role: cashier → Sell; manager and owner → Home', () {
+      expect(PosBottomNavController.landingTabFor(PosAccess.cashier), PosBottomNavController.saleTab);
+      expect(PosBottomNavController.landingTabFor(PosAccess.manager), PosBottomNavController.homeTab);
+      expect(PosBottomNavController.landingTabFor(PosAccess.owner), PosBottomNavController.homeTab);
+    });
   });
 
   group('Home tab', () {

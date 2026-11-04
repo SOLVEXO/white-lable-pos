@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/modules/pos/utils/pos_access.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_home_tab_view.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_more_hub_view.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_stock_hub_view.dart';
@@ -16,16 +17,25 @@ class PosBottomNavController extends GetxController {
   static const int stockTab = 3;
   static const int moreTab = 4;
 
-  /// Lands on Sell (one tap to Home): a cashier's first action is ringing a sale. Change this one constant to land on Home.
+  /// Where the shell opens before the signed-in role is known (one preferences read, a few ms): Sell.
   static const int initialTab = saleTab;
 
+  /// Cashiers land on Sell (their first act is ringing a sale); managers and owners land on Home (their numbers).
+  static int landingTabFor(PosAccess access) => access.canManage ? homeTab : saleTab;
+
   RxInt selectedIndex = initialTab.obs;
+  bool _userChoseTab = false;
 
   Worker? _restrictedWorker;
 
   @override
   void onInit() {
     super.onInit();
+    // Role-based landing: applied once the role is read, unless the user already tapped a tab or the store is restricted.
+    PosAccess.current().then((a) {
+      final restricted = PosEntitlementService.maybe?.restricted.value ?? false;
+      if (!_userChoseTab && !restricted && selectedIndex.value == initialTab) selectedIndex.value = landingTabFor(a);
+    });
     final service = PosEntitlementService.maybe;
     if (service == null) return;
     // Entering the shell already restricted, or becoming restricted while on a selling tab (the server
@@ -51,6 +61,7 @@ class PosBottomNavController extends GetxController {
       CustomAppSnackbar.warning('POS plan not active for this store — selling is turned off.');
       return;
     }
+    _userChoseTab = true;
     selectedIndex.value = index;
   }
 

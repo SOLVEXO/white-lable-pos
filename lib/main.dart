@@ -19,6 +19,7 @@ import 'package:solvexo_pos/firebase_options.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -132,7 +133,13 @@ class MyApp extends StatelessWidget {
                   mq.textScaler.scale(1).clamp(0.9, 1.2),
                 ),
               ),
-              child: DebugLaunchParams.wrapLandscape(context, PosLockOverlay(child: NetworkStatusBanner(child: child!))),
+              // Status-bar icons and clock follow the theme on EVERY screen (dark icons on the light surfaces, light icons on dark) —
+              // without this, screens with no AppBar left a white clock on the cream background. An always-dark screen (InkScope with
+              // lightStatusBar) sets its own, closer region and wins.
+              child: AnnotatedRegion<SystemUiOverlayStyle>(
+                value: Theme.of(context).brightness == Brightness.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+                child: DebugLaunchParams.wrapLandscape(context, PosLockOverlay(child: NetworkStatusBanner(child: child!))),
+              ),
             );
           },
         );
