@@ -17,8 +17,5 @@ void registerDesignFontLicenses() {
       const ['DM Sans'],
       await rootBundle.loadString('assets/app_fonts/dm_sans/OFL.txt'),
     );
-    yield LicenseEntryWithLineBreaks(const [
-      'JetBrains Mono',
-    ], await rootBundle.loadString('assets/app_fonts/jetbrains_mono/OFL.txt'));
   });
 }

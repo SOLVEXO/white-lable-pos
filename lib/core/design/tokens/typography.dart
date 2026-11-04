@@ -6,9 +6,10 @@ import 'package:flutter/material.dart';
 ///
 /// Styles carry no colour; components pick one from the palette.
 /// Display / headline / title use Manrope, body text uses DM Sans (the Solvexo POS blueprint).
-/// Money always uses the `amount*` styles: JetBrains Mono (monospaced), because DM Sans has no
-/// OpenType `tnum` — checked against the font file and on the real engine — so digits would
-/// jitter while a value updates. (Manrope does have `tnum` and could replace it: owner's call.)
+/// Money always uses the `amount*` styles: Manrope with the OpenType `tnum` feature (tabular figures: every digit has the
+/// same width, so a value does not jitter while it updates). Checked in the font file (GSUB `tnum` covers all ten digits) and on
+/// the iOS simulator's real engine (`1111` and `8888` measure the same with `tnum`). DM Sans has no `tnum`, so it is never
+/// used for amounts.
 ///
 /// Manrope and DM Sans are variable fonts: Flutter does NOT move the `wght` axis from `FontWeight`
 /// (Manrope's default instance is weight 200!), so every style sets it explicitly.
@@ -30,7 +31,6 @@ class AppTypeScale {
 
   static const String displayFamily = 'Manrope';
   static const String sans = 'DMSans';
-  static const String mono = 'JetBrainsMono';
 
   static const _tabular = [FontFeature.tabularFigures()];
 
@@ -58,8 +58,7 @@ class AppTypeScale {
     fontSize: size,
     height: line / size,
     fontWeight: w,
-    // variable fonts only: pin the axis to the weight (JetBrains Mono is static)
-    fontVariations: family == mono ? null : [FontVariation('wght', w.value.toDouble())],
+    fontVariations: [FontVariation('wght', w.value.toDouble())],
     letterSpacing: ls,
     fontFeatures: tabular ? _tabular : null,
     leadingDistribution: TextLeadingDistribution.even,
@@ -74,9 +73,9 @@ class AppTypeScale {
     bodySmall: _s(13, 18, FontWeight.w400),
     label: _s(13, 16, FontWeight.w600, ls: 0.2),
     caption: _s(12, 16, FontWeight.w500, ls: 0.2),
-    amountXl: _s(36, 44, FontWeight.w600, family: mono, ls: -0.5),
-    amountLg: _s(24, 32, FontWeight.w600, family: mono, ls: -0.3),
-    amountMd: _s(16, 22, FontWeight.w500, family: mono),
+    amountXl: _s(36, 44, FontWeight.w700, family: displayFamily, ls: -0.5),
+    amountLg: _s(24, 32, FontWeight.w700, family: displayFamily, ls: -0.3),
+    amountMd: _s(16, 22, FontWeight.w600, family: displayFamily),
   );
 
   static final AppTypeScale tablet = AppTypeScale._(
@@ -88,9 +87,9 @@ class AppTypeScale {
     bodySmall: _s(14, 20, FontWeight.w400),
     label: _s(14, 18, FontWeight.w600, ls: 0.2),
     caption: _s(12, 16, FontWeight.w500, ls: 0.2),
-    amountXl: _s(44, 52, FontWeight.w600, family: mono, ls: -0.6),
-    amountLg: _s(28, 36, FontWeight.w600, family: mono, ls: -0.3),
-    amountMd: _s(17, 24, FontWeight.w500, family: mono),
+    amountXl: _s(44, 52, FontWeight.w700, family: displayFamily, ls: -0.6),
+    amountLg: _s(28, 36, FontWeight.w700, family: displayFamily, ls: -0.3),
+    amountMd: _s(17, 24, FontWeight.w600, family: displayFamily),
   );
 
   /// Material [TextTheme] so stock widgets (dialogs, pickers, etc.) match.

@@ -57,7 +57,7 @@ class AppTextField extends StatefulWidget {
   final bool autofocus;
   final int maxLines;
 
-  /// JetBrains Mono — amounts, SKUs, codes.
+  /// The tabular amount style (Manrope `tnum`) — amounts, SKUs, codes.
   final bool mono;
   final bool haptic;
 

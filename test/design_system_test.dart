@@ -99,7 +99,7 @@ void main() {
       expect([Space.s1, Space.s2, Space.s3, Space.s4, Space.s5, Space.s6, Space.s8], [4, 8, 12, 16, 20, 24, 32]);
       expect(Space.minTouch, greaterThanOrEqualTo(44));
     });
-    test('fonts: Manrope for display/headline/title, DM Sans for body; amounts stay JetBrains Mono (DM Sans has no tnum)', () {
+    test('fonts: Manrope for display/headline/title AND amounts (tnum), DM Sans for body only (it has no tnum)', () {
       for (final t in [AppTypeScale.phone, AppTypeScale.tablet]) {
         for (final st in [t.display, t.headline, t.title]) {
           expect(st.fontFamily, 'Manrope');
@@ -109,7 +109,8 @@ void main() {
           expect(st.fontFamily, 'DMSans');
         }
         for (final st in [t.amountXl, t.amountLg, t.amountMd]) {
-          expect(st.fontFamily, 'JetBrainsMono');
+          expect(st.fontFamily, 'Manrope');
+          expect(st.fontVariations, isNotEmpty);
         }
       }
     });
@@ -121,10 +122,11 @@ void main() {
       }
     });
     test('font files and OFL licences are bundled', () {
-      for (final f in ['manrope/Manrope-Variable.ttf', 'manrope/OFL.txt', 'dm_sans/DMSans-Variable.ttf', 'dm_sans/OFL.txt', 'jetbrains_mono/OFL.txt']) {
+      for (final f in ['manrope/Manrope-Variable.ttf', 'manrope/OFL.txt', 'dm_sans/DMSans-Variable.ttf', 'dm_sans/OFL.txt']) {
         expect(File('assets/app_fonts/$f').existsSync(), isTrue, reason: f);
       }
       expect(Directory('assets/app_fonts/plus_jakarta_sans').existsSync(), isFalse);
+      expect(Directory('assets/app_fonts/jetbrains_mono').existsSync(), isFalse, reason: 'amounts moved to Manrope tnum');
     });
   });
 
@@ -135,26 +137,27 @@ void main() {
     expect(ScreenClass.fromWidth(1101), ScreenClass.large);
   });
 
-  test('JetBrains Mono never uses a weight above w600 (no synthetic bold)', () {
+  test('amount styles: Manrope, tabular figures, wght axis = weight, never above the declared w800', () {
     for (final s in [AppTypeScale.phone, AppTypeScale.tablet]) {
       for (final st in [s.amountXl, s.amountLg, s.amountMd]) {
-        expect(st.fontWeight!.value, lessThanOrEqualTo(600));
+        expect(st.fontFamily, 'Manrope');
+        expect(st.fontFeatures, contains(const FontFeature.tabularFigures()));
+        expect(st.fontVariations!.single.value, st.fontWeight!.value.toDouble());
+        expect(st.fontWeight!.value, lessThanOrEqualTo(800));
       }
-    }
-    // No source file may put a >w600 weight on an amount style.
-    final bad = RegExp(r'amount(Xl|Lg|Md)\.copyWith\((?:[^()]|\([^()]*\))*?fontWeight:\s*FontWeight\.w[789]00', dotAll: true);
-    for (final f in Directory('lib/core/design').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))) {
-      expect(bad.hasMatch(f.readAsStringSync()), isFalse, reason: f.path);
     }
   });
 
-  test('money styles use JetBrains Mono with tabular figures', () {
-    for (final s in [AppTypeScale.phone, AppTypeScale.tablet]) {
-      for (final st in [s.amountXl, s.amountLg, s.amountMd]) {
-        expect(st.fontFamily, AppTypeScale.mono);
-        expect(st.fontFeatures, isNotNull);
+  test('no source file references JetBrains Mono any more (font, family name, licence)', () {
+    final hits = <String>[];
+    for (final root in ['lib', 'pubspec.yaml']) {
+      final entities = root == 'lib' ? Directory(root).listSync(recursive: true).whereType<File>().toList() : [File(root)];
+      for (final f in entities.where((f) => f.path.endsWith('.dart') || f.path.endsWith('.yaml'))) {
+        final t = f.readAsStringSync().toLowerCase();
+        if (t.contains('jetbrains')) hits.add(f.path);
       }
     }
+    expect(hits, isEmpty);
   });
 
   group('gallery renders without exceptions or overflow', () {
@@ -343,7 +346,7 @@ void main() {
     await for (final e in LicenseRegistry.licenses) {
       packages.addAll(e.packages);
     }
-    expect(packages, containsAll(['Manrope', 'DM Sans', 'JetBrains Mono']));
+    expect(packages, containsAll(['Manrope', 'DM Sans']));
   });
 
   group('AppShell', () {

@@ -169,7 +169,7 @@ class _DashPainter extends CustomPainter {
 }
 
 /// One label/value line for a receipt (subtotal, tax, total). Values are
-/// pre-formatted strings in the mono amount style.
+/// pre-formatted strings in the tabular amount style.
 class ReceiptRow extends StatelessWidget {
   const ReceiptRow(
     this.label,

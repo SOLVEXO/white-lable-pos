@@ -7,7 +7,7 @@ import '../tokens/tokens.dart';
 /// Pass the *already formatted* string (e.g. `Money.format(total)`) — this widget
 /// only displays; it never computes or rounds. Digits are slotted from the right,
 /// so `9.99 → 10.99` keeps the cents column in place and only changed digits roll.
-/// JetBrains Mono + tabular figures keep every slot the same width.
+/// Manrope + tabular figures (`tnum`) keep every digit slot the same width.
 class AmountText extends StatelessWidget {
   const AmountText(
     this.text, {
