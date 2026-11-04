@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/local/sealed_text.dart';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -110,9 +111,10 @@ class CartSnapshot {
 
 /// Persists the in-progress cart (SharedPreferences) so a crash/kill/restart never loses it.
 class CartSnapshotStore {
-  CartSnapshotStore({Future<SharedPreferences> Function()? prefs, DateTime Function()? clock})
+  CartSnapshotStore({Future<SharedPreferences> Function()? prefs, DateTime Function()? clock, SealedText? sealed})
       : _prefs = prefs ?? SharedPreferences.getInstance,
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _sealed = sealed ?? SealedText();
 
   static final CartSnapshotStore instance = CartSnapshotStore();
   static const _key = 'pos_cart_snapshot';
@@ -122,6 +124,7 @@ class CartSnapshotStore {
 
   final Future<SharedPreferences> Function() _prefs;
   final DateTime Function() _clock;
+  final SealedText _sealed; // the cart holds the customer and lines of a sale in progress: encrypted at rest
 
   Future<void> save(CartSnapshot snapshot) async {
     try {
@@ -129,7 +132,7 @@ class CartSnapshotStore {
       if (snapshot.isEmpty && snapshot.pendingKey == null) {
         await p.remove(_key);
       } else {
-        await p.setString(_key, jsonEncode(snapshot.toJson()));
+        await p.setString(_key, await _sealed.seal(jsonEncode(snapshot.toJson())));
       }
     } catch (_) {/* persistence is best-effort; never block selling */}
   }
@@ -137,9 +140,16 @@ class CartSnapshotStore {
   /// The saved cart, only if it belongs to this store AND this register session and is recent.
   Future<CartSnapshot?> load({required String storeId, required String sessionId}) async {
     try {
-      final raw = (await _prefs()).getString(_key);
+      final p = await _prefs();
+      final raw = p.getString(_key);
       if (raw == null) return null;
-      final snap = CartSnapshot.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      final read = await _sealed.open(raw);
+      if (read.unreadable) {
+        await p.remove(_key); // key lost / damaged / tampered: drop it, start with an empty cart
+        return null;
+      }
+      final snap = CartSnapshot.fromJson(jsonDecode(read.text!) as Map<String, dynamic>);
+      if (read.legacyPlain) await p.setString(_key, await _sealed.seal(read.text!)); // migrate plaintext from an older build
       if (snap.storeId != storeId || snap.sessionId != sessionId) return null;
       if (_clock().difference(snap.savedAt) > maxAge) return null;
       return snap;
@@ -192,27 +202,36 @@ class CatalogCacheStore {
 
 /// POS settings as last loaded (tax rate, settingsVersion, receipt text) so pricing and receipts work offline.
 class SettingsCacheStore {
-  SettingsCacheStore({Future<SharedPreferences> Function()? prefs, DateTime Function()? clock})
+  SettingsCacheStore({Future<SharedPreferences> Function()? prefs, DateTime Function()? clock, SealedText? sealed})
       : _prefs = prefs ?? SharedPreferences.getInstance,
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _sealed = sealed ?? SealedText();
 
   static final SettingsCacheStore instance = SettingsCacheStore();
   static const _key = 'pos_settings_cache';
 
   final Future<SharedPreferences> Function() _prefs;
   final DateTime Function() _clock;
+  final SealedText _sealed; // business name, tax id, receipt header/footer: encrypted at rest
 
   Future<void> save(PosSettingsModel settings) async {
     try {
-      await (await _prefs()).setString(_key, jsonEncode({'savedAt': _clock().toIso8601String(), 'settings': settings.toCacheJson()}));
+      await (await _prefs()).setString(_key, await _sealed.seal(jsonEncode({'savedAt': _clock().toIso8601String(), 'settings': settings.toCacheJson()})));
     } catch (_) {}
   }
 
   Future<({PosSettingsModel settings, DateTime savedAt})?> load(String storeId) async {
     try {
-      final raw = (await _prefs()).getString(_key);
+      final p = await _prefs();
+      final raw = p.getString(_key);
       if (raw == null) return null;
-      final j = jsonDecode(raw) as Map<String, dynamic>;
+      final read = await _sealed.open(raw);
+      if (read.unreadable) {
+        await p.remove(_key); // key lost / damaged / tampered: the cache is rebuilt from the server
+        return null;
+      }
+      if (read.legacyPlain) await p.setString(_key, await _sealed.seal(read.text!)); // migrate plaintext from an older build
+      final j = jsonDecode(read.text!) as Map<String, dynamic>;
       final s = PosSettingsModel.fromJson((j['settings'] as Map).cast<String, dynamic>());
       if (s.storeId != storeId) return null;
       return (settings: s, savedAt: DateTime.parse(j['savedAt'] as String));

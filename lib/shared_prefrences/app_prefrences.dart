@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:solvexo_pos/app/data/local/secure_storage_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/data/local/queue_cipher.dart';
 
@@ -7,7 +8,7 @@ class AppPreferences {
   // Auth tokens live in Keychain/Keystore-backed secure storage (Phase 4
   // security pass), not plain SharedPreferences — everything else in this
   // class is device-local, non-sensitive app state and stays where it was.
-  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  static const FlutterSecureStorage _secureStorage = kPosSecureStorage;
 
   static const String _accessTokenKey = 'token';
   static const String _refreshTokenKey = 'refreshToken';

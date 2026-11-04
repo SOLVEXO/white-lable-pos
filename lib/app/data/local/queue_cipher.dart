@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:cryptography_flutter/cryptography_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:solvexo_pos/app/data/local/secure_storage_options.dart';
 
 /// Encrypts the sensitive columns of the offline queue (sale contents, the employee token kept for an authorised
 /// discount, error text, discard reason) so a lost/copied device or a backup does not expose them.
@@ -36,11 +38,16 @@ class QueueDecryptException implements Exception {
 /// decrypts unchanged; the store re-tags rows to `v2:` in place (see PendingSaleLocalStore) so every row records which scheme made it.
 class AesGcmQueueCipher implements QueueCipher {
   AesGcmQueueCipher({FlutterSecureStorage? storage, SecretKey? fixedKey})
-      : _storage = storage ?? const FlutterSecureStorage(),
+      : _storage = storage ?? kPosSecureStorage,
         _key = fixedKey;
 
   /// Secure-storage slot of the queue's AES key. Anything that wipes secure storage must keep it while sales are unsynced.
   static const storageKey = 'pos_queue_encryption_key';
+  static const _tmpSlot = 'pos_queue_encryption_key_migrating';
+  static const _classFlag = 'pos_queue_key_keychain_class_v2';
+
+  /// One cipher (and one cached key) for the sealed stores that do not need their own.
+  static final AesGcmQueueCipher shared = AesGcmQueueCipher();
   static const _storageKey = storageKey;
   static const legacyPrefix = 'v1:';
   static const currentPrefix = 'v2:';
@@ -59,11 +66,47 @@ class AesGcmQueueCipher implements QueueCipher {
     if (cached != null) return cached;
     var b64 = await _storage.read(key: _storageKey);
     if (b64 == null || b64.isEmpty) {
+      // an interrupted keychain-class migration (see below) leaves the key in the temp slot: restore it, never regenerate
+      final saved = await _storage.read(key: _tmpSlot);
+      if (saved != null && saved.isNotEmpty) {
+        b64 = saved;
+        await _storage.write(key: _storageKey, value: b64);
+      }
+    }
+    if (b64 == null || b64.isEmpty) {
       final r = Random.secure();
       b64 = base64Encode(List<int>.generate(32, (_) => r.nextInt(256)));
-      await _storage.write(key: _storageKey, value: b64);
+      await _storage.write(key: _storageKey, value: b64); // written with the first-unlock class from the start
+      await _markClassMigrated();
+    } else {
+      await _ensureKeychainClass(b64);
     }
     return _key = SecretKey(base64Decode(b64));
+  }
+
+  Future<void> _markClassMigrated() async {
+    try {
+      await (await SharedPreferences.getInstance()).setBool(_classFlag, true);
+    } catch (_) {}
+  }
+
+  /// One-time move of an EXISTING key (written under the old "when unlocked" class) to the first-unlock / this-device class.
+  /// An update of an existing Keychain item does not reliably change its class, so: copy to a temp slot, verify, delete, add
+  /// again, verify, drop the temp slot. The key is never absent from both slots, so a crash at any step loses nothing (the
+  /// restore above picks the temp copy up). Any failure leaves the original in place and never throws.
+  Future<void> _ensureKeychainClass(String b64) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_classFlag) == true) return;
+      await _storage.write(key: _tmpSlot, value: b64);
+      if (await _storage.read(key: _tmpSlot) != b64) return; // can't verify the copy → leave the original alone
+      await _storage.delete(key: _storageKey);
+      await _storage.write(key: _storageKey, value: b64);
+      if (await _storage.read(key: _storageKey) == b64) {
+        await _storage.delete(key: _tmpSlot);
+        await prefs.setBool(_classFlag, true);
+      }
+    } catch (_) {/* best effort */}
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/local/sealed_text.dart';
 import 'dart:convert';
 import 'dart:math';
 
@@ -26,9 +27,11 @@ class IdempotencyIntentStore {
     Future<SharedPreferences> Function()? prefs,
     DateTime Function()? clock,
     String Function()? keyGenerator,
+    SealedText? sealed,
   })  : _prefs = prefs ?? SharedPreferences.getInstance,
         _clock = clock ?? DateTime.now,
-        _newKey = keyGenerator ?? _randomKey;
+        _newKey = keyGenerator ?? _randomKey,
+        _sealed = sealed ?? SealedText();
 
   static final IdempotencyIntentStore instance = IdempotencyIntentStore();
 
@@ -38,6 +41,7 @@ class IdempotencyIntentStore {
 
   final Future<SharedPreferences> Function() _prefs;
   final DateTime Function() _clock;
+  final SealedText _sealed; // the checkout keys + cart fingerprints: encrypted at rest
   final String Function() _newKey;
 
   /// Stable, order-independent identity of an intent: `action` plus a
@@ -70,7 +74,7 @@ class IdempotencyIntentStore {
   Future<String> keyFor(String fingerprint) async {
     try {
       final prefs = await _prefs();
-      final entries = _load(prefs);
+      final entries = await _load(prefs);
       final existing = entries[fingerprint];
       if (existing != null) return existing['key'] as String;
 
@@ -90,19 +94,22 @@ class IdempotencyIntentStore {
   Future<void> release(String fingerprint) async {
     try {
       final prefs = await _prefs();
-      final entries = _load(prefs);
+      final entries = await _load(prefs);
       if (entries.remove(fingerprint) != null) await _save(prefs, entries);
     } catch (_) {
       // best effort — a leftover entry just expires after [ttl]
     }
   }
 
-  Map<String, Map<String, dynamic>> _load(SharedPreferences prefs) {
+  Future<Map<String, Map<String, dynamic>>> _load(SharedPreferences prefs) async {
     final raw = prefs.getString(_prefsKey);
     final out = <String, Map<String, dynamic>>{};
     if (raw == null) return out;
     try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final read = await _sealed.open(raw);
+      if (read.unreadable) return out; // key lost / damaged / tampered: start clean rather than block checkout
+      final decoded = jsonDecode(read.text!) as Map<String, dynamic>;
+      if (read.legacyPlain) await prefs.setString(_prefsKey, await _sealed.seal(read.text!)); // migrate plaintext from an older build
       final cutoff = _clock().subtract(ttl).millisecondsSinceEpoch;
       decoded.forEach((k, v) {
         final m = (v as Map).cast<String, dynamic>();
@@ -122,6 +129,6 @@ class IdempotencyIntentStore {
         entries.remove(e.key);
       }
     }
-    await prefs.setString(_prefsKey, jsonEncode(entries));
+    await prefs.setString(_prefsKey, await _sealed.seal(jsonEncode(entries)));
   }
 }
