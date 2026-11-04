@@ -1,11 +1,8 @@
 import 'dart:async';
 
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
 import 'package:solvexo_pos/app/data/repositories/customer_repository.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -74,99 +71,77 @@ class _PosCustomerPickerSheetState extends State<PosCustomerPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 16),
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(children: [
-        Container(
-          width: 36, height: 4,
-          decoration: BoxDecoration(color: AppColors.lightGrey2, borderRadius: BorderRadius.circular(2)),
-        ),
-        const SizedBox(height: 16),
-        Row(children: [
-          const Expanded(
-            child: CustomText(
-              text: 'Select Customer',
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black2,
+    final p = context.palette;
+    // Opened with Get.bottomSheet (transparent route background), so the sheet draws its own surface.
+    return AppSheetSurface(
+      scrollable: false,
+      padding: const EdgeInsets.fromLTRB(Space.s5, 0, Space.s5, Space.s4),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.62,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Semantics(header: true, child: Text('Select customer', style: context.type.title.copyWith(color: p.textPrimary)))),
+                TextButton(
+                  key: const Key('walkInButton'),
+                  onPressed: () => Get.back(),
+                  style: TextButton.styleFrom(minimumSize: const Size(Space.minTouch, Space.minTouch), foregroundColor: p.accentFg),
+                  child: Text('Walk-in', style: context.type.label.copyWith(color: p.accentFg)),
+                ),
+              ],
             ),
-          ),
-          GestureDetector(
-            onTap: () => Get.back(),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
-              child: const CustomText(text: 'Walk-in', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        CustomTextField(
-          controller: _searchController,
-          hintText: 'Search by name, email, or phone',
-          fillColor: AppColors.background,
-          onChanged: _onSearchChanged,
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.iosGrey, size: 18),
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: _isLoading
-              ? Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor))
-              : _results.isEmpty
-                  ? const Center(
-                      child: CustomText(
-                        text: 'No customers found.',
-                        fontSize: AppFontSize.verySmall,
-                        color: AppColors.iosGrey,
-                      ),
-                    )
+            const SizedBox(height: Space.s2),
+            AppSearchBar(controller: _searchController, hint: 'Search by name, email, or phone', onChanged: _onSearchChanged),
+            const SizedBox(height: Space.s3),
+            Expanded(
+              child: _isLoading
+                  ? const SkeletonList(itemCount: 5, padding: EdgeInsets.zero)
+                  : _results.isEmpty
+                  ? const EmptyState(icon: Icons.people_outline_rounded, title: 'No customers found.')
                   : ListView.separated(
                       itemCount: _results.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, __) => Divider(height: 1, color: p.border),
                       itemBuilder: (_, i) {
                         final customer = _results[i];
-                        return GestureDetector(
+                        final sub = customer.phone ?? customer.email ?? '';
+                        return InkWell(
+                          key: Key('customer-${customer.id}'),
                           onTap: () => Get.back(result: customer),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: AppColors.background,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(children: [
-                              Expanded(
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  CustomText(
-                                    text: customer.name,
-                                    fontSize: AppFontSize.verySmall,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.black2,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: Space.minTouch + 8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: Space.s2),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: p.accentSoft,
+                                    child: Text(customer.name.isEmpty ? '?' : customer.name.characters.first.toUpperCase(), style: context.type.subtitle.copyWith(color: p.accentFg)),
                                   ),
-                                  CustomText(
-                                    text: customer.phone ?? customer.email ?? '',
-                                    fontSize: AppFontSize.tiny,
-                                    color: AppColors.iosGrey,
+                                  const SizedBox(width: Space.s3),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(customer.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: context.type.subtitle.copyWith(color: p.textPrimary)),
+                                        if (sub.isNotEmpty) Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: context.type.caption.copyWith(color: p.textMuted)),
+                                      ],
+                                    ),
                                   ),
-                                ]),
+                                  if (customer.orderCount != null) StatusBadge('${customer.orderCount} orders'),
+                                ],
                               ),
-                              if (customer.orderCount != null)
-                                CustomText(
-                                  text: '${customer.orderCount} orders',
-                                  fontSize: AppFontSize.tiny,
-                                  color: AppColors.iosGrey,
-                                ),
-                            ]),
+                            ),
                           ),
                         );
                       },
                     ),
+            ),
+          ],
         ),
-      ]),
+      ),
     );
   }
 }

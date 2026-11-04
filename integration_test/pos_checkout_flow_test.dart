@@ -101,7 +101,10 @@ import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/seller_repository.dart';
 import 'package:solvexo_pos/app/modules/pos/controllers/pos_bottom_nav_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
-import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_product_card.dart';
+import 'package:solvexo_pos/app/data/repositories/inventory_repository.dart';
+import 'package:solvexo_pos/app/modules/pos/controllers/pos_home_tab_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/cash_keypad.dart';
+import 'package:solvexo_pos/core/design/design.dart' show ProductTile;
 import 'package:solvexo_pos/app/modules/pos_open_register/controllers/pos_open_register_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/controllers/pos_orders_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_transaction_card.dart';
@@ -113,6 +116,8 @@ import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/main.dart' as app;
 
 class MockPosRepository extends Mock implements PosRepository {}
+
+class MockInventoryRepository extends Mock implements InventoryRepository {}
 
 class MockPosSubscriptionRepository extends Mock implements PosSubscriptionRepository {}
 
@@ -345,6 +350,13 @@ void main() {
       () => PosOpenRegisterController(posRepository: mockPosRepo),
       fenix: false,
     );
+    // The new Home tab loads its numbers on shell entry: give it mocked repositories (a real one would send a seeded fake token to the server).
+    final mockInventory = MockInventoryRepository();
+    when(() => mockInventory.getLowStockSummary(any())).thenAnswer((_) async => null);
+    when(() => mockPosRepo.getSessionReport(any())).thenAnswer((_) async => null);
+    when(() => mockPosRepo.getDailyReport(any())).thenAnswer((_) async => null);
+    when(() => mockPosRepo.getRangeReport(any(), from: any(named: 'from'), to: any(named: 'to'))).thenAnswer((_) async => null);
+    Get.lazyPut<PosHomeTabController>(() => PosHomeTabController(posRepository: mockPosRepo, inventoryRepository: mockInventory), fenix: false);
     Get.lazyPut<PosHomeController>(() => PosHomeController(posRepository: mockPosRepo), fenix: false);
     Get.lazyPut<PosOrdersController>(() => PosOrdersController(posRepository: mockPosRepo), fenix: false);
     // PosBinding also builds these tab controllers; with their default (real) repositories they would call the REAL
@@ -410,16 +422,17 @@ void main() {
 
     // ── Add item to cart ─────────────────────────────────────────────────
     final homeController = Get.find<PosHomeController>();
-    await pumpUntil(tester, () => find.byType(PosProductCard).evaluate().isNotEmpty);
-    await tester.tap(find.byType(PosProductCard).first);
+    await pumpUntil(tester, () => find.byType(ProductTile).evaluate().isNotEmpty);
+    await tester.tap(find.byType(ProductTile).first);
     await tester.pump(const Duration(milliseconds: 300));
     expect(homeController.hasItems, isTrue, reason: 'tapping the product card should add it to the cart');
     expect(homeController.subtotal, 20.0);
     print('✅ Added E2E Widget (\$20.00) to the cart');
 
     // ── Open the cart sheet, apply discount + tax, verify the math ──────────
-    await tester.tap(find.text('View Cart'));
-    await tester.pump(const Duration(milliseconds: 400));
+    // phone layout: the live total pill expands into the cart (was the 'View Cart' bar + sheet)
+    await tester.tap(find.byKey(const Key('pillTotal')));
+    await pumpFor(tester, const Duration(milliseconds: 600));
     await tester.enterText(
       find.byWidgetPredicate((w) => w is TextFormField && w.controller == homeController.discountController),
       '2',
@@ -432,16 +445,19 @@ void main() {
     expect(homeController.total, closeTo(18.90, 0.001));
     print('✅ Discount (\$2.00 flat) + tax (5%) applied; total correctly \$18.90');
 
-    // ── Cash payment (cash is the default selectedPayment) ───────────────
-    await tester.enterText(
-      find.byWidgetPredicate((w) => w is TextFormField && w.controller == homeController.tenderedController),
-      '20',
-    );
+    // ── Charge opens the payment sheet; cash is the default method — enter 20 on the keypad ────────────
+    await tester.tap(find.byKey(const Key('chargeButton')));
+    await pumpFor(tester, const Duration(milliseconds: 600));
+    for (final d in ['2', '0']) {
+      await tester.tap(find.descendant(of: find.byType(CashKeypad), matching: find.text(d)));
+      await tester.pump(const Duration(milliseconds: 150));
+    }
     await tester.pump(const Duration(milliseconds: 300));
+    expect(homeController.tenderedController.text, '20');
     expect(homeController.canCharge, isTrue);
 
-    // ── Complete the sale ────────────────────────────────────────────────
-    await tester.tap(find.textContaining('Charge'));
+    // ── Complete the sale (the sheet's own Charge button) ─────────────────────────────────────────────
+    await tester.tap(find.byKey(const Key('confirmCharge')));
     await pumpFor(tester, const Duration(seconds: 2));
     verify(() => mockPosRepo.createSale(
           storeId: any(named: 'storeId'),
@@ -466,9 +482,13 @@ void main() {
         )).called(1);
     expect(homeController.hasItems, isFalse, reason: 'cart clears after a successful sale');
     print('✅ Cash sale completed, cart cleared');
+    // the success view is up; its "New sale" returns to the POS screen
+    expect(find.byKey(const Key('newSale')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('newSale')));
+    await pumpFor(tester, const Duration(milliseconds: 800));
 
     // ── Navigate to Orders, confirm the sale appears ────────────────────────
-    Get.find<PosBottomNavController>().changeTab(1); // Orders tab
+    Get.find<PosBottomNavController>().changeTab(PosBottomNavController.ordersTab); // Orders tab
     await pumpFor(tester, const Duration(seconds: 1));
     final ordersController = Get.find<PosOrdersController>();
     await pumpUntil(tester, () => !ordersController.isLoading.value);

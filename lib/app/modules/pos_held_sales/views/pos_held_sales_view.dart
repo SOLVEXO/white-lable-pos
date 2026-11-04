@@ -1,20 +1,16 @@
-import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/utils/offline_gate.dart';
-import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
-import 'package:solvexo_pos/app/components/buttons/app_button.dart';
-import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
-import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
-import 'package:solvexo_pos/app/modules/pos_held_sales/controllers/pos_held_sales_controller.dart';
-import 'package:solvexo_pos/app/modules/pos_held_sales/widgets/pos_held_sales_shimmer.dart';
-import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart' show PosPaymentMethod;
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
+import 'package:solvexo_pos/app/data/services/network_status_service.dart';
+import 'package:solvexo_pos/app/modules/pos_held_sales/controllers/pos_held_sales_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart' show PosPaymentMethod;
+import 'package:solvexo_pos/core/design/design.dart';
+import 'package:solvexo_pos/utils/money.dart';
+import 'package:solvexo_pos/utils/offline_gate.dart';
 
+/// Sales that were put on hold: resume one into the cart, complete it (choosing the payment method), or discard it.
 class PosHeldSalesView extends StatelessWidget {
   PosHeldSalesView({super.key});
 
@@ -22,39 +18,44 @@ class PosHeldSalesView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: CustomAppBarTwo(
-        title: 'Held Sales',
-        color: AppColors.black2,
+      backgroundColor: p.background,
+      appBar: AppBar(
+        title: const Text('Held Sales'),
         actions: [
-          GestureDetector(
-            onTap: c.loadHeldSales,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Icon(Icons.refresh_rounded,
-                  color: AppColors.primaryColor, size: 22),
-            ),
+          IconButton(
+            key: const Key('refreshHeld'),
+            tooltip: 'Refresh',
+            constraints: const BoxConstraints(minWidth: Space.minTouch, minHeight: Space.minTouch),
+            icon: Icon(Icons.refresh_rounded, color: p.accentFg),
+            onPressed: c.loadHeldSales,
           ),
         ],
       ),
       body: Obx(() {
-        if (c.isLoading.value) {
-          return const PosHeldSalesShimmer();
-        }
+        if (c.isLoading.value) return const SkeletonList(itemCount: 5);
         if (c.heldSales.isEmpty) {
-          return _EmptyState();
+          return EmptyState(
+            icon: Icons.pause_circle_outline_rounded,
+            title: 'No Held Sales',
+            message: 'Sales you put on hold will appear here.',
+            actionLabel: 'Refresh',
+            onAction: c.loadHeldSales,
+          );
         }
         return RefreshIndicator(
           onRefresh: c.loadHeldSales,
-          color: AppColors.primaryColor,
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: c.heldSales.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _HeldSaleTile(
-              sale: c.heldSales[i],
-              c: c,
+          color: p.accent,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: ListView.separated(
+                padding: const EdgeInsets.all(Space.s4),
+                itemCount: c.heldSales.length,
+                separatorBuilder: (_, __) => const SizedBox(height: Space.s3),
+                itemBuilder: (_, i) => _HeldSaleTile(key: ValueKey(c.heldSales[i].id), sale: c.heldSales[i], c: c),
+              ),
             ),
           ),
         );
@@ -63,376 +64,191 @@ class PosHeldSalesView extends StatelessWidget {
   }
 }
 
-// ── Empty state ─────────────────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 80, height: 80,
-          decoration: BoxDecoration(
-            color: AppColors.primaryColor.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Icon(Icons.pause_circle_outline_rounded,
-              size: 40, color: AppColors.primaryColor),
-        ),
-        const SizedBox(height: 18),
-        const CustomText(
-          text: 'No Held Sales',
-          fontSize: AppFontSize.medium,
-          fontWeight: FontWeight.bold,
-          color: AppColors.black2,
-        ),
-        const SizedBox(height: 8),
-        const CustomText(
-          text: 'Sales you put on hold will appear here.',
-          fontSize: AppFontSize.verySmall,
-          color: AppColors.iosGrey,
-        ),
-      ]),
-    );
-  }
-}
-
-// ── Individual held sale tile ────────────────────────────────────────────────
 class _HeldSaleTile extends StatelessWidget {
+  const _HeldSaleTile({super.key, required this.sale, required this.c});
   final PosSaleModel sale;
   final PosHeldSalesController c;
-  const _HeldSaleTile({required this.sale, required this.c});
+
+  String _formatDate(DateTime? dt) => dt == null ? '' : DateFormat('MMM d, h:mm a').format(dt.toLocal());
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = _formatDate(sale.createdAt);
-    final isProcessing = c.processingId.value == sale.id;
-
-    return Obx(() => Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Header row ────────────────────────────────────────────
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: AppColors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.pause_rounded,
-                color: AppColors.orange, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              CustomText(
-                text: sale.customerName.isEmpty ||
-                    sale.customerName == 'Walk-in'
-                    ? 'Walk-in Customer'
-                    : sale.customerName,
-                fontSize: AppFontSize.verySmall,
-                fontWeight: FontWeight.bold,
-                color: AppColors.black2,
-              ),
-              CustomText(
-                text: dateStr,
-                fontSize: AppFontSize.tiny,
-                color: AppColors.iosGrey,
-              ),
-            ]),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: CustomText(
-              text: Money.format(sale.total),
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.orange,
-            ),
-          ),
-        ]),
-        const SizedBox(height: 12),
-
-        // ── Items summary ─────────────────────────────────────────
-        if (sale.items.isNotEmpty) ...[
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: sale.items.take(3).map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(children: [
-                  Expanded(
-                    child: CustomText(
-                      text: item.name,
-                      fontSize: AppFontSize.tiny,
-                      color: AppColors.black2,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  CustomText(
-                    text: '×${item.qty}  ${Money.format(item.lineTotal)}',
-                    fontSize: AppFontSize.tiny,
-                    color: AppColors.iosGrey,
-                  ),
-                ]),
-              )).toList()
-              ..addAll(sale.items.length > 3
-                  ? [Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: CustomText(
-                        text: '+${sale.items.length - 3} more items',
-                        fontSize: AppFontSize.tiny,
-                        color: AppColors.iosGrey,
-                      ),
-                    )]
-                  : []),
-            ),
-          ),
-          const SizedBox(height: 10),
-        ],
-
-        // ── Payment method chip ────────────────────────────────────
-        Row(children: [
-          const Icon(Icons.payment_rounded, size: 14, color: AppColors.iosGrey),
-          const SizedBox(width: 4),
-          CustomText(
-            text: sale.paymentMethod.capitalizeFirst ?? sale.paymentMethod,
-            fontSize: AppFontSize.tiny,
-            color: AppColors.iosGrey,
-          ),
-          if (sale.notes.isNotEmpty) ...[
-            const SizedBox(width: 10),
-            const Icon(Icons.note_outlined, size: 14, color: AppColors.iosGrey),
-            const SizedBox(width: 4),
-            Expanded(
-              child: CustomText(
-                text: sale.notes,
-                fontSize: AppFontSize.tiny,
-                color: AppColors.iosGrey,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ]),
-        const SizedBox(height: 12),
-        const Divider(height: 1, color: AppColors.lightGrey2),
-        const SizedBox(height: 10),
-
-        // ── Action buttons ─────────────────────────────────────────
-        isProcessing
-            ? Center(
-                child: SizedBox(
-                  width: 22, height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primaryColor),
-                ),
-              )
-            : Row(children: [
-                // Resume
-                Expanded(
-                  flex: 2,
-                  child: _ActionBtn(
-                    label: 'Resume',
-                    icon: Icons.play_arrow_rounded,
-                    bgColor: AppColors.primaryColor.withOpacity(0.1),
-                    textColor: AppColors.primaryColor,
-                    onTap: () => c.resumeSale(sale),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Complete
-                Expanded(
-                  flex: 2,
-                  child: Obx(() {
-                    final off = OfflineGate.isOffline;
-                    return _ActionBtn(
-                      label: 'Complete',
-                      icon: Icons.check_circle_outline_rounded,
-                      bgColor: off ? AppColors.iosGrey.withOpacity(0.12) : AppColors.green2.withOpacity(0.1),
-                      textColor: off ? AppColors.iosGrey : AppColors.green2,
-                      onTap: off
-                          ? () => CustomAppSnackbar.error(OfflineGate.message)
-                          : () => _pickPaymentAndComplete(context, sale),
-                    );
-                  }),
-                ),
-                const SizedBox(width: 8),
-                // Discard
-                Expanded(
-                  flex: 1,
-                  child: _ActionBtn(
-                    label: 'Discard',
-                    icon: Icons.delete_outline_rounded,
-                    bgColor: AppColors.red.withOpacity(0.08),
-                    textColor: AppColors.red,
-                    onTap: () => _confirmAction(
-                      context,
-                      title: 'Discard Sale',
-                      body: 'This will permanently delete the held sale.',
-                      confirmLabel: 'Discard',
-                      confirmColor: AppColors.red,
-                      onConfirm: () => c.discardSale(sale),
-                    ),
-                  ),
-                ),
-              ]),
-      ]),
-    ));
-  }
-
-  String _formatDate(DateTime? dt) {
-    if (dt == null) return '';
-    return DateFormat('MMM d, h:mm a').format(dt.toLocal());
-  }
-
-  void _pickPaymentAndComplete(BuildContext context, PosSaleModel sale) {
-    final selected = ValueNotifier<String>(sale.paymentMethod);
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final p = context.palette;
+    final t = context.type;
+    final walkIn = sale.customerName.isEmpty || sale.customerName == 'Walk-in';
+    return AppCard(
+      semanticLabel: 'Held sale for ${walkIn ? 'walk-in customer' : sale.customerName}, ${Money.format(sale.total)}',
+      child: Obx(() {
+        final processing = c.processingId.value == sale.id;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const CustomText(
-              text: 'Complete Sale',
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black2,
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(color: p.infoSoft, borderRadius: Radii.rSm),
+                  child: Icon(Icons.pause_rounded, color: p.infoFg, size: 18),
+                ),
+                const SizedBox(width: Space.s3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(walkIn ? 'Walk-in customer' : sale.customerName, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.subtitle.copyWith(color: p.textPrimary)),
+                      Text(_formatDate(sale.createdAt), style: t.caption.copyWith(color: p.textMuted)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Space.s2),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    AmountText(Money.format(sale.total), style: t.amountMd.copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    const StatusBadge('Held', tone: StatusTone.info, dot: true),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            CustomText(
-              text: 'Total: ${Money.format(sale.total)} — choose the payment method used.',
-              fontSize: AppFontSize.tiny,
-              color: AppColors.iosGrey,
+            if (sale.items.isNotEmpty) ...[
+              const SizedBox(height: Space.s3),
+              Divider(height: 1, color: p.border),
+              const SizedBox(height: Space.s2),
+              for (final item in sale.items.take(3))
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall.copyWith(color: p.textSecondary))),
+                      Text('×${item.qty}  ${Money.format(item.lineTotal)}', style: t.amountMd.copyWith(fontSize: 12, color: p.textSecondary)),
+                    ],
+                  ),
+                ),
+              if (sale.items.length > 3) Text('+${sale.items.length - 3} more items', style: t.caption.copyWith(color: p.textMuted)),
+            ],
+            const SizedBox(height: Space.s2),
+            Row(
+              children: [
+                Icon(Icons.payments_outlined, size: 14, color: p.textMuted),
+                const SizedBox(width: Space.s1),
+                Text(sale.paymentMethod.capitalizeFirst ?? sale.paymentMethod, style: t.caption.copyWith(color: p.textMuted)),
+                if (sale.notes.isNotEmpty) ...[
+                  const SizedBox(width: Space.s3),
+                  Icon(Icons.notes_rounded, size: 14, color: p.textMuted),
+                  const SizedBox(width: Space.s1),
+                  Expanded(child: Text(sale.notes, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.caption.copyWith(color: p.textMuted))),
+                ],
+              ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: Space.s3),
+            if (processing)
+              Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.4, color: p.accent)))
+            else
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: AppButton(key: Key('resume-${sale.id}'), label: 'Resume', icon: Icons.play_arrow_rounded, variant: AppButtonVariant.secondary, onPressed: () => c.resumeSale(sale)),
+                  ),
+                  const SizedBox(width: Space.s2),
+                  Expanded(
+                    flex: 2,
+                    child: _CompleteButton(sale: sale, onTap: () => _pickPaymentAndComplete(context)),
+                  ),
+                  const SizedBox(width: Space.s2),
+                  SizedBox(
+                    width: Space.minTouch + 8,
+                    child: AppButton(
+                      key: Key('discard-${sale.id}'),
+                      label: '',
+                      semanticLabel: 'Discard sale',
+                      icon: Icons.delete_outline_rounded,
+                      variant: AppButtonVariant.ghost,
+                      onPressed: () => _confirmDiscard(context),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Future<void> _confirmDiscard(BuildContext context) async {
+    final ok = await AppDialog.confirm(context, title: 'Discard Sale', message: 'This will permanently delete the held sale.', confirmLabel: 'Discard', destructive: true);
+    if (ok) await c.discardSale(sale);
+  }
+
+  void _pickPaymentAndComplete(BuildContext context) {
+    final selected = ValueNotifier<String>(sale.paymentMethod);
+    AppBottomSheet.show<void>(
+      context,
+      title: 'Complete Sale',
+      builder: (ctx) {
+        final p = ctx.palette;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Total: ${Money.format(sale.total)} — choose the payment method used.', style: ctx.type.body.copyWith(color: p.textSecondary)),
+            const SizedBox(height: Space.s4),
             ValueListenableBuilder<String>(
               valueListenable: selected,
               builder: (_, method, __) => Row(
-                children: PosPaymentMethod.all.map((m) {
-                  final isSelected = method == m;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
+                children: [
+                  for (final m in PosPaymentMethod.all) ...[
+                    if (m != PosPaymentMethod.all.first) const SizedBox(width: Space.s2),
+                    Expanded(
+                      child: AppCard(
+                        key: Key('completeMethod-$m'),
+                        color: m == method ? p.accentSoft : p.surface,
+                        radius: Radii.rMd,
+                        padding: const EdgeInsets.symmetric(vertical: Space.s3),
+                        semanticLabel: '${PosPaymentMethod.label(m)}${m == method ? ', selected' : ''}',
                         onTap: () => selected.value = m,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isSelected ? AppColors.primaryColor : AppColors.background,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isSelected ? AppColors.primaryColor : AppColors.lightGrey2,
-                            ),
-                          ),
-                          alignment: Alignment.center,
-                          child: CustomText(
-                            text: PosPaymentMethod.label(m),
-                            fontSize: AppFontSize.verySmall,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected ? AppColors.white : AppColors.iosGrey,
-                          ),
-                        ),
+                        child: Center(child: Text(PosPaymentMethod.label(m), style: ctx.type.label.copyWith(color: m == method ? p.accentFg : p.textPrimary))),
                       ),
                     ),
-                  );
-                }).toList(),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Space.s5),
             AppButton(
+              key: const Key('completeSaleConfirm'),
               label: 'Complete Sale',
-              backgroundColor: AppColors.green2,
-              height: 50,
+              size: AppButtonSize.lg,
               onPressed: () {
-                Navigator.pop(sheetContext);
+                Navigator.of(ctx).pop();
                 c.completeSale(sale, paymentMethod: selected.value);
               },
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmAction(
-    BuildContext context, {
-    required String title,
-    required String body,
-    required String confirmLabel,
-    required Color confirmColor,
-    required VoidCallback onConfirm,
-  }) {
-    CustomConfirmDialog.show(
-      context,
-      title: title,
-      message: body,
-      confirmLabel: confirmLabel,
-      confirmColor: confirmColor,
-      onConfirm: onConfirm,
+        );
+      },
     );
   }
 }
 
-class _ActionBtn extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color bgColor;
-  final Color textColor;
+/// "Complete" needs the server: offline it only explains why (see [OfflineGate]). The reactive read is wrapped in an
+/// `Obx` only when the network service exists (it always does in the app; without it there is nothing to observe).
+class _CompleteButton extends StatelessWidget {
+  const _CompleteButton({required this.sale, required this.onTap});
+  final PosSaleModel sale;
   final VoidCallback onTap;
 
-  const _ActionBtn({
-    required this.label,
-    required this.icon,
-    required this.bgColor,
-    required this.textColor,
-    required this.onTap,
-  });
+  Widget _button({required bool offline}) => AppButton(
+    key: Key('complete-${sale.id}'),
+    label: 'Complete',
+    icon: Icons.check_circle_outline_rounded,
+    variant: offline ? AppButtonVariant.ghost : AppButtonVariant.primary,
+    onPressed: offline ? () => CustomAppSnackbar.error(OfflineGate.message) : onTap,
+  );
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 15, color: textColor),
-          const SizedBox(width: 4),
-          CustomText(
-            text: label,
-            fontSize: AppFontSize.tiny,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
-        ]),
-      ),
-    );
+    if (!Get.isRegistered<NetworkStatusService>()) return _button(offline: false);
+    return Obx(() => _button(offline: OfflineGate.isOffline));
   }
 }

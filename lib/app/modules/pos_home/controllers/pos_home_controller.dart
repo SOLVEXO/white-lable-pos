@@ -7,7 +7,6 @@ import 'package:solvexo_pos/utils/pos_totals.dart';
 import 'dart:async';
 
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
@@ -19,6 +18,7 @@ import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/modules/category/models/category_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/hid_scan_detector.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_customer_picker_sheet.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_variant_picker_sheet.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/pos_role.dart';
@@ -52,6 +52,9 @@ class CartItem {
       ? '${product.productId}_${variant!.variantId}'
       : product.productId;
 }
+
+// ── How the last Charge ended (read by the sale-success view) ────────────────
+enum SaleOutcome { completed, queuedOffline }
 
 // ── Payment methods accepted by the backend ───────────────────────────────────
 class PosPaymentMethod {
@@ -126,6 +129,16 @@ class PosHomeController extends GetxController {
   // ── UI state ──────────────────────────────────────────────────────────────
   final RxBool isLoadingProducts = true.obs;
   final RxBool isChargingOrHolding = false.obs;
+
+  /// How the most recent Charge ended: [SaleOutcome.completed] (the server accepted it) or [SaleOutcome.queuedOffline]
+  /// (saved on this device, will sync). Null when the last Charge failed, was declined, or no Charge has happened yet.
+  /// Reset to null at the start of every [completeSale]; set only where the success / queued toast fires. Read-only for
+  /// the UI (the sale-success view) — nothing outside [completeSale] writes it.
+  final Rxn<SaleOutcome> lastOutcome = Rxn<SaleOutcome>();
+
+  /// The receipt of that Charge: the server's receipt for [SaleOutcome.completed], the provisional `OFF-…` receipt for
+  /// [SaleOutcome.queuedOffline] (null if it could not be built — the sale itself is safe in the queue either way).
+  final Rxn<ReceiptData> lastReceipt = Rxn<ReceiptData>();
   final RxBool isScanningBarcode = false.obs;
   /// See PosRole.isCurrentEmployeeManager's doc comment — gates the
   /// discount field to match the backend's real, token-verified check.
@@ -697,16 +710,16 @@ class PosHomeController extends GetxController {
   // ── Variant picker ────────────────────────────────────────────────────────
   void _showVariantSheet(PosProductModel product) {
     Get.bottomSheet(
-      _VariantPickerSheet(product: product, controller: this),
-      backgroundColor: kPosSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      PosVariantPickerSheet(product: product, controller: this),
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
     );
   }
 
   // ── Charge (complete sale) ────────────────────────────────────────────────
   Future<void> completeSale() async {
+    lastOutcome.value = null;
+    lastReceipt.value = null;
     if (!hasItems) return;
     if (!_hasValidSession()) return;
     if (isCashUnderTendered) {
@@ -797,6 +810,8 @@ class PosHomeController extends GetxController {
         clearSale();
         Get.back(); // close cart sheet
         _afterSalePrint(offline, hadCash: _paidWithCash(pay));
+        lastReceipt.value = offline;
+        lastOutcome.value = SaleOutcome.queuedOffline;
         CustomAppSnackbar.warning(
           'Sale saved on this device${offline != null ? ' as receipt ${offline.receiptNumber}' : ''} and will sync automatically — do not ring it up again.',
         );
@@ -819,9 +834,12 @@ class PosHomeController extends GetxController {
       final soldSale = result.sale;
       clearSale();
       Get.back(); // close cart sheet
+      final receipt = soldSale == null ? null : ReceiptData.fromSale(soldSale, settings.value, isCopy: false, asciiSafeMoney: true);
+      lastReceipt.value = receipt;
+      lastOutcome.value = SaleOutcome.completed;
       CustomAppSnackbar.success('Sale completed!');
-      if (soldSale != null) {
-        _afterSalePrint(ReceiptData.fromSale(soldSale, settings.value, isCopy: false, asciiSafeMoney: true), hadCash: _paidWithCash(pay));
+      if (receipt != null) {
+        _afterSalePrint(receipt, hadCash: _paidWithCash(pay));
       }
     } finally {
       isChargingOrHolding.value = false;
@@ -1072,95 +1090,6 @@ class PosHomeController extends GetxController {
       return 'Cannot close register: there are held sales pending.';
     }
     return 'Something went wrong. Please try again.';
-  }
-}
-
-// ── Variant picker bottom sheet ───────────────────────────────────────────────
-class _VariantPickerSheet extends StatelessWidget {
-  final PosProductModel product;
-  final PosHomeController controller;
-
-  const _VariantPickerSheet({required this.product, required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: kPosBorder,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          CustomText(
-            text: 'Select Variant — ${product.name}',
-            color: kPosText,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
-          const SizedBox(height: 12),
-          ...product.variants.map(
-            (v) => GestureDetector(
-              onTap: v.isAvailable
-                  ? () {
-                      controller.addToCart(product, v);
-                      Get.back();
-                    }
-                  : null,
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: kPosBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: kPosBorder),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CustomText(
-                            text: v.label,
-                            color: v.isAvailable ? kPosText : kPosSubText,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          CustomText(
-                            text: v.unlimitedStock
-                                ? 'Unlimited stock'
-                                : (v.stock > 0 ? '${v.stock} in stock' : 'Out of stock'),
-                            color: v.isAvailable ? kPosSubText : kPosRed,
-                            fontSize: 12,
-                          ),
-                        ],
-                      ),
-                    ),
-                    CustomText(
-                      text: Money.format(v.price),
-                      color: AppColors.primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
