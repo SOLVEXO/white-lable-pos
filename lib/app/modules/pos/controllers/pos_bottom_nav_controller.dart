@@ -1,18 +1,25 @@
+import 'package:solvexo_pos/app/modules/pos/views/pos_home_tab_view.dart';
+import 'package:solvexo_pos/app/modules/pos/views/pos_more_hub_view.dart';
+import 'package:solvexo_pos/app/modules/pos/views/pos_stock_hub_view.dart';
 import 'package:solvexo_pos/app/modules/pos_home/views/pos_home_view.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/views/pos_orders_view.dart';
-import 'package:solvexo_pos/app/modules/pos_products/views/pos_products_view.dart';
-import 'package:solvexo_pos/app/modules/pos_settings/views/pos_settings_view.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class PosBottomNavController extends GetxController {
-  static const int saleTab = 0;
-  static const int ordersTab = 1;
-  static const int productsTab = 2;
+  // Blueprint order: Home, Sell, Orders, Stock, More.
+  static const int homeTab = 0;
+  static const int saleTab = 1;
+  static const int ordersTab = 2;
+  static const int stockTab = 3;
+  static const int moreTab = 4;
 
-  RxInt selectedIndex = 0.obs;
+  /// Lands on Sell (one tap to Home): a cashier's first action is ringing a sale. Change this one constant to land on Home.
+  static const int initialTab = saleTab;
+
+  RxInt selectedIndex = initialTab.obs;
 
   Worker? _restrictedWorker;
 
@@ -35,8 +42,9 @@ class PosBottomNavController extends GetxController {
     super.onClose();
   }
 
-  /// Sale and the product catalog are selling surfaces — off in restricted mode.
-  bool _isSellingTab(int i) => i == saleTab || i == productsTab;
+  /// Sale and the product catalogue (under Stock) are selling surfaces — off in restricted mode. Home, Orders and More stay
+  /// open (reports, refund/void, sync and settings are how a lapsed store gets back on track).
+  bool _isSellingTab(int i) => i == saleTab || i == stockTab;
 
   void changeTab(int index) {
     if (PosEntitlementService.isRestricted && _isSellingTab(index)) {
@@ -47,9 +55,10 @@ class PosBottomNavController extends GetxController {
   }
 
   final List<Widget> screens = [
+    PosHomeTabView(),
     PosHomeView(),
     PosOrdersView(),
-    PosProductsView(),
-    PosSettingsView(),
+    const PosStockHubView(),
+    const PosMoreHubView(),
   ];
 }
