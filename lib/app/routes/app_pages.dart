@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:solvexo_pos/config/debug_launch_params.dart';
+import 'package:solvexo_pos/core/design/gallery/design_gallery_view.dart';
 import 'package:solvexo_pos/app/middleware/auth_middleware.dart';
 import 'package:solvexo_pos/app/middleware/owner_access_middleware.dart';
 import '../modules/pos_device/views/device_setup_view.dart';
@@ -58,9 +61,19 @@ import '../modules/pos_customers/views/pos_customers_view.dart';
 part 'app_routes.dart';
 
 class AppPages {
-  static const initialRoute = Routes.splashScreen;
+  /// Debug builds may start elsewhere: `--dart-define=INITIAL_ROUTE=/design-gallery` or an `INITIAL_ROUTE=` line in
+  /// the DebugLaunchParams file. Release builds always start at the splash.
+  static final String initialRoute = kDebugMode ? _debugInitialRoute() : Routes.splashScreen;
+
+  static String _debugInitialRoute() {
+    const defined = String.fromEnvironment('INITIAL_ROUTE');
+    if (defined.isNotEmpty) return defined;
+    final fromFile = DebugLaunchParams.get('INITIAL_ROUTE');
+    return (fromFile != null && fromFile.isNotEmpty) ? fromFile : Routes.splashScreen;
+  }
 
   static final routes = [
+    if (kDebugMode) GetPage(name: Routes.designGallery, page: () => const DesignGalleryView()),
     GetPage(
       name: Routes.splashScreen,
       page: () => const SplashScreenView(),

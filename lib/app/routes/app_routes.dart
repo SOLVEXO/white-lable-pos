@@ -55,4 +55,7 @@ abstract class Routes {
   static const posOwnerGate = '/pos/owner-gate';
   static const posDevices = '/pos/devices';
   static const posDeleteAccount = '/pos/delete-account';
+
+  // Debug builds only (see app_pages.dart) — design-system component catalogue.
+  static const designGallery = '/design-gallery';
 }

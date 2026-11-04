@@ -6,6 +6,7 @@ import 'package:solvexo_pos/app/data/services/network_status_service.dart';
 import 'package:solvexo_pos/app/data/services/idle_lock_service.dart';
 import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/config/app_env.dart';
+import 'package:solvexo_pos/config/debug_launch_params.dart';
 import 'package:solvexo_pos/config/telemetry.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
@@ -22,6 +23,7 @@ import 'package:get/get.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
 void main() {
   // Release builds: no print()/debugPrint output (it can carry request data) and every uncaught error goes to Crashlytics, scrubbed.
@@ -34,6 +36,7 @@ void main() {
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerDesignFontLicenses();
   if (kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
 
   // A release build never starts against a missing, non-https or local backend.
@@ -63,6 +66,7 @@ Future<void> _bootstrap() async {
   Telemetry.installHandlers();
 
   await SharedPreferences.getInstance();
+  await DebugLaunchParams.seed(); // debug builds only; no-op unless a SEED= launch parameter is set
   // Warms AppPreferences' sync in-memory cache so PosAccessMiddleware can
   // guard routes without an async gap — see AppPreferences.warmCache().
   await AppPreferences.warmCache();
@@ -109,6 +113,12 @@ class MyApp extends StatelessWidget {
         return GetMaterialApp(
           debugShowCheckedModeBanner: false,
           title: AppBrand.posName,
+          // "Ink & Ember" theme. Locked to light for now: un-migrated screens
+          // hard-code light colours and would be unreadable under a dark theme.
+          // Dark switches on per migrated screen / at the Phase 5 parity pass.
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: DebugLaunchParams.themeMode, // light unless a debug THEME=dark launch parameter says otherwise
           initialRoute: AppPages.initialRoute,
           getPages: AppPages.routes,
           // Clamp OS accessibility text scaling so extreme settings can't
@@ -122,7 +132,7 @@ class MyApp extends StatelessWidget {
                   mq.textScaler.scale(1).clamp(0.9, 1.2),
                 ),
               ),
-              child: PosLockOverlay(child: NetworkStatusBanner(child: child!)),
+              child: DebugLaunchParams.wrapLandscape(context, PosLockOverlay(child: NetworkStatusBanner(child: child!))),
             );
           },
         );

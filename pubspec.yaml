@@ -97,11 +97,16 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
 
 flutter_native_splash:
-  color: "#F06839"
+  # Always dark ink (#0B1020) with the logo tile: identical to the Flutter splash's first frame
+  # (lib/app/modules/splash_screen), so there is no flash and no colour jump on hand-off.
+  # splash_logo.png is a 480px tile (treated as @4x => 120 logical px); the Android 12 variant
+  # is a 960px canvas with the tile drawn at 400px (=> 120dp inside the 288dp icon area).
+  color: "#0B1020"
   image: assets/icon/splash_logo.png
   android_12:
-    color: "#F06839"
-    image: assets/icon/splash_logo.png
+    color: "#0B1020"
+    image: assets/icon/splash_logo_android12.png
+    icon_background_color: "#0B1020"
   fullscreen: false
 
 flutter:
@@ -112,6 +117,10 @@ flutter:
     - assets/icons/
     - assets/icon/
     - assets/app_fonts/
+    - assets/app_fonts/manrope/OFL.txt
+    - assets/app_fonts/dm_sans/OFL.txt
+    - assets/app_fonts/jetbrains_mono/OFL.txt
+    - assets/app_fonts/roboto/LICENSE-Apache-2.0.txt
     - assets/sounds/
 
   fonts:
@@ -125,3 +134,41 @@ flutter:
           weight: 600
         - asset: assets/app_fonts/inter/Inter_Bold.ttf
           weight: 700
+    # Solvexo POS blueprint typography: Manrope (display) + DM Sans (body). Both are VARIABLE fonts (one file each, SIL OFL 1.1,
+    # licences beside the files). The same file is declared once per weight so Flutter never fakes a bold; the matching `wght`
+    # axis value is set by AppTypeScale (FontWeight alone does not move a variable axis). Manrope has OpenType `tnum`; DM Sans does
+    # not, so amounts stay in JetBrains Mono.
+    - family: Manrope
+      fonts:
+        - asset: assets/app_fonts/manrope/Manrope-Variable.ttf
+          weight: 400
+        - asset: assets/app_fonts/manrope/Manrope-Variable.ttf
+          weight: 500
+        - asset: assets/app_fonts/manrope/Manrope-Variable.ttf
+          weight: 600
+        - asset: assets/app_fonts/manrope/Manrope-Variable.ttf
+          weight: 700
+        - asset: assets/app_fonts/manrope/Manrope-Variable.ttf
+          weight: 800
+    - family: DMSans
+      fonts:
+        - asset: assets/app_fonts/dm_sans/DMSans-Variable.ttf
+          weight: 400
+        - asset: assets/app_fonts/dm_sans/DMSans-Variable.ttf
+          weight: 500
+        - asset: assets/app_fonts/dm_sans/DMSans-Variable.ttf
+          weight: 600
+        - asset: assets/app_fonts/dm_sans/DMSans-Variable.ttf
+          weight: 700
+    # Roboto Medium only for the official "Sign in with Google" button label (Google's branding
+    # guideline mandates Roboto Medium). Apache-2.0, bundled with Flutter's own material fonts.
+    - family: Roboto
+      fonts:
+        - asset: assets/app_fonts/roboto/Roboto-Medium.ttf
+          weight: 500
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/app_fonts/jetbrains_mono/JetBrainsMono-Medium.ttf
+          weight: 500
+        - asset: assets/app_fonts/jetbrains_mono/JetBrainsMono-SemiBold.ttf
+          weight: 600

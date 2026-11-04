@@ -4,6 +4,7 @@ import 'package:solvexo_pos/core/theme/base_spacing.dart';
 import 'package:solvexo_pos/app/network/dio_exception_handler.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/toast_util.dart';
+import 'package:solvexo_pos/core/design/components/app_toast.dart' show ToastType;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -51,11 +52,11 @@ abstract class BaseController extends GetxController {
   // ── Toasts / snackbars ────────────────────────────────────────────────────
   void showToast(String message) => ToastUtil.showToast(message);
 
-  void showSuccess(String message) => ToastUtil.showToast(message, bgColor: BaseColors.success);
+  void showSuccess(String message) => ToastUtil.showToast(message, type: ToastType.success);
 
-  void showError(String message) => ToastUtil.showToast(message, bgColor: BaseColors.danger);
+  void showError(String message) => ToastUtil.showToast(message, type: ToastType.error);
 
-  void showWarning(String message) => ToastUtil.showToast(message, bgColor: BaseColors.warning);
+  void showWarning(String message) => ToastUtil.showToast(message, type: ToastType.warning);
 
   void showSnackbar(String title, String message, {Color? backgroundColor}) {
     Get.snackbar(

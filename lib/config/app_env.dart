@@ -21,11 +21,13 @@ class AppEnv {
   }) {
     if (baseUrl.isEmpty) return 'API_BASE_URL is empty';
     final uri = Uri.tryParse(baseUrl);
-    if (uri == null || !uri.hasAuthority)
+    if (uri == null || !uri.hasAuthority) {
       return 'API_BASE_URL is not a valid URL: $baseUrl';
+    }
     if (!release) return null;
-    if (uri.scheme != 'https')
+    if (uri.scheme != 'https') {
       return 'Release builds require an https API_BASE_URL (got ${uri.scheme}://)';
+    }
     final host = uri.host.toLowerCase();
     final local =
         host == 'localhost' ||
@@ -33,8 +35,9 @@ class AppEnv {
         host == '10.0.2.2' ||
         host.endsWith('.local') ||
         RegExp(r'^(10|192\.168)\.').hasMatch(host);
-    if (local)
+    if (local) {
       return 'Release builds must not point at a local/dev host ($host)';
+    }
     return null;
   }
 }

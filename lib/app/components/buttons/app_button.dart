@@ -6,7 +6,7 @@ import 'package:solvexo_pos/utils/dimens.dart';
 import 'package:flutter/material.dart';
 // import 'package:hifzpro_app/apptheme/app_colors.dart';
 
-class AppButton extends StatelessWidget {
+class LegacyAppButton extends StatelessWidget {
   final String label;
   final void Function()? onPressed;
   final IconData? icon;
@@ -16,7 +16,7 @@ class AppButton extends StatelessWidget {
   final Color? textColor;
   final double height;
 
-  const AppButton({
+  const LegacyAppButton({
     super.key,
     required this.label,
     required this.onPressed,
