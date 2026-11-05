@@ -40,3 +40,10 @@ For **every new table / module from G2 on** (expenses, payables, customer credit
 * Card / other tenders are `recorded_unverified` until a provider confirms (as an **event**, rule 1); cash taken by the cashier is `confirmed`.
 * Sensitive data at rest on the device (queue, cart snapshot, checkout intents, settings cache) is AES-256-GCM encrypted with the Keychain/Keystore key; the key class is first-unlock / this-device-only.
 * Amounts are rendered in Manrope with tabular figures (`tnum`).
+
+## 4. Release order: the backend deploys first, and the app tolerates any server
+* **The backend always deploys before the app release that depends on it.** Never submit an app build to the stores until the backend it needs is live in production and `GET /health/version` reports the expected commit.
+* **API changes are additive.** A new request field is optional; a new response field never changes the meaning of an old one. Removing or renaming a field takes a deprecation period that outlives the oldest app build still in the field.
+* **The app must handle a server that ignores or rejects new fields.** New request fields are advisory: the server recomputes from its own data, and a client/server disagreement is recorded, never a reason to refuse a sale (see G1b). New response fields are read with a fallback to the old field (`MoneyJson.read`). A new endpoint that an older server does not have (404/405) degrades to the old behaviour, or hides the feature, instead of failing the checkout.
+* **Global `ValidationPipe` is `{ transform: false }`** (no `whitelist`, no `forbidNonWhitelisted`) on `staging` and `main`, so an older server silently ignores unknown JSON fields. Do not turn on `forbidNonWhitelisted` globally: it would make an older server reject a newer app. Controllers that already use it (markets, store notification settings) are not on the POS sale path.
+* **Test it before release:** run the new app's sale, refund and offline-sync payloads against a build of the currently deployed branch (G1b result: all accepted, see `G1B_RELEASE_ORDER_CHECK.md`).
