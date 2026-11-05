@@ -72,6 +72,8 @@ dependencies:
   sign_in_with_apple: ^7.0.1
   cryptography_flutter: ^2.3.4
   crypto: ^3.0.8
+  qr_flutter: ^4.1.0
+  wakelock_plus: ^1.4.0
 
 dev_dependencies:
   flutter_test:

@@ -184,9 +184,9 @@ class ReceiptData {
       );
 
   /// How a refund slice is handed back, per tender.
-  static String refundHow(String m) => switch (m) { 'cash' => 'cash returned', 'card' => 'to card', _ => 'bank / other' };
+  static String refundHow(String m) => switch (m) { 'cash' => 'cash returned', 'card' => 'to card', 'raast_qr' => 'to Raast', _ => 'bank / other' };
 
-  static String methodLabel(String m) => switch (m) { 'cash' => 'Cash', 'card' => 'Card', _ => 'Bank / Other' };
+  static String methodLabel(String m) => switch (m) { 'cash' => 'Cash', 'card' => 'Card', 'raast_qr' => 'Raast', _ => 'Bank / Other' };
 
   /// [asciiSafeMoney]: thermal printers can't print most currency symbols, so amounts are written as
   /// `JPY 1,234` instead of `¥1,234`.

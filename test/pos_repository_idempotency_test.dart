@@ -144,6 +144,27 @@ void main() {
       expect(sync.scheduled, 1);
     });
 
+    test('a sale with a Raast QR payment is NEVER queued for later: an ambiguous failure is just a failure (retry reuses the key and the paid payment)', () async {
+      final sync = FakeSync();
+      Get.put<PendingSaleSyncService>(sync);
+      scriptPosts([_fail(DioExceptionType.receiveTimeout), _res({'success': true, 'data': _saleJson()})]);
+      Future<({bool success, dynamic sale, String? message, bool queued})> qrCharge() => repo.createSale(
+            storeId: 'st', sessionId: 'se', registerId: 'r', employeeId: 'e',
+            items: const [{'productId': 'p', 'variantId': 'v', 'qty': 1}],
+            paymentMethod: 'raast_qr', payments: const [{'method': 'raast_qr', 'amount': 10.0, 'intentId': 'pi-1'}],
+            idempotencyKey: 'KEY-QR', status: 'completed',
+          );
+      final first = await qrCharge();
+      expect(first.queued, isFalse);
+      expect(first.success, isFalse);
+      expect(sync.enqueued, isEmpty);
+      expect(sync.scheduled, 0);
+      final second = await qrCharge(); // the cashier presses Charge again: same key, same payment
+      expect(second.success, isTrue);
+      expect(sentHeaders[1]['Idempotency-Key'], 'KEY-QR');
+      expect(((sentData[1] as Map)['payments'] as List).single['intentId'], 'pi-1');
+    });
+
     test('a 5xx is ambiguous too: queued, not surfaced as a failed sale', () async {
       final sync = FakeSync();
       Get.put<PendingSaleSyncService>(sync);

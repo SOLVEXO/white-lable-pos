@@ -34,6 +34,10 @@ class PosSubscriptionStatusModel {
   /// invents a rule the server isn't enforcing. Missing (older backend) = not enforced.
   final bool enforced;
 
+  /// G2.2/G2.3: the store's business verification is approved AND the payment provider onboarded it, so Raast QR may be used.
+  /// `null` = the server did not say (an older backend): the till does not hide the option, the server decides.
+  final bool? digitalPaymentsEnabled;
+
   /// The status call itself failed (network/auth) — says nothing about the plan, so callers must
   /// not lock anyone out because of it.
   final bool isUnknown;
@@ -41,6 +45,7 @@ class PosSubscriptionStatusModel {
   const PosSubscriptionStatusModel({
     required this.status,
     this.enforced = false,
+    this.digitalPaymentsEnabled,
     this.isUnknown = false,
     this.planName,
     this.purchasedAt,
@@ -51,6 +56,7 @@ class PosSubscriptionStatusModel {
   factory PosSubscriptionStatusModel.fromJson(Map<String, dynamic> json) => PosSubscriptionStatusModel(
         status: PosSubscriptionStatusValue.fromJson(json['status'] as String?),
         enforced: json['enforced'] as bool? ?? false,
+        digitalPaymentsEnabled: json['digitalPaymentsEnabled'] as bool?,
         planName: json['planName'] as String?,
         purchasedAt: DateTime.tryParse(json['purchasedAt'] as String? ?? ''),
         expiresAt: DateTime.tryParse(json['expiresAt'] as String? ?? ''),

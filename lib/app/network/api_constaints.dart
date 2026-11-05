@@ -302,6 +302,18 @@ class ApiConstants {
   static String posSubscriptionStatus(String storeId) =>
       '$apiPrefix/pos/subscription/$storeId'; // read-only status a registered device may call
 
+  // Digital (Raast QR) payments — G2.3
+  static String get posPaymentIntents => '$apiPrefix/pos/payments/intents';
+  static String posPaymentIntent(String id) => '$apiPrefix/pos/payments/intents/$id';
+  static String posPaymentPresented(String id) => '$apiPrefix/pos/payments/intents/$id/presented';
+  static String posPaymentCancel(String id) => '$apiPrefix/pos/payments/intents/$id/cancel';
+  static String posPaymentRefunds(String id) => '$apiPrefix/pos/payments/intents/$id/refunds';
+  static String posPaymentReconcile(String id) => '$apiPrefix/pos/payments/intents/$id/reconcile';
+  static String posPaymentAttemptCancel(String key) => '$apiPrefix/pos/payments/attempts/${Uri.encodeComponent(key)}/cancel';
+  static String get posPaymentAttention => '$apiPrefix/pos/payments/attention';
+  static String get posPaymentVerification => '$apiPrefix/pos/payments/verification';
+  static String get posPaymentMockSimulate => '$apiPrefix/pos/payments/mock/simulate'; // dev / mock provider only
+
   // Employees
   static String posEmployees(String storeId) =>
       '$apiPrefix/pos/employees/$storeId';

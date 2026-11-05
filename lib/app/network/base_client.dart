@@ -58,6 +58,8 @@ class BaseClient {
     // Reads are naturally idempotent, so GET retries on network failure by
     // default — pass false to opt out for a specific call.
     bool retryable = true,
+    // Extra request headers (e.g. the manager's PIN-session token for manager-only reads).
+    Map<String, dynamic>? headers,
   }) async {
     final dio = await DioService.getDio();
     debugPrint("GET → $url");
@@ -70,6 +72,7 @@ class BaseClient {
             extra: {'requiresAuth': requiresAuth},
             responseType: responseType,
             validateStatus: validateStatus,
+            headers: headers,
           ),
         );
 

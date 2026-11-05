@@ -908,7 +908,11 @@ class PosRepository {
     } on DioException catch (e) {
       _logDioError('createSale', e);
       _noteEntitlement(e);
-      if (!_isFinalFailure(e) && Get.isRegistered<PendingSaleSyncService>()) {
+      // A sale with a Raast QR payment is NEVER queued for later: digital payments need the network by design (the server checks the
+      // payment is confirmed when the sale arrives). Not final = the cashier simply presses Charge again — the same key and the same
+      // confirmed payment are reused, so nothing is charged twice and nothing is lost.
+      final hasDigital = (payload['payments'] as List<dynamic>? ?? const []).any((p) => p is Map && p['method'] == 'raast_qr');
+      if (!_isFinalFailure(e) && !hasDigital && Get.isRegistered<PendingSaleSyncService>()) {
         // The outcome is unknown (no route to the server, a timeout after the
         // request was sent, a 5xx, or "already in progress"): the sale may
         // already exist server-side. Persist it locally under the SAME key

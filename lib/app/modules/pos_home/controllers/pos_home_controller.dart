@@ -13,6 +13,13 @@ import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/app/data/repositories/category_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
+import 'package:solvexo_pos/app/data/repositories/pos_payments_repository.dart';
+import 'package:solvexo_pos/app/data/local/pending_qr_store.dart';
+import 'package:solvexo_pos/app/data/services/network_status_service.dart';
+import 'package:solvexo_pos/app/modules/pos_home/qr/raast_qr_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_home/qr/raast_qr_screen.dart';
+import 'package:solvexo_pos/app/modules/pos_home/utils/qr_availability.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/modules/category/models/category_model.dart';
@@ -61,8 +68,15 @@ class PosPaymentMethod {
   static const cash = 'cash';
   static const card = 'card';
   static const other = 'other';
+  static const raastQr = 'raast_qr';
 
+  /// The tenders every till offers. Raast QR is added by the payment sheet (it can be unavailable for a store).
   static const List<String> all = [cash, card, other];
+
+  /// Everything the chooser lists, in order.
+  static const List<String> tiles = [cash, card, other, raastQr];
+
+  static bool isDigital(String method) => method == raastQr;
 
   static String label(String method) {
     switch (method) {
@@ -70,6 +84,8 @@ class PosPaymentMethod {
         return 'Cash';
       case card:
         return 'Card';
+      case raastQr:
+        return 'Raast QR';
       case other:
         // The backend only has cash|card|other — bank transfer and any
         // other non-card electronic payment are recorded as 'other' with an
@@ -90,7 +106,11 @@ class PosHomeController extends GetxController {
     CartSnapshotStore? cartStore,
     CatalogCacheStore? catalogCache,
     SettingsCacheStore? settingsCache,
+    PosPaymentsRepository? paymentsRepository,
+    PendingQrStore? pendingQrStore,
   }) : _posRepo = posRepository ?? PosRepository(),
+       _payRepo = paymentsRepository ?? PosPaymentsRepository(),
+       _pendingQr = pendingQrStore ?? PendingQrStore.instance,
        _categoryRepo = categoryRepository ?? CategoryRepository(),
        _cartStore = cartStore ?? CartSnapshotStore.instance,
        _catalogCache = catalogCache ?? CatalogCacheStore.instance,
@@ -101,6 +121,8 @@ class PosHomeController extends GetxController {
   final CartSnapshotStore _cartStore;
   final CatalogCacheStore _catalogCache;
   final SettingsCacheStore _settingsCache;
+  final PosPaymentsRepository _payRepo;
+  final PendingQrStore _pendingQr;
 
   // ── Offline resilience ────────────────────────────────────────────────────
   /// The catalog / settings on screen came from the on-device cache (the server couldn't be reached) — prices and
@@ -271,6 +293,112 @@ class PosHomeController extends GetxController {
 
   PosPaymentCheck get paymentCheck => PosPaymentCheck.evaluate(total, paymentEntries, exponent: Money.exponent);
 
+  // ── Raast QR (G2.3) ───────────────────────────────────────────────────────────
+  /// QR payments already CONFIRMED for the checkout in progress, by QR line index: if the sale then fails to save, the next
+  /// Charge attaches the SAME payment instead of charging the customer again. Dropped when the amount no longer matches.
+  final Map<int, ({String intentId, int amountMinor})> _qrConfirmed = {};
+  bool _qrStarted = false;
+
+  bool get _online => !Get.isRegistered<NetworkStatusService>() || Get.find<NetworkStatusService>().isOnline.value;
+
+  /// Is Raast QR usable now? (store verified by the server · internet) — and what to tell the user when it is not.
+  QrAvailabilityInfo get qrAvailability => QrAvailabilityRules.evaluate(
+        verified: PosEntitlementService.maybe?.digitalPaymentsEnabled.value,
+        online: _online,
+        isManager: isManager.value,
+      );
+
+  /// QR lines of the checkout as entered: (line index, amount in minor units, from the split row or the whole total).
+  List<({int index, int amountMinor})> _qrLines(double chargeTotal) {
+    if (isSplitPayment.value) {
+      return [
+        for (var i = 0; i < splitLines.length; i++)
+          if (splitLines[i].method.value == PosPaymentMethod.raastQr && splitLines[i].amountValue > 0) (index: i, amountMinor: Money.toMinor(splitLines[i].amountValue)),
+      ];
+    }
+    return selectedPayment.value == PosPaymentMethod.raastQr ? [(index: 0, amountMinor: Money.toMinor(chargeTotal))] : const [];
+  }
+
+  bool get hasQrLine => _qrLines(total).isNotEmpty;
+
+  /// The tenders a split row may choose from: the usual three, plus Raast QR when it is usable and no OTHER row already uses it
+  /// (one QR per checkout in the till; the server itself accepts several). A row that already is QR keeps its choice listed.
+  List<String> splitChoicesFor(int index) {
+    final qrTaken = [for (var i = 0; i < splitLines.length; i++) if (i != index && splitLines[i].method.value == PosPaymentMethod.raastQr) i].isNotEmpty;
+    final isQr = index >= 0 && index < splitLines.length && splitLines[index].method.value == PosPaymentMethod.raastQr;
+    final offerQr = isQr || (!qrTaken && qrAvailability.isAvailable);
+    return [...PosPaymentMethod.all, if (offerQr) PosPaymentMethod.raastQr];
+  }
+
+  /// Shows the QR screen for every QR line that is not yet confirmed. True only when every QR line is confirmed.
+  /// Nothing is charged here — a confirmed payment becomes a sale only when the server accepts the sale with that payment attached.
+  Future<bool> _collectQr(double chargeTotal) async {
+    final lines = _qrLines(chargeTotal);
+    if (lines.isEmpty) return true;
+    final info = qrAvailability;
+    if (!info.isAvailable) {
+      CustomAppSnackbar.warning(info.message ?? 'Raast QR is not available.');
+      return false;
+    }
+    for (final l in lines) {
+      final done = _qrConfirmed[l.index];
+      if (done != null && done.amountMinor == l.amountMinor) continue; // paid already, the sale just did not save: attach it again
+      _qrConfirmed.remove(l.index);
+      _qrStarted = true;
+      final r = await RaastQrScreen.collect(
+        RaastQrController(
+          amountMinor: l.amountMinor,
+          sessionId: sessionId.value,
+          saleAttemptKey: _pendingKey!,
+          qrIndex: l.index,
+          storeId: storeId.value,
+          repository: _payRepo,
+          store: _pendingQr,
+        ),
+        showSimulate: kDebugMode,
+      );
+      if (r.isConfirmed && r.intent != null) {
+        _qrConfirmed[l.index] = (intentId: r.intent!.id, amountMinor: l.amountMinor);
+        continue;
+      }
+      if (r.kind == QrResultKind.detached) return false; // the till was locked mid-payment: it resumes after unlock
+      if (r.kind == QrResultKind.unavailable) CustomAppSnackbar.warning(r.message ?? 'Raast QR is not available.');
+      if (r.kind == QrResultKind.expired || r.kind == QrResultKind.failed) CustomAppSnackbar.warning('No payment was taken. Choose a method to continue.');
+      return false;
+    }
+    return true;
+  }
+
+  /// A QR payment found on this device after a restart / unlock: look it up on the server and carry on with the same checkout.
+  /// Never creates a second payment. Paid → the sale is completed with it; still open → the QR screen reopens; over → forgotten.
+  Future<void> resumePendingQr() async {
+    final pq = await _pendingQr.read();
+    if (pq == null) return;
+    final sameCheckout = hasItems && pq.saleAttemptKey == _pendingKey;
+    final r = await RaastQrScreen.collect(
+      RaastQrController(
+        amountMinor: pq.amountMinor,
+        sessionId: sessionId.value,
+        saleAttemptKey: pq.saleAttemptKey,
+        qrIndex: pq.qrIndex,
+        storeId: storeId.value,
+        resumeFrom: pq,
+        repository: _payRepo,
+        store: _pendingQr,
+      ),
+      showSimulate: kDebugMode,
+    );
+    if (!r.isConfirmed || r.intent == null) return;
+    if (sameCheckout && _qrLines(total).any((l) => l.index == pq.qrIndex && l.amountMinor == pq.amountMinor)) {
+      _qrConfirmed[pq.qrIndex] = (intentId: r.intent!.id, amountMinor: pq.amountMinor);
+      CustomAppSnackbar.success('Payment received — completing the sale.');
+      await completeSale();
+    } else {
+      await _pendingQr.clear();
+      CustomAppSnackbar.warning('A Raast payment was received for a sale that is no longer open. A manager can match it in Needs attention.');
+    }
+  }
+
   double get changeDue => paymentCheck.change;
   bool get isCashUnderTendered => hasItems && !paymentCheck.covered && !paymentCheck.nonCashExceedsTotal;
 
@@ -330,6 +458,7 @@ class PosHomeController extends GetxController {
     _loadContext().then((_) async {
       await _restoreCart();
       _attachPersistence();
+      unawaited(resumePendingQr());
       _loadProducts();
       _loadSettings();
     });
@@ -633,6 +762,12 @@ class PosHomeController extends GetxController {
   }
 
   void clearSale() {
+    // Giving the checkout up releases any QR that was not paid (a paid one stays for a manager: it is money the till must not lose)
+    final qrKey = _pendingKey;
+    if (_qrStarted && qrKey != null) unawaited(_payRepo.cancelAttempt(qrKey));
+    _qrStarted = false;
+    _qrConfirmed.clear();
+    unawaited(_pendingQr.clear());
     _pendingKey = null;
     _pendingAt = null;
     _persistTimer?.cancel();
@@ -658,20 +793,25 @@ class PosHomeController extends GetxController {
 
   /// What goes to the server for the tenders: split rows as `payments`, or the single method with the
   /// cash handed over / the card or bank reference.
-  ({List<Map<String, dynamic>>? payments, double? amountTendered, String? reference, String method}) _paymentPayload() {
+  ({List<Map<String, dynamic>>? payments, double? amountTendered, String? reference, String method}) _paymentPayload({double? chargeTotal}) {
     if (isSplitPayment.value) {
       final lines = [
-        for (final l in splitLines)
-          if (l.amountValue > 0)
+        for (var i = 0; i < splitLines.length; i++)
+          if (splitLines[i].amountValue > 0)
             {
-              'method': l.method.value,
-              'amount': l.amountValue,
-              if (l.method.value != PosPaymentMethod.cash && l.reference.text.trim().isNotEmpty) 'reference': l.reference.text.trim(),
+              'method': splitLines[i].method.value,
+              'amount': splitLines[i].amountValue,
+              if (splitLines[i].method.value == PosPaymentMethod.raastQr && _qrConfirmed[i] != null) 'intentId': _qrConfirmed[i]!.intentId,
+              if (splitLines[i].method.value != PosPaymentMethod.cash && splitLines[i].method.value != PosPaymentMethod.raastQr && splitLines[i].reference.text.trim().isNotEmpty) 'reference': splitLines[i].reference.text.trim(),
             },
       ];
       return (payments: lines, amountTendered: null, reference: null, method: splitLines.first.method.value);
     }
     final method = selectedPayment.value;
+    if (method == PosPaymentMethod.raastQr) {
+      // the sale carries the CONFIRMED payment's id; the server checks it is paid, matches the amount and is not used elsewhere
+      return (payments: [{'method': method, 'amount': chargeTotal ?? total, if (_qrConfirmed[0] != null) 'intentId': _qrConfirmed[0]!.intentId}], amountTendered: null, reference: null, method: method);
+    }
     return (
       payments: null,
       amountTendered: method == PosPaymentMethod.cash ? tenderedAmount : null,
@@ -734,7 +874,7 @@ class PosHomeController extends GetxController {
       CustomAppSnackbar.warning('The discount cannot be more than the subtotal.');
       return;
     }
-    final pay = _paymentPayload();
+    var pay = _paymentPayload();
     isChargingOrHolding.value = true;
     try {
       // This checkout's identity — fixed on the first Charge tap, saved with the cart, reused on every retry and
@@ -781,6 +921,12 @@ class PosHomeController extends GetxController {
         return;
       } // else: server unreachable → price with the cached settings; the sale goes through the offline queue if needed
 
+      // Raast QR: the customer pays on the QR screen first; the sale is only sent once every QR line is CONFIRMED by the server.
+      if (_qrLines(chargeTotal).isNotEmpty) {
+        if (!await _collectQr(chargeTotal)) return;
+        pay = _paymentPayload(chargeTotal: chargeTotal);
+      }
+
       final result = await _posRepo.createSale(
         storeId: storeId.value,
         sessionId: sessionId.value,
@@ -819,6 +965,9 @@ class PosHomeController extends GetxController {
       }
       if (!result.success) {
         CustomAppSnackbar.error(_friendlyError(result.message ?? ''));
+        if (_qrConfirmed.isNotEmpty) {
+          CustomAppSnackbar.warning('The customer has paid by Raast but the sale could not be saved. Try Charge again — the same payment is used. If it keeps failing, ask a manager to check Needs attention.');
+        }
         // A definite answer ends this checkout attempt; no answer at all (message null) keeps the key so the
         // retry is the SAME sale.
         if (result.message != null) {

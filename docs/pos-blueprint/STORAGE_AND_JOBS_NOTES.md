@@ -1,0 +1,19 @@
+# G2 hardening notes: scheduling on several servers, KYB document storage, test stability
+
+## 1. How production runs the API, and job safety
+`scripts/deploy.sh` / `deploy.yml` / `staging.yml` start the API with `pm2 start dist/main.js --name …` — **fork mode, one instance**, no ecosystem file. Nothing there prevents more instances (a second box, `pm2 -i`), so every new job is multi-instance safe anyway:
+
+* `JobLeaseService` (`common/job-lease/`, collection `job_leases`, **no new package**): one atomic upsert on the **database clock** (`$$NOW`) takes a lease only if the current one has expired; a random token per acquisition proves ownership; renew/release are guarded on the token; a heartbeat (ttl/3) keeps a long job alive; a TTL index only removes long-dead rows (correctness never depends on it).
+* Used for: per-payment **apply** lease (`payments:apply:<intent>`) so webhook, poll and expiry never write the same payment at once; per-payment **poll** lease (one instance makes the provider calls); per-inbox-row lease (webhook retry queue); `kyb:retention` + per-store `kyb:purge:<id>`; `kyb:rotation`.
+* A lease can expire mid-run (stalled process): everything under it is **idempotent** (unique event keys, guarded updates), tested by letting a lease expire and writing late.
+* Tests: two instances against one database (no duplicate events, never two concurrent provider calls for one charge, each inbox row processed once, each KYB document deleted once) and **the real `@nestjs/schedule` scheduler** with short intervals (`PAYMENTS_TICK_MS`, `KYB_RETENTION_CRON`) running QR expiry, polling, the retry queue and retention, on two instances at once.
+* The platform's older crons already use a Redis lock (`SchedulerService.runLocked`); unchanged.
+
+## 2. KYB documents on the real storage (Cloudinary, the project's account)
+`npx ts-node -r tsconfig-paths/register src/scripts/kyb-storage-check.ts` (reads only the `CLOUDINARY_*` keys from `.env`) and `KYB_REAL_STORAGE=true npx jest src/kyb/kyb.storage.integration.spec.ts` ran against the real account; every file is deleted afterwards. Two **bugs in the existing upload helpers** were found and avoided for KYB (the old helpers are untouched because other features use them — **review them**):
+1. `UploadService.generateSignedUrl` builds a `type:'private'` delivery URL; its `expires_at` is **ignored — the link never expires** (verified: still HTTP 200 later). New `generateExpiringPrivateUrl` uses Cloudinary's signed download API: `expires_at` is enforced (HTTP 200 inside the window, **401 "Stale request"** after it), lifetime hard-capped at 300 s, inline view or attachment.
+2. `UploadService.deleteFile` omits `type:'private'`: Cloudinary answers `not found` and **deletes nothing**. New `deletePrivateFile` (used by KYB replace/remove/retention) deletes and verifies; the spec confirms the asset is gone through the admin API.
+Links are never logged (the spec captures every console/Nest-logger channel and finds no URL, signature or storage id).
+
+## 3. Why tests timed out under load, and what was changed
+Evidence, not guesses: a failing gate run showed `MongoNetworkTimeoutError: Socket 'connect' timed out after 253746ms` — the **test process itself was frozen for 4 minutes**; at that moment the Mac (8 GB) had **6.5 GB of 7 GB swap in use**. Runs with the swap not exhausted were clean. Real defects found and fixed along the way: (a) every test built its own database with ~35 models + indexes (~60 databases per run on the shared mongod) → one database per spec file, tenants separated by store; (b) the scheduler spec asserted before the retry job had run, and a "payment busy" collision on the retry path wrongly counted as a failed attempt with a longer backoff (now a skip); (c) a teardown dropped the database under an in-flight tick. Gate runs use 2 workers with a worker memory limit.

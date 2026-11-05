@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_payment_intent_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/modules/pos/controllers/pos_bottom_nav_controller.dart';
 import 'package:solvexo_pos/app/modules/pos/controllers/pos_home_tab_controller.dart';
@@ -121,6 +122,11 @@ class PosHomeTabView extends StatelessWidget {
                     const SizedBox(height: Space.s5),
                     const SectionHeader('Last 7 days'),
                     _Trend(week: c.week.value, locked: c.pulseLocked.value),
+                  ],
+                  if (access.canManage && c.kyb.value != null) ...[
+                    const SizedBox(height: Space.s5),
+                    const SectionHeader('Digital payments'),
+                    _KybCard(status: c.kyb.value!),
                   ],
                   const SizedBox(height: Space.s5),
                   const SectionHeader('Needs attention'),
@@ -561,6 +567,19 @@ class _Attention extends StatelessWidget {
         ),
       );
     }
+    final digital = c.digitalAttention.value;
+    if (access.canManage && digital > 0) {
+      rows.add(
+        _Row(
+          keyName: 'digital',
+          icon: Icons.qr_code_2_rounded,
+          tone: StatusTone.danger,
+          title: '$digital digital ${digital == 1 ? 'payment needs' : 'payments need'} attention',
+          subtitle: 'Raast payment to match, refund or resolve',
+          onTap: () => Get.toNamed(Routes.posNeedsAttention),
+        ),
+      );
+    }
     final low = c.lowStockCount.value ?? 0;
     if (access.canManage && low > 0) {
       rows.add(
@@ -668,6 +687,46 @@ class _Row extends StatelessWidget {
             ),
           ),
           Icon(Icons.chevron_right_rounded, color: p.textMuted),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Read-only status of the store's business verification, which decides whether Raast QR can be used. The owner completes it
+/// (a later release); here a manager only sees where it stands and, if it was sent back, why.
+class _KybCard extends StatelessWidget {
+  const _KybCard({required this.status});
+  final PosKybStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final (tone, icon, line) = switch (status.state) {
+      PosKybState.verified => (
+        StatusTone.success,
+        Icons.verified_rounded,
+        status.digitalPaymentsEnabled ? 'Raast QR payments are on for this store.' : 'Verified. Raast QR will switch on once the payment provider finishes setting up the store.',
+      ),
+      PosKybState.submitted => (StatusTone.info, Icons.hourglass_top_rounded, 'Solvexo is reviewing the business details. Raast QR stays off until this is approved.'),
+      PosKybState.rejected => (StatusTone.warning, Icons.edit_note_rounded, status.rejectionReason ?? 'The business details need changes before Raast QR can be used.'),
+      PosKybState.draft => (StatusTone.neutral, Icons.pending_outlined, 'The business details are not submitted yet. Raast QR stays off until they are approved.'),
+      PosKybState.notStarted => (StatusTone.neutral, Icons.shield_outlined, 'Business verification has not been started. Raast QR needs it.'),
+    };
+    return AppCard(
+      key: const Key('kybCard'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text('Business verification', style: context.type.subtitle.copyWith(color: p.textPrimary))),
+              StatusBadge(status.state.label, tone: tone, icon: icon),
+            ],
+          ),
+          const SizedBox(height: Space.s2),
+          Text(line, key: const Key('kybCardText'), style: context.type.bodySmall.copyWith(color: p.textSecondary)),
         ],
       ),
     );

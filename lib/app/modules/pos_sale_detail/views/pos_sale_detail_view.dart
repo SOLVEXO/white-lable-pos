@@ -442,5 +442,5 @@ class _ActionButton extends StatelessWidget {
 
 /// Display label for a tender method (cash / card / other).
 class PosPaymentMethodLabel {
-  static String of(String method) => switch (method) { 'cash' => 'Cash', 'card' => 'Card', _ => 'Bank / Other' };
+  static String of(String method) => switch (method) { 'cash' => 'Cash', 'card' => 'Card', 'raast_qr' => 'Raast', _ => 'Bank / Other' };
 }

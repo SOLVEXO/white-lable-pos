@@ -23,6 +23,9 @@ class PosEntitlementService extends GetxController {
   /// True → selling is disabled; show the banner and keep to the allowed screens.
   final RxBool restricted = false.obs;
 
+  /// Whether this store may take Raast QR payments (server's word; `null` = unknown, so the till does not hide the option).
+  final Rxn<bool> digitalPaymentsEnabled = Rxn<bool>();
+
   /// Plain-language reason for the banner.
   final RxString message = ''.obs;
 
@@ -35,6 +38,7 @@ class PosEntitlementService extends GetxController {
     try {
       final status = await _repo.getStatus(id);
       if (status.isUnknown) return restricted.value; // can't tell — change nothing
+      if (status.digitalPaymentsEnabled != null) digitalPaymentsEnabled.value = status.digitalPaymentsEnabled;
       if (status.status.isEntitled || !status.enforced) {
         clear();
       } else {

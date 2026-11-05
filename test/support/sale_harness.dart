@@ -1,5 +1,7 @@
 // Shared scaffolding for the Phase 3 sale-screen widget tests: a PosHomeController wired to a mocked PosRepository, the
 // real sale screen mounted in a GetMaterialApp (themed light or dark, at a chosen size), and small fixtures.
+import 'package:solvexo_pos/app/data/local/pending_qr_store.dart';
+import 'package:solvexo_pos/app/data/repositories/pos_payments_repository.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -196,6 +198,8 @@ class SaleHarness {
     bool manager = false,
     bool loading = false,
     double taxRate = 0,
+    PosPaymentsRepository? payments,
+    PendingQrStore? qrStore,
   }) {
     SoundUtil.enabled = false;
     SharedPreferences.setMockInitialValues({
@@ -236,7 +240,7 @@ class SaleHarness {
       () => (quote: null, message: null, code: null),
     ); // server unreachable → price locally
     when(() => cats.getCategories()).thenAnswer((_) async => null);
-    c = PosHomeController(posRepository: repo, categoryRepository: cats);
+    c = PosHomeController(posRepository: repo, categoryRepository: cats, paymentsRepository: payments, pendingQrStore: qrStore);
     Get.put<PosHomeController>(c);
   }
 
@@ -249,8 +253,10 @@ class SaleHarness {
     bool loading = false,
     Widget? home,
     double taxRate = 0,
+    PosPaymentsRepository? payments,
+    PendingQrStore? qrStore,
   }) async {
-    putController(manager: manager, loading: loading, taxRate: taxRate);
+    putController(manager: manager, loading: loading, taxRate: taxRate, payments: payments, qrStore: qrStore);
     t.view.physicalSize = size;
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);

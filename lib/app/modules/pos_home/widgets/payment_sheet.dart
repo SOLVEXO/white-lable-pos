@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/cart_removal_undo.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/cash_suggestions.dart';
+import 'package:solvexo_pos/app/modules/pos_home/utils/qr_availability.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/cash_keypad.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/sale_success_view.dart';
 import 'package:solvexo_pos/core/design/design.dart';
@@ -22,7 +23,12 @@ class PaymentSheet extends StatelessWidget {
 
   static Future<void> open(PosHomeController c) => AppBottomSheet.showGet<void>(PaymentSheet(c: c), isDismissible: false, enableDrag: false, scrollable: false, maxWidth: 780);
 
-  static const _icons = {PosPaymentMethod.cash: Icons.payments_outlined, PosPaymentMethod.card: Icons.credit_card_rounded, PosPaymentMethod.other: Icons.account_balance_outlined};
+  static const _icons = {
+    PosPaymentMethod.cash: Icons.payments_outlined,
+    PosPaymentMethod.card: Icons.credit_card_rounded,
+    PosPaymentMethod.other: Icons.account_balance_outlined,
+    PosPaymentMethod.raastQr: Icons.qr_code_2_rounded,
+  };
 
   Future<void> _charge() async {
     CartRemovalUndo.of(c).invalidate();
@@ -64,7 +70,7 @@ class PaymentSheet extends StatelessWidget {
             );
             final right = split
                 ? _SplitPanel(c: c, busy: busy)
-                : (method == PosPaymentMethod.cash ? _CashEntry(c: c, busy: busy) : _ReferenceField(c: c, method: method));
+                : (method == PosPaymentMethod.cash ? _CashEntry(c: c, busy: busy) : (method == PosPaymentMethod.raastQr ? _QrHint(c: c) : _ReferenceField(c: c, method: method)));
             final charge = _ChargeButton(c: c, busy: busy, onCharge: _charge);
             // The Charge button is pinned below the scrolling body so it is always reachable, whatever the screen height.
             Widget pinned(Widget body) => Column(
@@ -128,29 +134,88 @@ class _MethodTiles extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    return Row(
-      children: [
-        for (final m in c.paymentMethods) ...[
-          if (m != c.paymentMethods.first) const SizedBox(width: Space.s2),
-          Expanded(
-            child: AppCard(
-              key: Key('method-$m'),
-              color: m == selected ? p.accentSoft : p.surface,
-              radius: Radii.rMd,
-              padding: const EdgeInsets.symmetric(vertical: Space.s3, horizontal: Space.s2),
-              semanticLabel: '${PosPaymentMethod.label(m)}${m == selected ? ', selected' : ''}',
-              onTap: busy ? null : () => c.selectPayment(m),
-              child: Column(
+    return Obx(() {
+      final qr = c.qrAvailability; // reads the store flag, the network and the role: all observable
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              for (final m in PosPaymentMethod.tiles) ...[
+                if (m != PosPaymentMethod.tiles.first) const SizedBox(width: Space.s2),
+                Expanded(child: _tile(context, p, m, enabled: m != PosPaymentMethod.raastQr || qr.isAvailable)),
+              ],
+            ],
+          ),
+          if (!qr.isAvailable)
+            Padding(
+              padding: const EdgeInsets.only(top: Space.s2),
+              child: Row(
+                key: const Key('qrUnavailableNote'),
                 children: [
-                  Icon(PaymentSheet._icons[m] ?? Icons.payments_outlined, color: m == selected ? p.accentFg : p.textSecondary),
-                  const SizedBox(height: Space.s1),
-                  Text(PosPaymentMethod.label(m), maxLines: 1, overflow: TextOverflow.ellipsis, style: context.type.label.copyWith(color: m == selected ? p.accentFg : p.textPrimary)),
+                  Icon(qr.availability == QrAvailability.needsInternet ? Icons.cloud_off_rounded : Icons.lock_outline_rounded, size: 16, color: p.textMuted),
+                  const SizedBox(width: Space.s2),
+                  Expanded(child: Text('Raast QR: ${qr.message}', style: context.type.caption.copyWith(color: p.textSecondary))),
                 ],
               ),
             ),
-          ),
         ],
-      ],
+      );
+    });
+  }
+
+  Widget _tile(BuildContext context, AppPalette p, String m, {required bool enabled}) {
+    final on = m == selected;
+    final off = busy || !enabled;
+    return Opacity(
+      opacity: enabled ? 1 : 0.5,
+      child: AppCard(
+        key: Key('method-$m'),
+        color: on ? p.accentSoft : p.surface,
+        radius: Radii.rMd,
+        padding: const EdgeInsets.symmetric(vertical: Space.s3, horizontal: Space.s1),
+        semanticLabel: '${PosPaymentMethod.label(m)}${on ? ', selected' : ''}${enabled ? '' : ', unavailable'}',
+        onTap: off ? null : () => c.selectPayment(m),
+        child: Column(
+          children: [
+            Icon(PaymentSheet._icons[m] ?? Icons.payments_outlined, color: on ? p.accentFg : p.textSecondary),
+            const SizedBox(height: Space.s1),
+            FittedBox(fit: BoxFit.scaleDown, child: Text(PosPaymentMethod.label(m), maxLines: 1, style: context.type.label.copyWith(color: on ? p.accentFg : p.textPrimary))), // four tiles: shrink a long label rather than cut it
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// What the cashier sees instead of the reference field when Raast QR is the method.
+class _QrHint extends StatelessWidget {
+  const _QrHint({required this.c});
+  final PosHomeController c;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.s2),
+      child: AppCard(
+        key: const Key('qrHint'),
+        color: p.infoSoft,
+        radius: Radii.rMd,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.qr_code_2_rounded, color: p.infoFg),
+            const SizedBox(width: Space.s3),
+            Expanded(
+              child: Text(
+                'A QR code is shown for the customer to scan with their bank app. The sale is completed only after the payment is confirmed.',
+                style: context.type.bodySmall.copyWith(color: p.textPrimary),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -351,8 +416,8 @@ class _SplitLineCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                for (final m in c.paymentMethods) ...[
-                  if (m != c.paymentMethods.first) const SizedBox(width: Space.s2),
+                for (final m in c.splitChoicesFor(index)) ...[
+                  if (m != c.splitChoicesFor(index).first) const SizedBox(width: Space.s2),
                   Expanded(
                     child: _MiniChoice(
                       key: Key('split-$index-$m'),
@@ -393,7 +458,7 @@ class _SplitLineCard extends StatelessWidget {
                 child: Text('Fill rest', style: context.type.label.copyWith(color: p.accentFg)),
               ),
             ),
-            if (method != PosPaymentMethod.cash) ...[
+            if (method != PosPaymentMethod.cash && method != PosPaymentMethod.raastQr) ...[
               const SizedBox(height: Space.s2),
               AppTextField(key: Key('splitRef-$index'), label: 'Reference (optional)', controller: line.reference, prefixIcon: Icons.tag_rounded),
             ],
@@ -441,6 +506,7 @@ class _ChargeButton extends StatelessWidget {
     if (!c.hasItems) return 'Add items';
     if (c.isDiscountInvalid) return 'Discount too large';
     if (c.isCashUnderTendered) return c.isSplitPayment.value ? 'Payments short' : 'Enter full amount';
+    if (c.hasQrLine) return 'Show QR · ${Money.format(c.total)}';
     return 'Charge ${Money.format(c.total)}';
   }
 
