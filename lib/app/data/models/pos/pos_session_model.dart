@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money_json.dart';
 class PosCashAdjustment {
   final String type; // "cash_in" | "cash_out"
   final double amount;
@@ -13,10 +14,10 @@ class PosCashAdjustment {
     required this.createdAt,
   });
 
-  factory PosCashAdjustment.fromJson(Map<String, dynamic> json) =>
+  factory PosCashAdjustment.fromJson(Map<String, dynamic> json, {int? exp}) =>
       PosCashAdjustment(
         type: json['type'] as String? ?? '',
-        amount: (json['amount'] as num?)?.toDouble() ?? 0,
+        amount: MoneyJson.read(json, 'amount', exp: exp),
         reason: json['reason'] as String? ?? '',
         employeeId: json['employeeId'] as String? ?? '',
         createdAt: json['createdAt'] != null
@@ -82,8 +83,9 @@ class PosSessionModel {
   bool get isOpen => status == 'open';
   bool get isForceClosed => forceClosedBy != null;
 
-  factory PosSessionModel.fromJson(Map<String, dynamic> json) =>
-      PosSessionModel(
+  factory PosSessionModel.fromJson(Map<String, dynamic> json) {
+    final exp = (json['currencyExponent'] as num?)?.toInt() ?? 2;
+    return PosSessionModel(
         id: json['_id'] as String? ?? '',
         storeId: json['storeId'] as String? ?? '',
         registerId: json['registerId'] as String? ?? '',
@@ -95,20 +97,20 @@ class PosSessionModel {
         closedAt: json['closedAt'] != null
             ? DateTime.tryParse(json['closedAt'] as String)
             : null,
-        openingCash: (json['openingCash'] as num?)?.toDouble() ?? 0,
-        closingCash: (json['closingCash'] as num?)?.toDouble(),
-        expectedCash: (json['expectedCash'] as num?)?.toDouble() ?? 0,
-        cashDifference: (json['cashDifference'] as num?)?.toDouble() ?? 0,
-        cashSales: (json['cashSales'] as num?)?.toDouble() ?? 0,
-        cardSales: (json['cardSales'] as num?)?.toDouble() ?? 0,
-        otherSales: (json['otherSales'] as num?)?.toDouble() ?? 0,
-        totalSales: (json['totalSales'] as num?)?.toDouble() ?? 0,
+        openingCash: MoneyJson.read(json, 'openingCash', exp: exp),
+        closingCash: MoneyJson.readNullable(json, 'closingCash', exp: exp),
+        expectedCash: MoneyJson.read(json, 'expectedCash', exp: exp),
+        cashDifference: MoneyJson.read(json, 'cashDifference', exp: exp),
+        cashSales: MoneyJson.read(json, 'cashSales', exp: exp),
+        cardSales: MoneyJson.read(json, 'cardSales', exp: exp),
+        otherSales: MoneyJson.read(json, 'otherSales', exp: exp),
+        totalSales: MoneyJson.read(json, 'totalSales', exp: exp),
         totalTransactions: json['totalTransactions'] as int? ?? 0,
-        totalRefunds: (json['totalRefunds'] as num?)?.toDouble() ?? 0,
+        totalRefunds: MoneyJson.read(json, 'totalRefunds', exp: exp),
         status: json['status'] as String? ?? '',
         cashAdjustments: (json['cashAdjustments'] as List<dynamic>?)
                 ?.map((e) =>
-                    PosCashAdjustment.fromJson(e as Map<String, dynamic>))
+                    PosCashAdjustment.fromJson(e as Map<String, dynamic>, exp: exp))
                 .toList() ??
             [],
         forceClosedBy: json['forceClosedBy'] as String?,
@@ -117,6 +119,7 @@ class PosSessionModel {
             ? DateTime.tryParse(json['forceCloseAt'] as String)
             : null,
         currency: (json['currency'] as String?)?.toUpperCase() ?? 'USD',
-        currencyExponent: (json['currencyExponent'] as num?)?.toInt() ?? 2,
-      );
+        currencyExponent: exp,
+    );
+  }
 }

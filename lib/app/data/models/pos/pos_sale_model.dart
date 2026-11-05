@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money_json.dart';
 class PosSaleItemModel {
   /// Sale-item subdocument id — required to target a specific line for a
   /// partial refund (POST /pos/sales/:saleId/refund { items: [{saleItemId}] }).
@@ -28,7 +29,7 @@ class PosSaleItemModel {
   int get refundableQty => qty - refundedQty;
   bool get isFullyRefunded => refundedQty >= qty;
 
-  factory PosSaleItemModel.fromJson(Map<String, dynamic> json) =>
+  factory PosSaleItemModel.fromJson(Map<String, dynamic> json, {int? exp}) =>
       PosSaleItemModel(
         saleItemId: json['_id'] as String?,
         productId: json['productId'] as String? ?? '',
@@ -39,8 +40,8 @@ class PosSaleItemModel {
         sku: json['sku'] as String?,
         image: json['image'] as String?,
         qty: json['qty'] as int? ?? 1,
-        price: (json['price'] as num?)?.toDouble() ?? 0,
-        lineTotal: (json['lineTotal'] as num?)?.toDouble() ?? 0,
+        price: MoneyJson.read(json, 'price', exp: exp),
+        lineTotal: MoneyJson.read(json, 'lineTotal', exp: exp),
         refundedQty: json['refundedQty'] as int? ?? 0,
       );
 }
@@ -55,10 +56,10 @@ class PosPaymentLine {
 
   const PosPaymentLine({required this.method, required this.amount, this.tendered, this.reference});
 
-  factory PosPaymentLine.fromJson(Map<String, dynamic> json) => PosPaymentLine(
+  factory PosPaymentLine.fromJson(Map<String, dynamic> json, {int? exp}) => PosPaymentLine(
         method: json['method'] as String? ?? 'other',
-        amount: (json['amount'] as num?)?.toDouble() ?? 0,
-        tendered: (json['tendered'] as num?)?.toDouble(),
+        amount: MoneyJson.read(json, 'amount', exp: exp),
+        tendered: MoneyJson.readNullable(json, 'tendered', exp: exp),
         reference: json['reference'] as String?,
       );
 }
@@ -96,10 +97,10 @@ class PosRefundRecord {
 
   const PosRefundRecord({required this.amount, required this.kind, this.tenders = const [], this.createdAt});
 
-  factory PosRefundRecord.fromJson(Map<String, dynamic> json) => PosRefundRecord(
-        amount: (json['amount'] as num?)?.toDouble() ?? 0,
+  factory PosRefundRecord.fromJson(Map<String, dynamic> json, {int? exp}) => PosRefundRecord(
+        amount: MoneyJson.read(json, 'amount', exp: exp),
         kind: json['kind'] as String? ?? 'partial',
-        tenders: (json['tenders'] as List<dynamic>?)?.map((e) => PosPaymentLine.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
+        tenders: (json['tenders'] as List<dynamic>?)?.map((e) => PosPaymentLine.fromJson(e as Map<String, dynamic>, exp: exp ?? (json['currencyExponent'] as num?)?.toInt())).toList() ?? const [],
         createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
       );
 }
@@ -204,7 +205,9 @@ class PosSaleModel {
   bool get canDiscard => status == 'held';
   bool get canComplete => status == 'held';
 
-  factory PosSaleModel.fromJson(Map<String, dynamic> json) => PosSaleModel(
+  factory PosSaleModel.fromJson(Map<String, dynamic> json) {
+    final exp = (json['currencyExponent'] as num?)?.toInt() ?? 2;
+    return PosSaleModel(
         id: json['_id'] as String? ?? '',
         saleNumber: json['saleNumber'] as String? ?? '',
         storeId: json['storeId'] as String? ?? '',
@@ -213,13 +216,13 @@ class PosSaleModel {
         employeeId: json['employeeId'] as String? ?? '',
         items: (json['items'] as List<dynamic>?)
                 ?.map((e) =>
-                    PosSaleItemModel.fromJson(e as Map<String, dynamic>))
+                    PosSaleItemModel.fromJson(e as Map<String, dynamic>, exp: exp))
                 .toList() ??
             [],
-        discount: (json['discount'] as num?)?.toDouble() ?? 0,
-        tax: (json['tax'] as num?)?.toDouble() ?? 0,
-        subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
-        total: (json['total'] as num?)?.toDouble() ?? 0,
+        discount: MoneyJson.read(json, 'discount', exp: exp),
+        tax: MoneyJson.read(json, 'tax', exp: exp),
+        subtotal: MoneyJson.read(json, 'subtotal', exp: exp),
+        total: MoneyJson.read(json, 'total', exp: exp),
         paymentMethod: json['paymentMethod'] as String? ?? '',
         customerName: json['customerName'] as String? ?? 'Walk-in',
         customerId: json['customerId'] as String?,
@@ -232,21 +235,22 @@ class PosSaleModel {
             ? DateTime.tryParse(json['voidedAt'] as String)
             : null,
         voidedBy: json['voidedBy'] as String?,
-        refundedAmount: (json['refundedAmount'] as num?)?.toDouble() ?? 0,
+        refundedAmount: MoneyJson.read(json, 'refundedAmount', exp: exp),
         createdAt: json['createdAt'] != null
             ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
             : DateTime.now(),
         currency: (json['currency'] as String?)?.toUpperCase() ?? 'USD',
         currencyExponent: (json['currencyExponent'] as num?)?.toInt() ?? 2,
-        payments: (json['payments'] as List<dynamic>?)?.map((e) => PosPaymentLine.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
-        changeGiven: (json['changeGiven'] as num?)?.toDouble() ?? 0,
+        payments: (json['payments'] as List<dynamic>?)?.map((e) => PosPaymentLine.fromJson(e as Map<String, dynamic>, exp: exp)).toList() ?? const [],
+        changeGiven: MoneyJson.read(json, 'changeGiven', exp: exp),
         employeeName: json['employeeName'] as String?,
         discountType: json['discountType'] as String?,
-        discountValue: (json['discountValue'] as num?)?.toDouble(),
+        discountValue: json['discountType'] == 'amount' ? MoneyJson.readNullable(json, 'discountValue', exp: exp) : (json['discountValue'] as num?)?.toDouble(),
         taxRate: (json['taxRate'] as num?)?.toDouble(),
-        refunds: (json['refunds'] as List<dynamic>?)?.map((e) => PosRefundRecord.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
+        refunds: (json['refunds'] as List<dynamic>?)?.map((e) => PosRefundRecord.fromJson(e as Map<String, dynamic>, exp: exp)).toList() ?? const [],
         needsReview: json['needsReview'] as bool? ?? false,
         flags: (json['flags'] as List<dynamic>?)?.map((e) => PosSaleFlag.fromJson((e as Map).cast<String, dynamic>())).toList() ?? const [],
         isOffline: json['isOffline'] as bool? ?? false,
-      );
+    );
+  }
 }

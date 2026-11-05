@@ -20,6 +20,8 @@ import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/utils/toast_util.dart';
 import 'package:dio/dio.dart';
+import 'package:solvexo_pos/app/data/repositories/sale_payload_minor.dart';
+import 'package:solvexo_pos/utils/money_json.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Response, FormData, MultipartFile;
 
@@ -886,11 +888,14 @@ class PosRepository {
     final fp = IdempotencyIntentStore.fingerprint('createSale', {...payload}..remove('clientCreatedAt'));
     final key = idempotencyKey ?? await _intents.keyFor(fp);
     payload['idempotencyKey'] = key;
+    // G1b: the integer minor-unit twins ride next to the decimals (added AFTER the fingerprint, so a checkout intent started by an
+    // older build keeps its key). The queued copy below is built from this payload, so a later replay carries them too.
+    final minorPayload = withMinorTwins(payload);
     var settled = false;
     try {
       final res = await _client.post(
         ApiConstants.posSales,
-        data: payload,
+        data: minorPayload,
         requiresAuth: true,
         headers: await _writeHeaders(key),
       );
@@ -914,7 +919,7 @@ class PosRepository {
         // `offline: true` tells the server this is a replay: it keeps `clientCreatedAt` as the sale's time, checks the
         // plan at THAT time, applies the offline stock rule and validates the offline window. The employee's token is
         // kept only when a discount needs a manager's authority — the server checks it was valid when the sale was made.
-        final queued = {...payload, 'offline': true};
+        final queued = {...minorPayload, 'offline': true};
         final needsToken = (payload['discountValue'] as num? ?? 0) > 0;
         await sync.enqueue(key, queued, employeeToken: needsToken ? await AppPreferences.getPosEmployeeToken() : null);
         await _intents.release(fp); // the queue owns the key now
@@ -1575,11 +1580,13 @@ class PosQuote {
     this.unitPrices = const {},
   });
 
-  factory PosQuote.fromJson(Map<String, dynamic> j) => PosQuote(
-        subtotal: (j['subtotal'] as num?)?.toDouble() ?? 0,
-        discount: (j['discount'] as num?)?.toDouble() ?? 0,
-        tax: (j['tax'] as num?)?.toDouble() ?? 0,
-        total: (j['total'] as num?)?.toDouble() ?? 0,
+  factory PosQuote.fromJson(Map<String, dynamic> j) {
+    final exp = (j['currencyExponent'] as num?)?.toInt() ?? 2;
+    return PosQuote(
+        subtotal: MoneyJson.read(j, 'subtotal', exp: exp),
+        discount: MoneyJson.read(j, 'discount', exp: exp),
+        tax: MoneyJson.read(j, 'tax', exp: exp),
+        total: MoneyJson.read(j, 'total', exp: exp),
         taxRate: (j['taxRate'] as num?)?.toDouble() ?? 0,
         currency: (j['currency'] as String?)?.toUpperCase() ?? 'USD',
         currencyExponent: (j['currencyExponent'] as num?)?.toInt() ?? 2,
@@ -1587,7 +1594,8 @@ class PosQuote {
         settingsVersionReplaced: j['settingsVersionReplaced'] as bool? ?? false,
         unitPrices: {
           for (final l in (j['lines'] as List? ?? []))
-            if ((l as Map)['variantId'] != null) l['variantId'] as String: (l['price'] as num?)?.toDouble() ?? 0,
+            if ((l as Map)['variantId'] != null) l['variantId'] as String: MoneyJson.read(l, 'price', exp: exp),
         },
       );
+  }
 }

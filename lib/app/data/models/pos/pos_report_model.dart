@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money_json.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
@@ -125,13 +126,13 @@ class PosDailyReportModel {
     return PosDailyReportModel(
       date: data['date'] as String? ?? '',
       totalTransactions: summary['totalTransactions'] as int? ?? 0,
-      totalRevenue: (summary['totalRevenue'] as num?)?.toDouble() ?? 0,
-      totalDiscount: (summary['totalDiscount'] as num?)?.toDouble() ?? 0,
-      totalTax: (summary['totalTax'] as num?)?.toDouble() ?? 0,
-      netRevenue: (summary['netRevenue'] as num?)?.toDouble() ?? 0,
-      avgTransactionValue: (summary['avgTransactionValue'] as num?)?.toDouble() ?? 0,
+      totalRevenue: MoneyJson.read(summary, 'totalRevenue'),
+      totalDiscount: MoneyJson.read(summary, 'totalDiscount'),
+      totalTax: MoneyJson.read(summary, 'totalTax'),
+      netRevenue: MoneyJson.read(summary, 'netRevenue'),
+      avgTransactionValue: MoneyJson.read(summary, 'avgTransactionValue'),
       refundsCount: summary['refundsCount'] as int? ?? 0,
-      refundsTotal: (summary['refundsTotal'] as num?)?.toDouble() ?? 0,
+      refundsTotal: MoneyJson.read(summary, 'refundsTotal'),
       byPaymentMethod: PosPaymentBreakdown.fromJson(data['byPaymentMethod'] as Map<String, dynamic>?),
       topProducts: (data['topProducts'] as List<dynamic>?)
               ?.map((e) => PosTopProduct.fromJson(e as Map<String, dynamic>))
@@ -170,13 +171,13 @@ class PosSessionCashFlow {
 
   factory PosSessionCashFlow.fromJson(Map<String, dynamic>? json) =>
       PosSessionCashFlow(
-        openingCash: (json?['openingCash'] as num?)?.toDouble() ?? 0,
-        cashSales: (json?['cashSales'] as num?)?.toDouble() ?? 0,
-        cashIn: (json?['cashIn'] as num?)?.toDouble() ?? 0,
-        cashOut: (json?['cashOut'] as num?)?.toDouble() ?? 0,
-        expectedCash: (json?['expectedCash'] as num?)?.toDouble() ?? 0,
-        closingCash: (json?['closingCash'] as num?)?.toDouble(),
-        cashDifference: (json?['cashDifference'] as num?)?.toDouble(),
+        openingCash: MoneyJson.read(json, 'openingCash'),
+        cashSales: MoneyJson.read(json, 'cashSales'),
+        cashIn: MoneyJson.read(json, 'cashIn'),
+        cashOut: MoneyJson.read(json, 'cashOut'),
+        expectedCash: MoneyJson.read(json, 'expectedCash'),
+        closingCash: MoneyJson.readNullable(json, 'closingCash'),
+        cashDifference: MoneyJson.readNullable(json, 'cashDifference'),
       );
 }
 
@@ -213,11 +214,11 @@ class PosSessionReportModel {
     return PosSessionReportModel(
       session: PosSessionModel.fromJson(data['session'] as Map<String, dynamic>? ?? {}),
       totalTransactions: summary['totalTransactions'] as int? ?? 0,
-      totalSales: (summary['totalSales'] as num?)?.toDouble() ?? 0,
+      totalSales: MoneyJson.read(summary, 'totalSales'),
       completedSales: summary['completedSales'] as int? ?? 0,
       heldSales: summary['heldSales'] as int? ?? 0,
       refundsCount: summary['refundsCount'] as int? ?? 0,
-      refundsTotal: (summary['refundsTotal'] as num?)?.toDouble() ?? 0,
+      refundsTotal: MoneyJson.read(summary, 'refundsTotal'),
       byPaymentMethod: PosPaymentBreakdown.fromJson(summary['byPaymentMethod'] as Map<String, dynamic>?),
       cashFlow: PosSessionCashFlow.fromJson(summary['cashFlow'] as Map<String, dynamic>?),
     );
@@ -262,13 +263,13 @@ class PosRangeReportModel {
       from: data['from'] as String? ?? '',
       to: data['to'] as String? ?? '',
       totalTransactions: summary['totalTransactions'] as int? ?? 0,
-      totalRevenue: (summary['totalRevenue'] as num?)?.toDouble() ?? 0,
-      totalDiscount: (summary['totalDiscount'] as num?)?.toDouble() ?? 0,
-      totalTax: (summary['totalTax'] as num?)?.toDouble() ?? 0,
-      netRevenue: (summary['netRevenue'] as num?)?.toDouble() ?? 0,
-      avgTransactionValue: (summary['avgTransactionValue'] as num?)?.toDouble() ?? 0,
+      totalRevenue: MoneyJson.read(summary, 'totalRevenue'),
+      totalDiscount: MoneyJson.read(summary, 'totalDiscount'),
+      totalTax: MoneyJson.read(summary, 'totalTax'),
+      netRevenue: MoneyJson.read(summary, 'netRevenue'),
+      avgTransactionValue: MoneyJson.read(summary, 'avgTransactionValue'),
       refundsCount: summary['refundsCount'] as int? ?? 0,
-      refundsTotal: (summary['refundsTotal'] as num?)?.toDouble() ?? 0,
+      refundsTotal: MoneyJson.read(summary, 'refundsTotal'),
       byPaymentMethod: PosPaymentBreakdown.fromJson(data['byPaymentMethod'] as Map<String, dynamic>?),
       topProducts: (data['topProducts'] as List<dynamic>?)
               ?.map((e) => PosTopProduct.fromJson(e as Map<String, dynamic>))
@@ -344,7 +345,7 @@ class PosRegisterReportModel {
       to: period?['to'] as String?,
       totalSessions: summary['totalSessions'] as int? ?? 0,
       totalTransactions: summary['totalTransactions'] as int? ?? 0,
-      totalRevenue: (summary['totalRevenue'] as num?)?.toDouble() ?? 0,
+      totalRevenue: MoneyJson.read(summary, 'totalRevenue'),
       avgPerSession: (summary['avgPerSession'] as num?)?.toDouble() ?? 0,
       sessions: (data['sessions'] as List<dynamic>?)
               ?.map((e) => PosRegisterSessionSummary.fromJson(e as Map<String, dynamic>))
@@ -409,8 +410,8 @@ class PosEmployeeReportModel {
       from: period?['from'] as String?,
       to: period?['to'] as String?,
       totalTransactions: summary['totalTransactions'] as int? ?? 0,
-      totalRevenue: (summary['totalRevenue'] as num?)?.toDouble() ?? 0,
-      avgTransactionValue: (summary['avgTransactionValue'] as num?)?.toDouble() ?? 0,
+      totalRevenue: MoneyJson.read(summary, 'totalRevenue'),
+      avgTransactionValue: MoneyJson.read(summary, 'avgTransactionValue'),
       totalSessions: summary['totalSessions'] as int? ?? 0,
       recentSales: (data['recentSales'] as List<dynamic>?)
               ?.map((e) => PosEmployeeRecentSale.fromJson(e as Map<String, dynamic>))
