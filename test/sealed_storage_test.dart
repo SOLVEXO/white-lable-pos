@@ -2,6 +2,7 @@
 // AES-256-GCM key. Migration of older plaintext, lost key, tampering — none of them may crash or lose a QUEUED sale — plus the
 // one-time move of the existing key to the first-unlock / this-device keychain class.
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/services.dart';
@@ -153,7 +154,8 @@ void main() {
     });
   });
 
-  group('the queue key: first-unlock / this-device keychain class migration', () {
+  // The keychain accessibility class is an Apple (iOS / macOS) option: on Linux CI the plugin sends no such option, so there is nothing to assert.
+  group('the queue key: first-unlock / this-device keychain class migration', skip: (Platform.isIOS || Platform.isMacOS) ? null : 'Apple keychain options only', () {
     late Map<String, String> mem;
     late List<String> log;
     void mockStorage() {
