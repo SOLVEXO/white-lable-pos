@@ -102,7 +102,7 @@ Test on a throw-away database on the dev mongod:
 
 **d) API:** `...Minor` fields **alongside** the existing ones in responses (sales list/detail, session report, daily/range/register/employee reports, refund and close results, quote). Requests accept optional `...Minor` twins. Old builds ignore the new fields.
 
-**e) App:** models read `xMinor` when present, else `round(x × 10^exp)`. **New offline sales include the minor fields**; queued payloads already in the field (major only) stay valid. The server recomputes everything; client values are a cross-check — if a payload carries both and they disagree, `400 MONEY_FIELD_MISMATCH` (definite rejection → Needs attention, never silently "fixed").
+**e) App:** models read `xMinor` when present, else `round(x × 10^exp)`. **New offline sales include the minor fields**; queued payloads already in the field (major only) stay valid. The server recomputes everything; client values are a cross-check — if a payload carries both and they disagree, the sale is **accepted at the server's values** and the mismatch is recorded (log + `money_minor_mismatch` audit event + metric) — never a rejection (owner decision, G1b approval).
 
 **f) Flip reads to minor:** **only after your approval**, after a **burn-in with zero checker mismatches** (proposal: ≥ 14 days and the nightly sweep clean), behind a flag (`POS_MINOR_READS`) that can be switched back instantly. Major keeps being written until a later clean-up phase.
 

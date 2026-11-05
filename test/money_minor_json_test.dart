@@ -783,7 +783,7 @@ void main() {
     });
 
     test(
-      'a definite rejection of a minor/decimal disagreement (400 MONEY_FIELD_MISMATCH) is KEPT as failed for a manager, never dropped',
+      'a definite 400 rejection from the server (the server no longer rejects minor/decimal disagreements; any other 400) is KEPT as failed for a manager, never dropped',
       () async {
         final p = withMinorTwins({
           'idempotencyKey': 'bad-1',
@@ -809,13 +809,13 @@ void main() {
             connectivityError: false,
             retryable: false,
             message: 'Amounts disagree',
-            code: 'MONEY_FIELD_MISMATCH',
+            code: 'SOME_FINAL_REJECTION',
           ),
         );
         await svc.syncNow();
         final row = (await store.getById('bad-1'))!;
         expect(row.status, 'failed');
-        expect(row.errorCode, 'MONEY_FIELD_MISMATCH');
+        expect(row.errorCode, 'SOME_FINAL_REJECTION');
         expect(svc.unresolvedCount.value, 1);
       },
     );
