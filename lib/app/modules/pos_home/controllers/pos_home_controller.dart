@@ -24,6 +24,7 @@ import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/modules/category/models/category_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/hid_scan_detector.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/manager_approval_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_customer_picker_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_variant_picker_sheet.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
@@ -48,10 +49,36 @@ class CartItem {
   final PosProductVariant? variant;
   final RxInt quantity;
 
-  CartItem({required this.product, this.variant, int qty = 1})
+  /// G2.4 custom item: `standard` = the store tax rate, `exempt` = no tax on this line (only meaningful for custom items).
+  final String taxCategory;
+  final String customNote;
+
+  CartItem({required this.product, this.variant, int qty = 1, this.taxCategory = 'standard', this.customNote = ''})
     : quantity = qty.obs;
 
-  double get unitPrice => variant?.price ?? product.price;
+  /// A line with no catalogue product (a service, a one-off, a price the shelf doesn't have). Never touches stock; the server
+  /// prices and audits it, and asks for a manager above the store's limit. The product shell here only carries the name.
+  factory CartItem.custom({required String id, required String name, required double price, int qty = 1, String taxCategory = 'standard', String note = ''}) {
+    return CartItem(
+      product: PosProductModel(
+        productId: '$kCustomPrefix$id',
+        name: name,
+        type: 'custom',
+        categoryId: '',
+        variants: [PosProductVariant(variantId: 'custom', sku: 'CUSTOM', price: price, stock: 0, unlimitedStock: true, isDefault: true)],
+      ),
+      variant: null,
+      qty: qty,
+      taxCategory: taxCategory,
+      customNote: note,
+    );
+  }
+
+  static const kCustomPrefix = 'custom:';
+  bool get isCustom => product.productId.startsWith(kCustomPrefix);
+  bool get isTaxable => !isCustom || taxCategory != 'exempt';
+
+  double get unitPrice => variant?.price ?? product.price; // a custom item's price is its shell product's only variant
   double get lineTotal => unitPrice * quantity.value;
 
   /// The key used to deduplicate in the cart.
@@ -162,6 +189,18 @@ class PosHomeController extends GetxController {
   /// [SaleOutcome.queuedOffline] (null if it could not be built — the sale itself is safe in the queue either way).
   final Rxn<ReceiptData> lastReceipt = Rxn<ReceiptData>();
   final RxBool isScanningBarcode = false.obs;
+
+  // ── G2.4: coupon + custom items ───────────────────────────────────────────
+  /// The coupon the server accepted for this cart (null = none). Coupons are online-only: applying one is a live check, and
+  /// the sale that uses it is never queued. Mutually exclusive with a manual discount (the server refuses both together).
+  final Rxn<PosAppliedCoupon> appliedCoupon = Rxn<PosAppliedCoupon>();
+  /// True while a coupon is being checked with the server — the Apply button is disabled (double-submit protection).
+  final RxBool isApplyingCoupon = false.obs;
+  /// True while a custom item is being added (the manager approval step is asynchronous) — double-submit protection.
+  final RxBool isAddingCustomItem = false.obs;
+  /// The last manager who approved a custom item on this sale (kept in memory only; the server re-checks it on every charge).
+  String? _approverToken;
+  bool get hasCustomItems => cartItems.any((i) => i.isCustom);
   /// See PosRole.isCurrentEmployeeManager's doc comment — gates the
   /// discount field to match the backend's real, token-verified check.
   final RxBool isManager = false.obs;
@@ -248,10 +287,10 @@ class PosHomeController extends GetxController {
 
   /// Cart pricing exactly as the server will compute it (see PosTotals). Display only — the server decides.
   PosTotals get totals => PosTotals.compute(
-        [for (final i in cartItems) (price: i.unitPrice, qty: i.quantity.value)],
+        [for (final i in cartItems) (price: i.unitPrice, qty: i.quantity.value, taxable: i.isTaxable)],
         exponent: Money.exponent,
-        percentDiscount: isPercentDiscount.value,
-        discountInput: _rawDiscountInput,
+        percentDiscount: appliedCoupon.value != null ? appliedCoupon.value!.discountType == 'percentage' : isPercentDiscount.value,
+        discountInput: appliedCoupon.value != null ? appliedCoupon.value!.discountValue : _rawDiscountInput,
         taxRate: taxRate,
       );
 
@@ -676,6 +715,7 @@ class PosHomeController extends GetxController {
     ever(selectedPayment, (_) => _onCartEdited());
     ever(isPercentDiscount, (_) => _onCartEdited());
     ever(isSplitPayment, (_) => _onCartEdited());
+    ever(appliedCoupon, (_) => _onCartEdited());
   }
 
   /// Any edit to the cart or payment entry makes it a different sale: drop the in-flight key (reusing it would make
@@ -697,7 +737,8 @@ class PosHomeController extends GetxController {
   CartSnapshot _snapshot() => CartSnapshot(
         storeId: storeId.value,
         sessionId: sessionId.value,
-        lines: [for (final i in cartItems) CartLineSnapshot(product: i.product.toJson(), variantId: i.variant?.variantId, qty: i.quantity.value)],
+        lines: [for (final i in cartItems) CartLineSnapshot(product: i.product.toJson(), variantId: i.variant?.variantId, qty: i.quantity.value, taxCategory: i.isCustom ? i.taxCategory : null, note: i.isCustom ? i.customNote : null)],
+        coupon: appliedCoupon.value?.toJson(),
         discountText: discountController.text,
         percentDiscount: isPercentDiscount.value,
         customerName: customerController.text,
@@ -732,8 +773,9 @@ class PosHomeController extends GetxController {
       for (final l in snap.lines) {
         final product = PosProductModel.fromJson(l.product);
         final variant = l.variantId == null ? null : product.variantById(l.variantId);
-        cartItems.add(CartItem(product: product, variant: variant, qty: l.qty));
+        cartItems.add(CartItem(product: product, variant: variant, qty: l.qty, taxCategory: l.taxCategory ?? 'standard', customNote: l.note ?? ''));
       }
+      if (snap.coupon != null) appliedCoupon.value = PosAppliedCoupon.fromJson(snap.coupon!);
       discountController.text = snap.discountText;
       isPercentDiscount.value = snap.percentDiscount;
       customerController.text = snap.customerName;
@@ -773,6 +815,8 @@ class PosHomeController extends GetxController {
     _persistTimer?.cancel();
     unawaited(_cartStore.clear());
     cartItems.clear();
+    appliedCoupon.value = null;
+    _approverToken = null;
     noteController.clear();
     customerController.clear();
     selectedCustomer.value = null;
@@ -874,6 +918,10 @@ class PosHomeController extends GetxController {
       CustomAppSnackbar.warning('The discount cannot be more than the subtotal.');
       return;
     }
+    if (appliedCoupon.value != null && _rawDiscountInput > 0) {
+      CustomAppSnackbar.warning('A coupon and a manual discount cannot be combined — remove one of them.');
+      return;
+    }
     var pay = _paymentPayload();
     isChargingOrHolding.value = true;
     try {
@@ -886,13 +934,15 @@ class PosHomeController extends GetxController {
       // Price it on the server first (when reachable) and charge THAT total with the settingsVersion it used.
       var chargeTotal = total;
       var version = settings.value?.settingsVersion;
-      final q = await _posRepo.quoteSale(
-        storeId: storeId.value,
-        items: _buildItems(),
-        discountType: isPercentDiscount.value ? 'percent' : 'amount',
-        discountValue: _rawDiscountInput,
-        settingsVersion: version,
-      );
+      final q = await _quoteCart(version);
+      if (q.code != null && q.code!.startsWith('COUPON_') && appliedCoupon.value != null) {
+        // the coupon is no longer good for this cart (expired, limit reached, below the minimum spend now…): say why, drop it
+        CustomAppSnackbar.error(q.message ?? 'This coupon can no longer be used.');
+        appliedCoupon.value = null;
+        _pendingKey = null;
+        _pendingAt = null;
+        return;
+      }
       if (q.quote != null) {
         version = q.quote!.settingsVersion;
         if (Money.toMinor(q.quote!.total) != Money.toMinor(total)) {
@@ -927,28 +977,19 @@ class PosHomeController extends GetxController {
         pay = _paymentPayload(chargeTotal: chargeTotal);
       }
 
-      final result = await _posRepo.createSale(
-        storeId: storeId.value,
-        sessionId: sessionId.value,
-        registerId: registerId.value,
-        employeeId: employeeId.value,
-        items: _buildItems(),
-        discountType: isPercentDiscount.value ? 'percent' : 'amount',
-        discountValue: _rawDiscountInput,
-        clientTotal: chargeTotal,
-        settingsVersion: version,
-        clientCreatedAt: _pendingAt,
-        idempotencyKey: _pendingKey,
-        paymentMethod: pay.method,
-        payments: pay.payments,
-        amountTendered: pay.amountTendered,
-        paymentReference: pay.reference,
-        customerName: customerController.text.trim().isEmpty
-            ? 'Walk-in'
-            : customerController.text.trim(),
-        customerId: selectedCustomer.value?.id,
-        notes: _buildNotes(),
-        status: 'completed',
+      final result = await _withApproval(
+        (approver) => _sendSale(
+          status: 'completed',
+          clientTotal: chargeTotal,
+          settingsVersion: version,
+          clientCreatedAt: _pendingAt,
+          idempotencyKey: _pendingKey,
+          paymentMethod: pay.method,
+          payments: pay.payments,
+          amountTendered: pay.amountTendered,
+          paymentReference: pay.reference,
+          approver: approver,
+        ),
       );
       if (result.queued) {
         // Receipt for the customer NOW, under the provisional number (the server assigns the real one at sync).
@@ -1081,6 +1122,144 @@ class PosHomeController extends GetxController {
     return ok ?? false;
   }
 
+  // ── G2.4: server calls with coupon / manager approval ─────────────────────
+  // The extra named arguments are only passed when there is something to say, so a sale without a coupon or an approver is
+  // exactly the call it always was.
+  Future<({PosQuote? quote, String? message, String? code})> _quoteCart(int? version) {
+    final coupon = appliedCoupon.value?.code;
+    if (coupon == null) {
+      return _posRepo.quoteSale(
+        storeId: storeId.value,
+        items: _buildItems(),
+        discountType: isPercentDiscount.value ? 'percent' : 'amount',
+        discountValue: _rawDiscountInput,
+        settingsVersion: version,
+      );
+    }
+    return _posRepo.quoteSale(storeId: storeId.value, items: _buildItems(), settingsVersion: version, couponCode: coupon);
+  }
+
+  Future<({bool success, PosSaleModel? sale, String? message, bool queued})> _sendSale({
+    required String status,
+    required double clientTotal,
+    int? settingsVersion,
+    DateTime? clientCreatedAt,
+    String? idempotencyKey,
+    required String paymentMethod,
+    List<Map<String, dynamic>>? payments,
+    double? amountTendered,
+    String? paymentReference,
+    String? approver,
+    bool withCoupon = true,
+  }) {
+    final coupon = withCoupon ? appliedCoupon.value?.code : null;
+    final name = customerController.text.trim().isEmpty ? 'Walk-in' : customerController.text.trim();
+    if (coupon == null && approver == null) {
+      return _posRepo.createSale(
+        storeId: storeId.value,
+        sessionId: sessionId.value,
+        registerId: registerId.value,
+        employeeId: employeeId.value,
+        items: _buildItems(),
+        discountType: isPercentDiscount.value ? 'percent' : 'amount',
+        discountValue: _rawDiscountInput,
+        clientTotal: clientTotal,
+        settingsVersion: settingsVersion,
+        clientCreatedAt: clientCreatedAt,
+        idempotencyKey: idempotencyKey,
+        paymentMethod: paymentMethod,
+        payments: payments,
+        amountTendered: amountTendered,
+        paymentReference: paymentReference,
+        customerName: name,
+        customerId: selectedCustomer.value?.id,
+        notes: _buildNotes(),
+        status: status,
+      );
+    }
+    return _posRepo.createSale(
+      storeId: storeId.value,
+      sessionId: sessionId.value,
+      registerId: registerId.value,
+      employeeId: employeeId.value,
+      items: _buildItems(),
+      discountType: coupon == null ? (isPercentDiscount.value ? 'percent' : 'amount') : null,
+      discountValue: coupon == null ? _rawDiscountInput : null,
+      clientTotal: clientTotal,
+      settingsVersion: settingsVersion,
+      clientCreatedAt: clientCreatedAt,
+      idempotencyKey: idempotencyKey,
+      paymentMethod: paymentMethod,
+      payments: payments,
+      amountTendered: amountTendered,
+      paymentReference: paymentReference,
+      customerName: name,
+      customerId: selectedCustomer.value?.id,
+      notes: _buildNotes(),
+      status: status,
+      couponCode: coupon,
+      approverToken: approver,
+    );
+  }
+
+  /// Sends the sale; when the server says a custom item needs a manager (it alone knows the store's limit), asks for a manager
+  /// PIN once and sends it again with that manager's token. Nothing about the limit is decided on this device.
+  Future<({bool success, PosSaleModel? sale, String? message, bool queued})> _withApproval(
+    Future<({bool success, PosSaleModel? sale, String? message, bool queued})> Function(String? approver) send,
+  ) async {
+    var result = await send(_approverToken);
+    if (!result.success && !result.queued && _posRepo.lastErrorCode == 'CUSTOM_ITEM_NEEDS_MANAGER') {
+      final token = await ManagerApproval.request(reason: 'A manager must approve the custom item on this sale.', repository: _posRepo);
+      if (token == null) return result;
+      _approverToken = token;
+      result = await send(token);
+    }
+    return result;
+  }
+
+  // ── G2.4: custom item ─────────────────────────────────────────────────────
+  /// Adds a custom line. [price] is in the store's currency; the server re-prices, audits it and decides whether a manager must
+  /// approve (at Charge). Guarded against a double tap.
+  bool addCustomItem({required String name, required double price, int qty = 1, String taxCategory = 'standard', String note = ''}) {
+    final n = name.trim();
+    if (n.isEmpty || price <= 0 || qty < 1) return false;
+    if (isAddingCustomItem.value) return false;
+    isAddingCustomItem.value = true;
+    try {
+      cartItems.add(CartItem.custom(id: DateTime.now().microsecondsSinceEpoch.toString(), name: n, price: price, qty: qty, taxCategory: taxCategory, note: note.trim()));
+      cartItems.refresh();
+      return true;
+    } finally {
+      // released on the next frame, so a second tap on the same frame is swallowed
+      Future.microtask(() => isAddingCustomItem.value = false);
+    }
+  }
+
+  // ── G2.4: coupon ──────────────────────────────────────────────────────────
+  /// Checks [code] with the server for this cart (a live check — coupons are online-only). Returns null on success, else the
+  /// message to show. Ignored while a check is already running (double-submit protection).
+  Future<String?> applyCoupon(String code) async {
+    final c = code.trim();
+    if (c.isEmpty) return 'Enter a coupon code';
+    if (isApplyingCoupon.value) return null;
+    if (!hasItems) return 'Add items before applying a coupon';
+    if (_rawDiscountInput > 0) return 'Remove the discount first — a coupon and a discount cannot be combined';
+    if (!_online) return 'Coupons need a connection to check — try again when online, or charge without it';
+    isApplyingCoupon.value = true;
+    try {
+      final q = await _posRepo.quoteSale(storeId: storeId.value, items: _buildItems(), settingsVersion: settings.value?.settingsVersion, couponCode: c);
+      if (q.quote?.coupon != null) {
+        appliedCoupon.value = q.quote!.coupon;
+        return null;
+      }
+      return q.message ?? 'That coupon could not be checked — try again';
+    } finally {
+      isApplyingCoupon.value = false;
+    }
+  }
+
+  void removeCoupon() => appliedCoupon.value = null;
+
   // ── Hold sale ─────────────────────────────────────────────────────────────
   Future<void> holdSale() async {
     if (!hasItems) return;
@@ -1091,23 +1270,16 @@ class PosHomeController extends GetxController {
     }
     isChargingOrHolding.value = true;
     try {
-      final result = await _posRepo.createSale(
-        storeId: storeId.value,
-        sessionId: sessionId.value,
-        registerId: registerId.value,
-        employeeId: employeeId.value,
-        items: _buildItems(),
-        discountType: isPercentDiscount.value ? 'percent' : 'amount',
-        discountValue: _rawDiscountInput,
-        clientTotal: total,
-        settingsVersion: settings.value?.settingsVersion,
-        paymentMethod: selectedPayment.value,
-        customerName: customerController.text.trim().isEmpty
-            ? 'Walk-in'
-            : customerController.text.trim(),
-        customerId: selectedCustomer.value?.id,
-        notes: _buildNotes(),
-        status: 'held',
+      // a coupon is not kept on a held sale (the server refuses it): it is applied again when the sale is completed
+      final result = await _withApproval(
+        (approver) => _sendSale(
+          status: 'held',
+          clientTotal: total,
+          settingsVersion: settings.value?.settingsVersion,
+          paymentMethod: selectedPayment.value,
+          approver: approver,
+          withCoupon: false,
+        ),
       );
       if (result.queued) {
         clearSale();
@@ -1206,7 +1378,16 @@ class PosHomeController extends GetxController {
   List<Map<String, dynamic>> _buildItems() {
     return cartItems
         .map(
-          (c) => {
+          (c) => c.isCustom
+              ? <String, dynamic>{
+                  'isCustom': true,
+                  'customName': c.product.name,
+                  'taxCategory': c.taxCategory,
+                  if (c.customNote.isNotEmpty) 'customNote': c.customNote,
+                  'qty': c.quantity.value,
+                  'unitPrice': c.unitPrice,
+                }
+              : {
             'productId': c.product.productId,
             if (c.variant != null) 'variantId': c.variant!.variantId,
             'qty': c.quantity.value,

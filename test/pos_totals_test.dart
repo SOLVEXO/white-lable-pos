@@ -6,7 +6,7 @@ import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/utils/pos_totals.dart';
 
 PosTotals t(List<(double, int)> lines, {required int exp, bool pct = false, double disc = 0, double tax = 0}) =>
-    PosTotals.compute([for (final l in lines) (price: l.$1, qty: l.$2)], exponent: exp, percentDiscount: pct, discountInput: disc, taxRate: tax);
+    PosTotals.compute([for (final l in lines) (price: l.$1, qty: l.$2, taxable: true)], exponent: exp, percentDiscount: pct, discountInput: disc, taxRate: tax);
 
 void main() {
   refundTests();

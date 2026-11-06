@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/cart_removal_undo.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/coupon_sheet.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/custom_item_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/hold_confirm_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/payment_sheet.dart';
 import 'package:solvexo_pos/core/design/design.dart';
@@ -129,6 +131,11 @@ class CartLine extends StatelessWidget {
                   children: [
                     Text(item.product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: context.type.subtitle.copyWith(color: p.textPrimary)),
                     if (variantLabel != null && variantLabel.isNotEmpty) Text(variantLabel, style: context.type.caption.copyWith(color: p.textMuted)),
+                    if (item.isCustom)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text('Custom item${item.taxCategory == 'exempt' ? ' · tax exempt' : ''}', key: const Key('customLineTag'), style: context.type.caption.copyWith(color: p.accentFg)),
+                      ),
                     const SizedBox(height: 2),
                     Text('${Money.format(item.unitPrice)} each', style: context.type.amountMd.copyWith(fontSize: 12, color: p.textMuted)),
                   ],
@@ -183,6 +190,30 @@ class CartFooter extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    key: const Key('customItemButton'),
+                    label: 'Custom item',
+                    icon: Icons.edit_note_rounded,
+                    variant: AppButtonVariant.secondary,
+                    onPressed: c.isChargingOrHolding.value ? null : () => CustomItemSheet.open(c),
+                  ),
+                ),
+                const SizedBox(width: Space.s2),
+                Expanded(
+                  child: AppButton(
+                    key: const Key('couponButton'),
+                    label: c.appliedCoupon.value == null ? 'Coupon' : c.appliedCoupon.value!.code,
+                    icon: Icons.sell_rounded,
+                    variant: AppButtonVariant.secondary,
+                    onPressed: (!c.hasItems || c.isChargingOrHolding.value) ? null : () => CouponSheet.open(c),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.s2),
             AppTextField(
               key: const Key('customerField'),
               label: 'Customer (optional)',
@@ -200,9 +231,9 @@ class CartFooter extends StatelessWidget {
             ),
             const SizedBox(height: Space.s2),
             Opacity(
-              opacity: c.isManager.value ? 1 : 0.5,
+              opacity: (c.isManager.value && c.appliedCoupon.value == null) ? 1 : 0.5,
               child: IgnorePointer(
-                ignoring: !c.isManager.value,
+                ignoring: !c.isManager.value || c.appliedCoupon.value != null, // a coupon and a discount cannot be combined
                 child: AppTextField(
                   key: const Key('discountField'),
                   label: c.isManager.value ? (c.isPercentDiscount.value ? 'Discount (%)' : 'Discount (${c.currencySymbol.value})') : 'Discount (managers only)',
@@ -233,7 +264,7 @@ class CartFooter extends StatelessWidget {
               ),
             const ReceiptDivider(),
             ReceiptRow('Subtotal', Money.format(totals.subtotal)),
-            if (totals.discount > 0) ReceiptRow('Discount', '-${Money.format(totals.discount)}', valueColor: p.successFg),
+            if (totals.discount > 0) ReceiptRow(c.appliedCoupon.value != null ? 'Coupon ${c.appliedCoupon.value!.code}' : 'Discount', '-${Money.format(totals.discount)}', valueColor: p.successFg),
             if (totals.tax > 0) ReceiptRow('Tax (${c.taxLabel})', '+${Money.format(totals.tax)}'),
             const ReceiptDivider(padding: EdgeInsets.symmetric(vertical: Space.s2)),
             Row(

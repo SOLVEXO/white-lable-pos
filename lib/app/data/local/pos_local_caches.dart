@@ -10,11 +10,18 @@ class CartLineSnapshot {
   final Map<String, dynamic> product;
   final String? variantId;
   final int qty;
-  const CartLineSnapshot({required this.product, this.variantId, required this.qty});
+  /// G2.4 custom item only: its tax category ('standard' | 'exempt') and the cashier's note.
+  final String? taxCategory;
+  final String? note;
+  const CartLineSnapshot({required this.product, this.variantId, required this.qty, this.taxCategory, this.note});
 
-  Map<String, dynamic> toJson() => {'product': product, 'variantId': variantId, 'qty': qty};
-  factory CartLineSnapshot.fromJson(Map<String, dynamic> j) =>
-      CartLineSnapshot(product: (j['product'] as Map).cast<String, dynamic>(), variantId: j['variantId'] as String?, qty: (j['qty'] as num?)?.toInt() ?? 1);
+  Map<String, dynamic> toJson() => {'product': product, 'variantId': variantId, 'qty': qty, if (taxCategory != null) 'taxCategory': taxCategory, if (note != null) 'note': note};
+  factory CartLineSnapshot.fromJson(Map<String, dynamic> j) => CartLineSnapshot(
+      product: (j['product'] as Map).cast<String, dynamic>(),
+      variantId: j['variantId'] as String?,
+      qty: (j['qty'] as num?)?.toInt() ?? 1,
+      taxCategory: j['taxCategory'] as String?,
+      note: j['note'] as String?);
 }
 
 class SplitLineSnapshot {
@@ -49,6 +56,9 @@ class CartSnapshot {
   final DateTime? pendingAt;
   final DateTime savedAt;
 
+  /// G2.4: the applied coupon (code + how it discounts), null when none. Re-checked by the server when the sale is charged.
+  final Map<String, dynamic>? coupon;
+
   const CartSnapshot({
     required this.storeId,
     required this.sessionId,
@@ -66,6 +76,7 @@ class CartSnapshot {
     this.pendingKey,
     this.pendingAt,
     required this.savedAt,
+    this.coupon,
   });
 
   bool get isEmpty => lines.isEmpty;
@@ -87,6 +98,7 @@ class CartSnapshot {
         'pendingKey': pendingKey,
         'pendingAt': pendingAt?.toIso8601String(),
         'savedAt': savedAt.toIso8601String(),
+        if (coupon != null) 'coupon': coupon,
       };
 
   factory CartSnapshot.fromJson(Map<String, dynamic> j) => CartSnapshot(
@@ -106,6 +118,7 @@ class CartSnapshot {
         pendingKey: j['pendingKey'] as String?,
         pendingAt: j['pendingAt'] != null ? DateTime.tryParse(j['pendingAt'] as String) : null,
         savedAt: DateTime.tryParse(j['savedAt'] as String? ?? '') ?? DateTime.now(),
+        coupon: j['coupon'] is Map ? (j['coupon'] as Map).cast<String, dynamic>() : null,
       );
 }
 

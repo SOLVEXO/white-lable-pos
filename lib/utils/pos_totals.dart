@@ -25,10 +25,10 @@ class PosTotals {
     required this.discountExceedsSubtotal,
   });
 
-  /// [lines]: (unit price, qty). [percentDiscount]: [discountInput] is a % of the subtotal, else a flat amount.
+  /// [lines]: (unit price, qty, taxable — false for a tax-exempt custom item). [percentDiscount]: [discountInput] is a % of the subtotal, else a flat amount.
   /// [taxRate] is the store's rate from POS settings (0.08 = 8%) — not something the cashier types.
   static PosTotals compute(
-    List<({double price, int qty})> lines, {
+    List<({double price, int qty, bool taxable})> lines, {
     required int exponent,
     required bool percentDiscount,
     required double discountInput,
@@ -47,7 +47,10 @@ class PosTotals {
     if (exceeds) discountM = subtotalM; // display only; the Charge button is blocked while this is true
 
     final taxableM = subtotalM - discountM;
-    final taxM = _roundHalfUp(taxableM * taxRate);
+    // tax base = the taxable lines minus THEIR share of the discount (a tax-exempt custom item is left out) — the server's rule
+    final taxableSubtotalM = [for (var i = 0; i < lines.length; i++) if (lines[i].taxable) lineM[i]].fold<int>(0, (a, b) => a + b);
+    final discountOnTaxableM = subtotalM > 0 ? (taxableSubtotalM == subtotalM ? discountM : _roundHalfUp(discountM * taxableSubtotalM / subtotalM)) : 0;
+    final taxM = _roundHalfUp((taxableSubtotalM - discountOnTaxableM) * taxRate);
     return PosTotals._(
       exponent: exponent,
       lineTotals: lineM.map((m) => Money.fromMinor(m, exponent)).toList(),

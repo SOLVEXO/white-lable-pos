@@ -77,6 +77,10 @@ class PosRepository {
     debugPrint('   Response: ${e.response?.data}');
   }
 
+  /// The server's machine-readable `code` of the last failed [createSale] (e.g. CUSTOM_ITEM_NEEDS_MANAGER, COUPON_EXPIRED), else null.
+  /// Kept beside the result so the long-standing return shape of createSale stays as it was.
+  String? lastErrorCode;
+
   /// Extracts the backend's `message` field from a failed response, if any.
   String? _dioMessage(DioException e) {
     final data = e.response?.data;
@@ -860,7 +864,10 @@ class PosRepository {
     String? notes,
     required String status, // "completed" | "held"
     String? idempotencyKey,
+    String? couponCode, // G2.4: a POS coupon code — the server validates it and counts its use inside the sale (online only, never queued)
+    String? approverToken, // G2.4: a manager's PIN-login token approving custom items on this sale (replaces the cashier's token for this call)
   }) async {
+    lastErrorCode = null;
     final payload = <String, dynamic>{
       'storeId': storeId,
       'sessionId': sessionId,
@@ -868,6 +875,7 @@ class PosRepository {
       'employeeId': employeeId,
       'items': items,
       if (discountType != null && (discountValue ?? 0) > 0) ...{'discountType': discountType, 'discountValue': discountValue},
+      if (couponCode != null && couponCode.trim().isNotEmpty) 'couponCode': couponCode.trim(),
       if (clientTotal != null) 'clientTotal': clientTotal,
       if (settingsVersion != null) 'settingsVersion': settingsVersion,
       // the moment the cashier rang it up (stable across retries — it is part of the queued payload)
@@ -897,7 +905,7 @@ class PosRepository {
         ApiConstants.posSales,
         data: minorPayload,
         requiresAuth: true,
-        headers: await _writeHeaders(key),
+        headers: {...await _writeHeaders(key), if (approverToken != null) 'x-pos-employee-token': approverToken},
       );
       settled = true;
       final data = _data(res) as Map<String, dynamic>?;
@@ -912,7 +920,9 @@ class PosRepository {
       // payment is confirmed when the sale arrives). Not final = the cashier simply presses Charge again — the same key and the same
       // confirmed payment are reused, so nothing is charged twice and nothing is lost.
       final hasDigital = (payload['payments'] as List<dynamic>? ?? const []).any((p) => p is Map && p['method'] == 'raast_qr');
-      if (!_isFinalFailure(e) && !hasDigital && Get.isRegistered<PendingSaleSyncService>()) {
+      // G2.4: a coupon needs a live check — never queued either (the server refuses it on an offline sale)
+      final hasCoupon = payload.containsKey('couponCode');
+      if (!_isFinalFailure(e) && !hasDigital && !hasCoupon && Get.isRegistered<PendingSaleSyncService>()) {
         // The outcome is unknown (no route to the server, a timeout after the
         // request was sent, a 5xx, or "already in progress"): the sale may
         // already exist server-side. Persist it locally under the SAME key
@@ -924,13 +934,16 @@ class PosRepository {
         // plan at THAT time, applies the offline stock rule and validates the offline window. The employee's token is
         // kept only when a discount needs a manager's authority — the server checks it was valid when the sale was made.
         final queued = {...minorPayload, 'offline': true};
-        final needsToken = (payload['discountValue'] as num? ?? 0) > 0;
-        await sync.enqueue(key, queued, employeeToken: needsToken ? await AppPreferences.getPosEmployeeToken() : null);
+        // G2.4: a custom item above the store's limit is approved by a manager — keep the approver's token for the replay too
+        final hasCustom = items.any((i) => i['isCustom'] == true);
+        final needsToken = (payload['discountValue'] as num? ?? 0) > 0 || hasCustom;
+        await sync.enqueue(key, queued, employeeToken: needsToken ? (approverToken ?? await AppPreferences.getPosEmployeeToken()) : null);
         await _intents.release(fp); // the queue owns the key now
         sync.scheduleSync();
         return (success: false, sale: null, message: null, queued: true);
       }
       settled = _isFinalFailure(e);
+      lastErrorCode = _dioCode(e);
       DioExceptionHandler.handleDioException(e, showToast: false);
       return (success: false, sale: null, message: _dioMessage(e), queued: false);
     } catch (e) {
@@ -1257,6 +1270,7 @@ class PosRepository {
     String? discountType,
     double? discountValue,
     int? settingsVersion,
+    String? couponCode,
   }) async {
     try {
       final res = await _client.post(
@@ -1264,6 +1278,7 @@ class PosRepository {
         data: {
           'storeId': storeId,
           'items': items,
+          if (couponCode != null && couponCode.trim().isNotEmpty) 'couponCode': couponCode.trim(),
           if (discountType != null && (discountValue ?? 0) > 0) ...{'discountType': discountType, 'discountValue': discountValue},
           if (settingsVersion != null) 'settingsVersion': settingsVersion,
         },
@@ -1571,6 +1586,9 @@ class PosQuote {
   /// The server's current unit price per variant (variantId → price) — used to refresh a stale cart.
   final Map<String, double> unitPrices;
 
+  /// G2.4: the coupon the server applied (code + how it discounts: 'percent' or 'amount'), null when none.
+  final PosAppliedCoupon? coupon;
+
   const PosQuote({
     required this.subtotal,
     required this.discount,
@@ -1582,6 +1600,7 @@ class PosQuote {
     required this.settingsVersion,
     this.settingsVersionReplaced = false,
     this.unitPrices = const {},
+    this.coupon,
   });
 
   factory PosQuote.fromJson(Map<String, dynamic> j) {
@@ -1600,6 +1619,23 @@ class PosQuote {
           for (final l in (j['lines'] as List? ?? []))
             if ((l as Map)['variantId'] != null) l['variantId'] as String: MoneyJson.read(l, 'price', exp: exp),
         },
+        coupon: j['coupon'] is Map ? PosAppliedCoupon.fromJson((j['coupon'] as Map).cast<String, dynamic>()) : null,
       );
   }
+}
+
+/// A coupon the server accepted for the cart: shown on the sale screen and sent again (as `couponCode`) when the sale is charged.
+class PosAppliedCoupon {
+  final String code;
+  final String discountType; // 'percent' | 'fixed' (storefront naming) — informational; the quote's `discount` is the amount
+  final double discountValue;
+  const PosAppliedCoupon({required this.code, required this.discountType, required this.discountValue});
+
+  factory PosAppliedCoupon.fromJson(Map<String, dynamic> j) => PosAppliedCoupon(
+        code: (j['code'] as String? ?? '').toUpperCase(),
+        discountType: j['discountType'] as String? ?? 'percent',
+        discountValue: (j['discountValue'] as num?)?.toDouble() ?? 0,
+      );
+
+  Map<String, dynamic> toJson() => {'code': code, 'discountType': discountType, 'discountValue': discountValue};
 }
