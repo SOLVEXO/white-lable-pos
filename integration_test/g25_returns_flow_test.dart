@@ -157,11 +157,11 @@ void main() {
   });
 
   testWidgets('3 cashier return: within the store\'s limits it works; above them a manager\'s PIN (the real sheet) is needed and is recorded', (tester) async {
-    await app(tester);
     final patched = await owner.patch('/api/pos/settings/$storeId', {'cashierReturnsEnabled': true, 'returnApprovalAboveMinor': 600, 'returnApprovalAfterDays': 7});
     expect(patched.statusCode, anyOf(200, 201), reason: '${patched.data}');
     try {
       final t = await till(cashierEmail, cashierPin);
+      await app(tester); // after Till.boot (it resets GetX), so the sheets have a navigator
       final session = await t.openShift(openingCash: 50);
       final one = await t.line('DEV-LATTE', 1);
       final two = await t.line('DEV-LATTE', 2);
@@ -212,7 +212,7 @@ void main() {
       expect(r.success, isTrue, reason: r.message ?? '');
       final storefront = await plain.get('${AppEnv.apiBaseUrl}/api/products/getVariantById/${v.variantId}');
       expect(storefront.statusCode, 200, reason: '${storefront.data}');
-      final data = ((storefront.data as Map)['data'] ?? storefront.data) as Map;
+      final data = (((storefront.data as Map)['data'] as Map)['variant'] as Map); // the public storefront route: the SAME variant document
       expect(data['price'], newPrice);
       expect(data['barcode'], barcode);
       // the same barcode on another item of this store is refused

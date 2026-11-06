@@ -83,7 +83,7 @@ class CreditNoteView extends StatelessWidget {
                   const SizedBox(height: Space.s4),
                   Row(
                     children: [
-                      Expanded(child: AppButton(key: const Key('notePdf'), label: 'Print / share PDF', icon: Icons.ios_share_rounded, loading: controller.busy.value, onPressed: controller.busy.value ? null : () => controller.shareCreditNotePdf(n))),
+                      Expanded(child: AppButton(key: const Key('notePdf'), label: 'Share PDF', icon: Icons.ios_share_rounded, loading: controller.busy.value, onPressed: controller.busy.value ? null : () => controller.shareCreditNotePdf(n))),
                       const SizedBox(width: Space.s3),
                       Expanded(child: AppButton(key: const Key('noteLink'), label: 'Share link', icon: Icons.link_rounded, variant: AppButtonVariant.secondary, onPressed: controller.busy.value ? null : () => controller.shareLink(creditNoteNumber: n.number))),
                     ],

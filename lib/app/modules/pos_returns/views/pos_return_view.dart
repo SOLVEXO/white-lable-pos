@@ -74,7 +74,7 @@ class PosReturnView extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s4),
                     child: Row(
                       children: [
-                        Expanded(child: AppButton(key: const Key('returnAll'), label: 'Return everything', variant: AppButtonVariant.secondary, onPressed: c.processing.value ? null : () => _go(context, all: true))),
+                        Expanded(child: AppButton(key: const Key('returnAll'), label: 'Return all', variant: AppButtonVariant.secondary, onPressed: c.processing.value ? null : () => _go(context, all: true))),
                         const SizedBox(width: Space.s3),
                         Expanded(flex: 2, child: AppButton(key: const Key('returnSelected'), label: 'Return selected', icon: Icons.assignment_return_outlined, loading: c.processing.value, onPressed: (!c.hasSelection || c.processing.value) ? null : () => _go(context))),
                       ],
