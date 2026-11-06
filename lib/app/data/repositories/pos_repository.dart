@@ -4,6 +4,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_audit_log_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
@@ -76,6 +77,11 @@ class PosRepository {
     debugPrint('❌ $tag DioException: ${e.response?.statusCode}');
     debugPrint('   Response: ${e.response?.data}');
   }
+
+  /// G2.5: why the last [refundSale] needed a manager (`amount_above_limit`, `too_many_days_since_sale`, `no_original_receipt`, `store_requires_manager`)
+  /// and the credit note it produced ({id, number, totalMinor}).
+  List<String> lastErrorReasons = const [];
+  Map<String, dynamic>? lastCreditNote;
 
   /// The server's machine-readable `code` of the last failed [createSale] (e.g. CUSTOM_ITEM_NEEDS_MANAGER, COUPON_EXPIRED), else null.
   /// Kept beside the result so the long-standing return shape of createSale stays as it was.
@@ -925,7 +931,7 @@ class PosRepository {
       // confirmed payment are reused, so nothing is charged twice and nothing is lost.
       final hasDigital = (payload['payments'] as List<dynamic>? ?? const []).any((p) => p is Map && p['method'] == 'raast_qr');
       // G2.4: a coupon needs a live check — never queued either (the server refuses it on an offline sale)
-      final hasCoupon = payload.containsKey('couponCode');
+      final hasCoupon = payload.containsKey('couponCode') && status != 'held'; // a HELD sale only remembers the code — that may be queued
       if (!_isFinalFailure(e) && !hasDigital && !hasCoupon && Get.isRegistered<PendingSaleSyncService>()) {
         // The outcome is unknown (no route to the server, a timeout after the
         // request was sent, a 5xx, or "already in progress"): the sale may
@@ -1196,9 +1202,15 @@ class PosRepository {
     List<Map<String, dynamic>>? items,
     String? reasonCode, // G2.4 picker code (wrong_item, damaged_or_defective, …) — recorded on the refund and its audit event
     String? reason, // optional free-text note
+    bool? receiptPresented, // G2.5: false = the customer has no original receipt (a manager must approve)
+    String? approverToken, // G2.5: a manager's PIN-login token approving this return (replaces the cashier's for this call)
   }) async {
+    lastErrorCode = null;
+    lastErrorReasons = const [];
+    lastCreditNote = null;
     final payload = {
       if (items != null && items.isNotEmpty) 'items': items,
+      if (receiptPresented == false) 'receiptPresented': false,
       if (reasonCode != null && reasonCode.isNotEmpty) 'reasonCode': reasonCode,
       if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
     };
@@ -1209,11 +1221,12 @@ class PosRepository {
         ApiConstants.posSaleRefund(saleId),
         data: payload,
         requiresAuth: true,
-        headers: await _writeHeaders(await _intents.keyFor(fp)),
+        headers: {...await _writeHeaders(await _intents.keyFor(fp)), if (approverToken != null) 'x-pos-employee-token': approverToken},
       );
       settled = true;
       if (_ok(res)) {
         final data = res.data['data'] as Map<String, dynamic>?;
+        if (data?['creditNote'] is Map) lastCreditNote = (data!['creditNote'] as Map).cast<String, dynamic>();
         return (
           success: true,
           refundedAmount: (data?['refundedAmount'] as num?)?.toDouble(),
@@ -1228,6 +1241,13 @@ class PosRepository {
       settled = _isFinalFailure(e);
       _logDioError('refundSale', e);
       _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      final body = e.response?.data;
+      if (body is Map && body['reasons'] is List) lastErrorReasons = [for (final r in body['reasons'] as List) r.toString()];
+      // the rules the cashier can act on (ask a manager, open a shift, say why it is not restocked) are answered in the UI, not as a toast
+      if (const {'RETURN_NEEDS_MANAGER', 'OPEN_SHIFT_REQUIRED', 'RESTOCK_REASON_REQUIRED'}.contains(lastErrorCode)) {
+        return (success: false, refundedAmount: null, newStatus: null, message: _dioMessage(e), tenders: const <PosPaymentLine>[]);
+      }
       DioExceptionHandler.handleDioException(e);
       return (success: false, refundedAmount: null, newStatus: null, message: null, tenders: const <PosPaymentLine>[]);
     } catch (e) {
@@ -1325,6 +1345,73 @@ class PosRepository {
     } catch (e) {
       debugPrint('❌ getReceiptLink: $e');
       return null;
+    }
+  }
+
+  // ── G2.5 documents ──
+  Future<PosSaleDocuments?> getSaleDocuments(String saleId) async {
+    try {
+      final res = await _client.get(ApiConstants.posSaleDocuments(saleId), requiresAuth: true);
+      final data = _data(res);
+      return data is Map ? PosSaleDocuments.fromJson(data.cast<String, dynamic>()) : null;
+    } on DioException catch (e) {
+      _logDioError('getSaleDocuments', e);
+      return null;
+    } catch (e) {
+      debugPrint('❌ getSaleDocuments: $e');
+      return null;
+    }
+  }
+
+  // ── G2.6 dashboard ──
+  /// The Home business pulse, role-based by the server (a cashier's token gets their own shift only). Null when it can't be had.
+  Future<Map<String, dynamic>?> getDashboard(String storeId) async {
+    try {
+      final res = await _client.get(ApiConstants.posDashboard(storeId), requiresAuth: true, headers: await _employeeAuthHeaders());
+      final data = _data(res);
+      return data is Map ? data.cast<String, dynamic>() : null;
+    } on DioException catch (e) {
+      _logDioError('getDashboard', e);
+      return null;
+    } catch (e) {
+      debugPrint('❌ getDashboard: $e');
+      return null;
+    }
+  }
+
+  // ── G2.6 catalog edits (manager PIN; the server audits before/after and the storefront reads the same documents) ──
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> updateCatalogVariant(String storeId, String variantId, Map<String, dynamic> changes, {String? approverToken}) async {
+    try {
+      final res = await _client.patch(ApiConstants.posCatalogVariant(storeId, variantId), data: changes, requiresAuth: true, headers: {...await _employeeAuthHeaders(), if (approverToken != null) 'x-pos-employee-token': approverToken});
+      final data = _data(res);
+      return (success: true, message: null, code: null, data: data is Map ? data.cast<String, dynamic>() : null);
+    } on DioException catch (e) {
+      _logDioError('updateCatalogVariant', e);
+      return (success: false, message: _dioMessage(e) ?? 'Could not save the change.', code: _dioCode(e), data: null);
+    } catch (e) {
+      debugPrint('❌ updateCatalogVariant: $e');
+      return (success: false, message: 'Could not save the change.', code: null, data: null);
+    }
+  }
+
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> adjustCatalogStock(String storeId, String variantId, {required int delta, required String reason, String? note, String? approverToken}) async {
+    final payload = {'delta': delta, 'reason': reason, if (note != null && note.trim().isNotEmpty) 'note': note.trim()};
+    final fp = IdempotencyIntentStore.fingerprint('catalogStock:$variantId', payload);
+    var settled = false;
+    try {
+      final res = await _client.post(ApiConstants.posCatalogStock(storeId, variantId), data: payload, requiresAuth: true, headers: {...await _writeHeaders(await _intents.keyFor(fp)), if (approverToken != null) 'x-pos-employee-token': approverToken});
+      settled = true;
+      final data = _data(res);
+      return (success: true, message: null, code: null, data: data is Map ? data.cast<String, dynamic>() : null);
+    } on DioException catch (e) {
+      settled = _isFinalFailure(e);
+      _logDioError('adjustCatalogStock', e);
+      return (success: false, message: _dioMessage(e) ?? 'Could not change the stock.', code: _dioCode(e), data: null);
+    } catch (e) {
+      debugPrint('❌ adjustCatalogStock: $e');
+      return (success: false, message: 'Could not change the stock.', code: null, data: null);
+    } finally {
+      if (settled) await _intents.release(fp);
     }
   }
 

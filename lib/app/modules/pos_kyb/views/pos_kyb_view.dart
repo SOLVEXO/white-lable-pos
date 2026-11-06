@@ -176,7 +176,7 @@ class _Documents extends StatelessWidget {
       children: [
         Text('Documents', style: context.type.title.copyWith(color: p.textPrimary)),
         const SizedBox(height: Space.s1),
-        Text('Photos are sent straight to Solvexo and are not kept on this device.', style: context.type.caption.copyWith(color: p.textMuted)),
+        Text('Photos and PDFs are sent straight to Solvexo and are not kept on this device.', style: context.type.caption.copyWith(color: p.textMuted)),
         const SizedBox(height: Space.s2),
         for (final type in types)
           Padding(
@@ -229,7 +229,9 @@ class _DocRow extends StatelessWidget {
                   children: [
                     Expanded(child: AppButton(key: Key('kybCamera_$type'), label: 'Camera', icon: Icons.photo_camera_outlined, variant: AppButtonVariant.secondary, loading: c.uploadingType.value == type, onPressed: busy ? null : () => c.pickAndUpload(type, ImageSource.camera))),
                     const SizedBox(width: Space.s2),
-                    Expanded(child: AppButton(key: Key('kybGallery_$type'), label: 'Photo library', icon: Icons.photo_library_outlined, variant: AppButtonVariant.secondary, onPressed: busy ? null : () => c.pickAndUpload(type, ImageSource.gallery))),
+                    Expanded(child: AppButton(key: Key('kybGallery_$type'), label: 'Photos', icon: Icons.photo_library_outlined, variant: AppButtonVariant.secondary, onPressed: busy ? null : () => c.pickAndUpload(type, ImageSource.gallery))),
+                    const SizedBox(width: Space.s2),
+                    Expanded(child: AppButton(key: Key('kybPdf_$type'), label: 'PDF', icon: Icons.picture_as_pdf_outlined, variant: AppButtonVariant.secondary, onPressed: busy ? null : () => c.pickPdfAndUpload(type))),
                   ],
                 ),
               );

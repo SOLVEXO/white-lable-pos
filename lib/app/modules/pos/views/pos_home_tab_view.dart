@@ -5,6 +5,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_payment_intent_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/modules/pos/controllers/pos_bottom_nav_controller.dart';
 import 'package:solvexo_pos/app/modules/pos/controllers/pos_home_tab_controller.dart';
+import 'package:solvexo_pos/app/modules/pos/views/dashboard_pulse.dart';
 import 'package:solvexo_pos/app/modules/pos/utils/pos_access.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/core/design/design.dart';
@@ -115,6 +116,10 @@ class PosHomeTabView extends StatelessWidget {
                   _Hero(c: c, access: access),
                   const SizedBox(height: Space.s3),
                   _Tiles(c: c, access: access),
+                  if (c.dashboard.value != null) ...[
+                    const SizedBox(height: Space.s4),
+                    DashboardPulse(d: c.dashboard.value!, onAttention: () => Get.toNamed(Routes.posNeedsAttention)),
+                  ],
                   const SizedBox(height: Space.s5),
                   SectionHeader('Quick actions'),
                   _Actions(access: access, onSell: _goSell),

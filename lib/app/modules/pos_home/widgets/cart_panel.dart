@@ -191,6 +191,21 @@ class CartFooter extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (c.heldCouponNotice.value != null)
+              Container(
+                key: const Key('heldCouponNotice'),
+                margin: const EdgeInsets.only(bottom: Space.s2),
+                padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s1, Space.s2),
+                decoration: BoxDecoration(color: p.warningSoft, borderRadius: Radii.rMd),
+                child: Row(
+                  children: [
+                    Icon(Icons.sell_outlined, size: 18, color: p.warningFg),
+                    const SizedBox(width: Space.s2),
+                    Expanded(child: Text(c.heldCouponNotice.value!, style: t.caption.copyWith(color: p.warningFg))),
+                    IconButton(key: const Key('heldCouponNoticeDismiss'), tooltip: 'Dismiss', constraints: const BoxConstraints(minWidth: 36, minHeight: 36), icon: Icon(Icons.close_rounded, size: 18, color: p.warningFg), onPressed: () => c.heldCouponNotice.value = null),
+                  ],
+                ),
+              ),
             Row(
               children: [
                 Expanded(child: _ActionChip(key: const Key('customItemButton'), icon: Icons.edit_note_rounded, label: 'Custom item', onPressed: c.isChargingOrHolding.value ? null : () => CustomItemSheet.open(c))),

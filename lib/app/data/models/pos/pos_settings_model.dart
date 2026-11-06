@@ -15,6 +15,18 @@ class PosSettingsModel {
   /// Owner-set idle minutes before the till locks to the PIN screen.
   final int autoLockMinutes;
 
+  /// G2.6 store tax profile (as registered with the tax authority) — all optional.
+  final String? taxNtn;
+  final String? taxStrn;
+  final String? taxLegalName;
+  final String? taxRegisteredAddress;
+  final String defaultTaxCategory; // standard | exempt
+
+  /// G2.5 return policy: may a cashier return? limits above which a manager must approve (minor units / days; null = no limit).
+  final bool cashierReturnsEnabled;
+  final int? returnApprovalAboveMinor;
+  final int? returnApprovalAfterDays;
+
   const PosSettingsModel({
     required this.storeId,
     required this.taxRate,
@@ -28,6 +40,14 @@ class PosSettingsModel {
     this.businessTaxId,
     this.settingsVersion = 1,
     this.autoLockMinutes = 5,
+    this.taxNtn,
+    this.taxStrn,
+    this.taxLegalName,
+    this.taxRegisteredAddress,
+    this.defaultTaxCategory = 'standard',
+    this.cashierReturnsEnabled = false,
+    this.returnApprovalAboveMinor,
+    this.returnApprovalAfterDays,
   });
 
   String get taxRatePercentLabel => '${(taxRate * 100).toStringAsFixed(taxRate * 100 % 1 == 0 ? 0 : 1)}%';
@@ -45,6 +65,14 @@ class PosSettingsModel {
         businessTaxId: json['businessTaxId'] as String?,
         settingsVersion: (json['settingsVersion'] as num?)?.toInt() ?? 1,
         autoLockMinutes: (json['autoLockMinutes'] as num?)?.toInt() ?? 5,
+        taxNtn: json['taxNtn'] as String?,
+        taxStrn: json['taxStrn'] as String?,
+        taxLegalName: json['taxLegalName'] as String?,
+        taxRegisteredAddress: json['taxRegisteredAddress'] as String?,
+        defaultTaxCategory: json['defaultTaxCategory'] as String? ?? 'standard',
+        cashierReturnsEnabled: json['cashierReturnsEnabled'] as bool? ?? false,
+        returnApprovalAboveMinor: (json['returnApprovalAboveMinor'] as num?)?.toInt(),
+        returnApprovalAfterDays: (json['returnApprovalAfterDays'] as num?)?.toInt(),
       );
 
   /// The same settings with the pricing fields the server just told us about (a quote answered with a newer tax rate).
@@ -52,6 +80,8 @@ class PosSettingsModel {
         storeId: storeId, taxRate: taxRate, receiptHeader: receiptHeader, receiptFooter: receiptFooter, businessName: businessName,
         businessAddress: businessAddress, currencySymbol: currencySymbol, currency: currency, currencyExponent: currencyExponent,
         businessTaxId: businessTaxId, settingsVersion: settingsVersion, autoLockMinutes: autoLockMinutes,
+        taxNtn: taxNtn, taxStrn: taxStrn, taxLegalName: taxLegalName, taxRegisteredAddress: taxRegisteredAddress, defaultTaxCategory: defaultTaxCategory,
+        cashierReturnsEnabled: cashierReturnsEnabled, returnApprovalAboveMinor: returnApprovalAboveMinor, returnApprovalAfterDays: returnApprovalAfterDays,
       );
 
   /// For the on-device settings cache (round-trips through [fromJson]).
@@ -68,6 +98,14 @@ class PosSettingsModel {
         'businessTaxId': businessTaxId,
         'settingsVersion': settingsVersion,
         'autoLockMinutes': autoLockMinutes,
+        'taxNtn': taxNtn,
+        'taxStrn': taxStrn,
+        'taxLegalName': taxLegalName,
+        'taxRegisteredAddress': taxRegisteredAddress,
+        'defaultTaxCategory': defaultTaxCategory,
+        'cashierReturnsEnabled': cashierReturnsEnabled,
+        'returnApprovalAboveMinor': returnApprovalAboveMinor,
+        'returnApprovalAfterDays': returnApprovalAfterDays,
       };
 
   Map<String, dynamic> toUpdateJson({

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:solvexo_pos/app/data/models/pos/kyb_models.dart';
 import 'package:solvexo_pos/app/data/repositories/kyb_repository.dart';
@@ -15,13 +16,15 @@ import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 ///  * screenshots / recordings / the recent-apps thumbnail are blocked while this screen is up (see [ScreenPrivacy]).
 /// The server returns sensitive values masked only, so the form starts blank: only what the owner types is sent.
 class PosKybController extends GetxController with WidgetsBindingObserver {
-  PosKybController({KybRepository? repository, ImagePicker? picker, String? storeId, Worker? Function(PosKybController)? lockWatcher})
-      : _repo = repository ?? KybRepository(),
+  PosKybController({KybRepository? repository, ImagePicker? picker, String? storeId, Worker? Function(PosKybController)? lockWatcher, Future<File?> Function()? pdfPicker})
+      : _pdfPicker = pdfPicker ?? _pickPdf,
+        _repo = repository ?? KybRepository(),
         _picker = picker ?? ImagePicker(),
         _storeIdOverride = storeId,
         _lockWatcher = lockWatcher;
 
   final KybRepository _repo;
+  final Future<File?> Function() _pdfPicker;
   final ImagePicker _picker;
   final String? _storeIdOverride;
   final Worker? Function(PosKybController)? _lockWatcher;
@@ -220,6 +223,39 @@ class PosKybController extends GetxController with WidgetsBindingObserver {
     } finally {
       try {
         if (file != null && file.existsSync()) file.deleteSync();
+      } catch (_) {}
+      uploadingType.value = null;
+    }
+  }
+
+  /// The system file picker, PDFs only. The picked file is a temporary copy: the caller deletes it after the upload.
+  static Future<File?> _pickPdf() async {
+    final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: const ['pdf'], withData: false);
+    final path = r?.files.single.path;
+    return path == null ? null : File(path);
+  }
+
+  /// A PDF from the device's files. Same privacy rules as a photo: sent straight to the server, the temporary copy is deleted afterwards
+  /// (and the picker's own cache cleared), nothing is kept.
+  Future<void> pickPdfAndUpload(String type) async {
+    if (uploadingType.value != null) return;
+    uploadingType.value = type;
+    error.value = null;
+    File? file;
+    try {
+      file = await _pdfPicker();
+      if (file == null) return;
+      final r = await _repo.uploadDocument(await _store(), type: type, file: file);
+      if (r.view == null) {
+        error.value = r.message ?? 'Could not upload the document.';
+        return;
+      }
+      view.value = r.view;
+      info.value = 'Document uploaded.';
+    } finally {
+      try {
+        if (file != null && file.existsSync()) file.deleteSync();
+        await FilePicker.clearTemporaryFiles();
       } catch (_) {}
       uploadingType.value = null;
     }

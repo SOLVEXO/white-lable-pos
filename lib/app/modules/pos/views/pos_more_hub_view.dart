@@ -45,6 +45,7 @@ class PosMoreHubView extends StatelessWidget {
             HubRow(icon: Icons.groups_2_outlined, title: 'Customers', subtitle: 'Directory and history', onTap: () => Get.toNamed(Routes.posCustomers), locked: true),
             HubRow(icon: Icons.bar_chart_rounded, title: 'Daily report', subtitle: 'Sales, tenders and top products', onTap: () => Get.toNamed(Routes.posDailyReport), locked: true),
             HubRow(icon: Icons.date_range_rounded, title: 'Date-range report', subtitle: 'Any period', onTap: () => Get.toNamed(Routes.posRangeReport), locked: true),
+            HubRow(icon: Icons.inventory_2_outlined, title: 'Catalog', subtitle: 'Price, barcode, HS code, category, stock', onTap: () => Get.toNamed(Routes.posCatalog), locked: true),
             HubRow(icon: Icons.history_toggle_off_rounded, title: 'Shift history', subtitle: 'Past shifts and cash differences', onTap: () => Get.toNamed(Routes.posSessionHistory), locked: true),
           ]),
         if (a.canManage)
@@ -58,6 +59,7 @@ class PosMoreHubView extends StatelessWidget {
             HubRow(icon: Icons.manage_accounts_outlined, title: 'Team & registers', subtitle: 'Employees, PINs and registers', onTap: () => Get.toNamed(Routes.sellerPosManagement), locked: true),
             HubRow(icon: Icons.devices_other_rounded, title: 'Devices', subtitle: 'Registered tills', onTap: () => Get.toNamed(Routes.posDevices), locked: true),
             HubRow(icon: Icons.shield_outlined, title: 'Audit log', subtitle: 'Who did what, and when', onTap: () => Get.toNamed(Routes.posAuditLog), locked: true),
+            HubRow(icon: Icons.badge_outlined, title: 'Store tax profile', subtitle: 'NTN, STRN, returns policy', onTap: () => Get.toNamed(Routes.posTaxProfile), locked: true),
             HubRow(icon: Icons.verified_user_outlined, title: 'Business verification', subtitle: 'Needed for Raast QR payments', onTap: () => Get.toNamed(Routes.posKyb), locked: true),
             HubRow(icon: Icons.workspace_premium_outlined, title: 'Plan status', subtitle: 'Your POS plan', onTap: () => Get.toNamed(Routes.posPlanStatus), locked: true),
           ]),

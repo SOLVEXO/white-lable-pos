@@ -304,7 +304,6 @@ class PendingSaleLocalStore {
   /// back when the row is later removed, so a number is never issued twice.
   Future<String?> enqueue(String id, Map<String, dynamic> payload, {String? employeeToken, String? deviceShort}) async {
     final db = await _open();
-    final encPayload = await _cipher.encrypt(jsonEncode(payload));
     final encToken = await _enc(employeeToken);
     final short = deviceShortOf(deviceShort);
     return db.transaction<String?>((txn) async {
@@ -321,6 +320,7 @@ class PendingSaleLocalStore {
         number = 'OFF-$short-${seq.toString().padLeft(4, '0')}';
         await txn.insert(_receiptTable, {'key': id, 'provisional': number, 'createdAt': DateTime.now().toIso8601String()});
       }
+      final encPayload = await _cipher.encrypt(jsonEncode(payload)); // (the provisional OFF- number is deliberately NOT part of what is sent to the server — see offline_receipt_number_test)
       await txn.insert(
         _table,
         {

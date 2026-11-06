@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_dashboard_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_payment_intent_model.dart';
 import 'package:solvexo_pos/app/data/repositories/inventory_repository.dart';
@@ -43,6 +44,9 @@ class PosHomeTabController extends GetxController {
   /// Digital (Raast) payments a manager has to look at: paid after expiry, paid but no sale, amount mismatch, failed refund.
   final RxInt digitalAttention = 0.obs;
 
+  /// G2.6: the server's role-based business pulse (a cashier gets only their own shift). Null until loaded / when it can't be had.
+  final Rxn<PosDashboard> dashboard = Rxn<PosDashboard>();
+
   final RxString employeeName = ''.obs;
 
   int get unresolvedSales => Get.isRegistered<PendingSaleSyncService>() ? Get.find<PendingSaleSyncService>().unresolvedCount.value : 0;
@@ -51,6 +55,15 @@ class PosHomeTabController extends GetxController {
   void onInit() {
     super.onInit();
     load();
+  }
+
+  Future<void> _loadDashboard(String storeId) async {
+    try {
+      final j = await _pos.getDashboard(storeId);
+      dashboard.value = j == null ? null : PosDashboard.fromJson(j);
+    } catch (_) {
+      dashboard.value = null; // the pulse is an extra: the rest of Home still shows
+    }
   }
 
   Future<void> load() async {
@@ -67,6 +80,7 @@ class PosHomeTabController extends GetxController {
       }
 
       final jobs = <Future<void>>[
+        _loadDashboard(storeId),
         if (sessionId != null && sessionId.isNotEmpty) _pos.getSessionReport(sessionId).then((r) => shift.value = r),
       ];
       if (access.value.canManage) {

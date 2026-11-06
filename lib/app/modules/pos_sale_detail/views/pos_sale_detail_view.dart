@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/utils/offline_gate.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
@@ -373,6 +374,22 @@ class _ActionsSection extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
+        if (sale.status != 'held' && sale.status != 'discarded')
+          _ActionButton(
+            key: const Key('openTaxInvoice'),
+            label: sale.invoice != null ? 'Tax invoice ${sale.invoice!.number}' : 'Tax invoice',
+            color: AppColors.black2,
+            outline: true,
+            onTap: () => Get.toNamed(Routes.posTaxInvoice, arguments: sale.id),
+          ),
+        if (sale.canRefund)
+          _ActionButton(
+            key: const Key('openReturn'),
+            label: 'Return items',
+            color: AppColors.red,
+            outline: true,
+            onTap: () => Get.toNamed(Routes.posReturn, arguments: sale.id),
+          ),
         if (sale.canRefund && c.isManager.value) ...[
           if (hasSelection)
             _ActionButton(
@@ -420,7 +437,7 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final bool outline;
   final VoidCallback onTap;
-  const _ActionButton({required this.label, required this.color, required this.onTap, this.outline = false});
+  const _ActionButton({super.key, required this.label, required this.color, required this.onTap, this.outline = false});
 
   @override
   Widget build(BuildContext context) {

@@ -53,6 +53,10 @@ import '../modules/pos_range_report/views/pos_range_report_view.dart';
 import '../modules/pos_inventory/bindings/pos_inventory_binding.dart';
 import '../modules/pos_inventory/views/pos_inventory_view.dart';
 import '../modules/pos_needs_attention/bindings/pos_needs_attention_binding.dart';
+import '../modules/pos_documents/views/tax_invoice_view.dart';
+import '../modules/pos_returns/views/pos_return_view.dart';
+import '../modules/pos_catalog/views/pos_catalog_view.dart';
+import '../modules/pos_tax_profile/pos_tax_profile.dart';
 import '../modules/pos_kyb/bindings/pos_kyb_binding.dart';
 import '../modules/pos_kyb/views/pos_kyb_view.dart';
 import '../modules/pos_offline/bindings/pos_offline_binding.dart';
@@ -183,6 +187,12 @@ class AppPages {
       binding: PosSaleDetailBinding(),
       middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)],
     ),
+    // G2.5: the tax invoice (+ credit notes) and the return flow; reachable in restricted mode too (returns must work after a plan lapses)
+    GetPage(name: Routes.posTaxInvoice, page: () => TaxInvoiceView(), middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)]),
+    // G2.6: POS catalog edits (a manager's PIN per change) and the owner's store tax profile
+    GetPage(name: Routes.posCatalog, page: () => PosCatalogView(), middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)]),
+    GetPage(name: Routes.posTaxProfile, page: () => PosTaxProfileView(), middlewares: [OwnerAccessMiddleware()]),
+    GetPage(name: Routes.posReturn, page: () => PosReturnView(), middlewares: [PosAccessMiddleware(requireActiveSession: true, allowWhenRestricted: true)]),
     GetPage(
       name: Routes.posSessionReport,
       page: () => PosSessionReportView(),

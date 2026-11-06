@@ -8,6 +8,7 @@ class PosProductVariant {
   final String variantId;
   final String sku;
   final String? barcode;
+  final String? hsCode; // PCT / HS code (G2.5/G2.6)
   final double price;
   final double? compareAtPrice;
   final int stock;
@@ -22,6 +23,7 @@ class PosProductVariant {
     required this.variantId,
     required this.sku,
     this.barcode,
+    this.hsCode,
     required this.price,
     this.compareAtPrice,
     required this.stock,
@@ -36,7 +38,7 @@ class PosProductVariant {
 
   /// A copy at a different unit price (the server's current price, taken from a quote).
   PosProductVariant withPrice(double newPrice) => PosProductVariant(
-        variantId: variantId, sku: sku, barcode: barcode, price: newPrice, compareAtPrice: compareAtPrice, stock: stock,
+        variantId: variantId, sku: sku, barcode: barcode, hsCode: hsCode, price: newPrice, compareAtPrice: compareAtPrice, stock: stock,
         unlimitedStock: unlimitedStock, options: options, isDefault: isDefault, images: images,
       );
 
@@ -45,6 +47,7 @@ class PosProductVariant {
         'variantId': variantId,
         'sku': sku,
         'barcode': barcode,
+        'hsCode': hsCode,
         'price': price,
         'compareAtPrice': compareAtPrice,
         'stock': stock,
@@ -65,6 +68,7 @@ class PosProductVariant {
         variantId: json['variantId'] as String? ?? json['_id'] as String? ?? '',
         sku: json['sku'] as String? ?? '',
         barcode: json['barcode'] as String?,
+        hsCode: json['hsCode'] as String?,
         price: (json['price'] as num?)?.toDouble() ?? 0,
         compareAtPrice: (json['compareAtPrice'] as num?)?.toDouble(),
         stock: (json['stock'] as num?)?.toInt() ?? 0,

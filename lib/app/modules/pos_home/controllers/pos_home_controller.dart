@@ -1276,6 +1276,30 @@ class PosHomeController extends GetxController {
     }
   }
 
+  /// The total as the server prices a HELD sale: with no coupon applied.
+  double get _totalIgnoringCoupon => PosTotals.compute(
+        [for (final i in cartItems) (price: i.unitPrice, qty: i.quantity.value, taxable: i.isTaxable)],
+        exponent: Money.exponent,
+        percentDiscount: isPercentDiscount.value,
+        discountInput: appliedCoupon.value != null ? 0 : _rawDiscountInput,
+        taxRate: taxRate,
+      ).total;
+
+  /// What resuming the last held sale said about its coupon (null = nothing to say). Shown as a message and kept for the UI / tests.
+  final RxnString heldCouponNotice = RxnString();
+
+  /// A held sale kept a coupon CODE: check it again now. Still good → applied; no longer valid → removed, with the reason and the new total.
+  Future<void> _revalidateHeldCoupon(String code) async {
+    heldCouponNotice.value = null;
+    final err = await applyCoupon(code);
+    if (err != null || appliedCoupon.value == null) {
+      appliedCoupon.value = null;
+      final msg = 'The coupon $code can no longer be used${err == null ? '' : ' — $err'}. The total is now ${Money.format(total)}.';
+      heldCouponNotice.value = msg;
+      CustomAppSnackbar.warning(msg);
+    }
+  }
+
   // ── G2.4: coupon ──────────────────────────────────────────────────────────
   /// Checks [code] with the server for this cart (a live check — coupons are online-only). Returns null on success, else the
   /// message to show. Ignored while a check is already running (double-submit protection).
@@ -1312,15 +1336,15 @@ class PosHomeController extends GetxController {
     }
     isChargingOrHolding.value = true;
     try {
-      // a coupon is not kept on a held sale (the server refuses it): it is applied again when the sale is completed
+      // a held sale keeps the coupon CODE (not a reservation): the server prices the held sale WITHOUT it, and the code is checked again
+      // when the sale is resumed — so the total sent here is the one without the coupon
       final result = await _withApproval(
         (approver) => _sendSale(
           status: 'held',
-          clientTotal: total,
+          clientTotal: _totalIgnoringCoupon,
           settingsVersion: settings.value?.settingsVersion,
           paymentMethod: selectedPayment.value,
           approver: approver,
-          withCoupon: false,
         ),
       );
       if (result.queued) {
@@ -1415,6 +1439,9 @@ class PosHomeController extends GetxController {
       selectedCustomer.value = CustomerModel(id: sale.customerId!, name: sale.customerName);
     }
     noteController.text = sale.notes;
+    final held = sale.heldCouponCode;
+    heldCouponNotice.value = null;
+    if (held != null && held.isNotEmpty) unawaited(_revalidateHeldCoupon(held));
   }
 
   PosProductModel _productFromSaleItemSnapshot(PosSaleItemModel item) {

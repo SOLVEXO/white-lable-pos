@@ -13,6 +13,12 @@ class PosSaleItemModel {
   final double lineTotal;
   final int refundedQty;
 
+  /// G2.5: the line's value excluding tax and its tax (minor units), the PCT/HS code snapshot, and the custom-item flags.
+  final int? netMinor;
+  final int? taxMinor;
+  final String? hsCode;
+  final bool isCustom;
+
   const PosSaleItemModel({
     this.saleItemId,
     required this.productId,
@@ -24,6 +30,10 @@ class PosSaleItemModel {
     required this.price,
     required this.lineTotal,
     this.refundedQty = 0,
+    this.netMinor,
+    this.taxMinor,
+    this.hsCode,
+    this.isCustom = false,
   });
 
   int get refundableQty => qty - refundedQty;
@@ -43,6 +53,10 @@ class PosSaleItemModel {
         price: MoneyJson.read(json, 'price', exp: exp),
         lineTotal: MoneyJson.read(json, 'lineTotal', exp: exp),
         refundedQty: json['refundedQty'] as int? ?? 0,
+        netMinor: (json['netMinor'] as num?)?.toInt(),
+        taxMinor: (json['taxMinor'] as num?)?.toInt(),
+        hsCode: json['hsCode'] as String?,
+        isCustom: json['isCustom'] as bool? ?? false,
       );
 }
 
@@ -150,6 +164,10 @@ class PosSaleModel {
   final List<PosSaleFlag> flags;
   final bool isOffline;
 
+  /// G2.5 tax invoice header (null on a held sale and on sales that predate it) and the coupon CODE a held sale remembers (G2.4).
+  final PosInvoiceInfo? invoice;
+  final String? heldCouponCode;
+
   const PosSaleModel({
     required this.id,
     required this.saleNumber,
@@ -184,6 +202,8 @@ class PosSaleModel {
     this.needsReview = false,
     this.flags = const [],
     this.isOffline = false,
+    this.invoice,
+    this.heldCouponCode,
   });
 
   /// The tender lines to show: the stored ones, or — for a sale made before split tender — one synthetic line.
@@ -251,6 +271,34 @@ class PosSaleModel {
         needsReview: json['needsReview'] as bool? ?? false,
         flags: (json['flags'] as List<dynamic>?)?.map((e) => PosSaleFlag.fromJson((e as Map).cast<String, dynamic>())).toList() ?? const [],
         isOffline: json['isOffline'] as bool? ?? false,
+        invoice: json['invoice'] is Map ? PosInvoiceInfo.fromJson((json['invoice'] as Map).cast<String, dynamic>()) : null,
+        heldCouponCode: json['heldCouponCode'] as String?,
+    );
+  }
+}
+
+
+/// The tax-invoice header of a completed sale: its immutable per-store number, the issue date, the seller as registered.
+class PosInvoiceInfo {
+  final String number;
+  final DateTime? issuedAt;
+  final String? offlineRef;
+  final String? sellerName;
+  final String? sellerAddress;
+  final String? sellerNtn;
+  final String? sellerStrn;
+  const PosInvoiceInfo({required this.number, this.issuedAt, this.offlineRef, this.sellerName, this.sellerAddress, this.sellerNtn, this.sellerStrn});
+
+  factory PosInvoiceInfo.fromJson(Map<String, dynamic> j) {
+    final s = (j['seller'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return PosInvoiceInfo(
+      number: j['number'] as String? ?? '',
+      issuedAt: j['issuedAt'] != null ? DateTime.tryParse(j['issuedAt'].toString()) : null,
+      offlineRef: j['offlineRef'] as String?,
+      sellerName: s['legalName'] as String?,
+      sellerAddress: s['address'] as String?,
+      sellerNtn: s['ntn'] as String?,
+      sellerStrn: s['strn'] as String?,
     );
   }
 }

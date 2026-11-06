@@ -387,6 +387,12 @@ class ApiConstants {
   static String posReportsEmployee(String employeeId) =>
       '$apiPrefix/pos/reports/employee/$employeeId';
 
+  // G2.5 documents, G2.6 dashboard + catalog
+  static String posSaleDocuments(String saleId) => '$apiPrefix/pos/sales/$saleId/documents';
+  static String posDashboard(String storeId) => '$apiPrefix/pos/dashboard/$storeId';
+  static String posCatalogVariant(String storeId, String variantId) => '$apiPrefix/pos/catalog/$storeId/variants/$variantId';
+  static String posCatalogStock(String storeId, String variantId) => '$apiPrefix/pos/catalog/$storeId/variants/$variantId/stock';
+
   // Settings
   static String posSettings(String storeId) =>
       '$apiPrefix/pos/settings/$storeId';

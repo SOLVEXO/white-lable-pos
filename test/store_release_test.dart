@@ -247,10 +247,12 @@ void main() {
       expect(File('ios/Runner.xcodeproj/project.pbxproj').readAsStringSync(), contains('PrivacyInfo.xcprivacy in Resources'));
     });
 
-    test('unused picker plugin removed, crash reporting present', () {
+    test('crash reporting present; file_picker is a dependency ONLY because KYB documents may be PDFs (approved G2.4 follow-up) and is used by exactly that code', () {
       final pubspec = File('pubspec.yaml').readAsStringSync();
-      expect(pubspec.contains('file_picker'), isFalse);
       expect(pubspec, contains('firebase_crashlytics'));
+      expect(pubspec, contains('file_picker'));
+      final users = Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart') && f.readAsStringSync().contains("package:file_picker/")).map((f) => f.path).toList();
+      expect(users, ['lib/app/modules/pos_kyb/controllers/pos_kyb_controller.dart']);
     });
   });
 }

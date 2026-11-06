@@ -50,6 +50,10 @@ abstract class Routes {
   static const posNeedsAttention = '/pos/needs-attention';
   static const posOfflineMode = '/pos/offline-mode';
   static const posKyb = '/pos/business-verification';
+  static const posTaxInvoice = '/pos/tax-invoice';
+  static const posReturn = '/pos/return';
+  static const posCatalog = '/pos/catalog';
+  static const posTaxProfile = '/pos/tax-profile';
   static const posCustomers = '/pos/customers';
 
   // 5D — shared-device security
