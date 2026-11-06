@@ -260,7 +260,7 @@ void main() {
 
     testWidgets('the Coupon button is off while the cart is empty', (t) async {
       await h.mount(t, size: tablet);
-      expect(t.widget<AppButton>(find.byKey(const Key('couponButton'))).onPressed, isNull);
+      expect(t.widget<InkWell>(find.descendant(of: find.byKey(const Key('couponButton')), matching: find.byType(InkWell))).onTap, isNull);
     });
   });
 }

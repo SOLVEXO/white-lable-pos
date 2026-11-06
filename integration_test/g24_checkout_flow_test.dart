@@ -18,6 +18,7 @@ import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller
 import 'package:solvexo_pos/config/app_env.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
+import 'package:solvexo_pos/utils/sound_util.dart';
 
 import 'support/real_backend.dart';
 
@@ -31,6 +32,7 @@ void main() {
   final couponCode = 'E2E${stamp % 100000}';
 
   setUpAll(() async {
+    SoundUtil.enabled = false; // the audio plugin keeps a frame callback alive after the test ends
     await Control.call('/health');
     owner = await Api.ownerLogin(ownerEmail, ownerPassword);
     final s = await owner.mainStore();
@@ -69,6 +71,7 @@ void main() {
     c.registerId.value = registerId;
     c.employeeId.value = t.employee!.id;
     await eventually(() async => c.allProducts.isNotEmpty, reason: 'catalogue loaded');
+    await eventually(() async => c.settings.value != null, reason: 'tax settings loaded');
     return c;
   }
 

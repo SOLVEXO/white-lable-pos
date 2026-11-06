@@ -193,35 +193,11 @@ class CartFooter extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(
-                  child: AppButton(
-                    key: const Key('customItemButton'),
-                    label: 'Custom',
-                    icon: Icons.edit_note_rounded,
-                    variant: AppButtonVariant.secondary,
-                    onPressed: c.isChargingOrHolding.value ? null : () => CustomItemSheet.open(c),
-                  ),
-                ),
+                Expanded(child: _ActionChip(key: const Key('customItemButton'), icon: Icons.edit_note_rounded, label: 'Custom item', onPressed: c.isChargingOrHolding.value ? null : () => CustomItemSheet.open(c))),
                 const SizedBox(width: Space.s2),
-                Expanded(
-                  child: AppButton(
-                    key: const Key('couponButton'),
-                    label: c.appliedCoupon.value == null ? 'Coupon' : c.appliedCoupon.value!.code,
-                    icon: Icons.sell_rounded,
-                    variant: AppButtonVariant.secondary,
-                    onPressed: (!c.hasItems || c.isChargingOrHolding.value) ? null : () => CouponSheet.open(c),
-                  ),
-                ),
+                Expanded(child: _ActionChip(key: const Key('couponButton'), icon: Icons.sell_rounded, label: c.appliedCoupon.value == null ? 'Coupon' : c.appliedCoupon.value!.code, active: c.appliedCoupon.value != null, onPressed: (!c.hasItems || c.isChargingOrHolding.value) ? null : () => CouponSheet.open(c))),
                 const SizedBox(width: Space.s2),
-                Expanded(
-                  child: AppButton(
-                    key: const Key('discountSheetButton'),
-                    label: 'Discount',
-                    icon: Icons.percent_rounded,
-                    variant: AppButtonVariant.secondary,
-                    onPressed: (!c.hasItems || c.isChargingOrHolding.value) ? null : () => DiscountSheet.open(c),
-                  ),
-                ),
+                Expanded(child: _ActionChip(key: const Key('discountSheetButton'), icon: Icons.percent_rounded, label: 'Discount', onPressed: (!c.hasItems || c.isChargingOrHolding.value) ? null : () => DiscountSheet.open(c))),
               ],
             ),
             const SizedBox(height: Space.s2),
@@ -319,5 +295,53 @@ class CartFooter extends StatelessWidget {
     if (!c.hasItems) return 'Add items';
     if (c.isDiscountInvalid) return 'Discount too large';
     return 'Charge ${Money.format(c.total)}';
+  }
+}
+
+
+/// A compact tap target for the cart's quick actions (custom item / coupon / discount): the whole label always shows.
+class _ActionChip extends StatelessWidget {
+  const _ActionChip({super.key, required this.icon, required this.label, required this.onPressed, this.active = false});
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final enabled = onPressed != null;
+    final fg = !enabled ? p.textMuted : (active ? p.accentFg : p.textPrimary);
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: active ? p.accentSoft : p.fill,
+        borderRadius: Radii.rMd,
+        child: InkWell(
+          borderRadius: Radii.rMd,
+          onTap: onPressed,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: Space.minTouch),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s2),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 18, color: fg),
+                    const SizedBox(width: 4),
+                    Text(label, maxLines: 1, style: context.type.label.copyWith(color: fg)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
