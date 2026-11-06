@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
@@ -69,6 +70,7 @@ void main() {
     late PosHeldSalesController c;
 
     setUp(() {
+      ReasonPicker.testOverride = (_) async => const PosReasonChoice('duplicate', ''); // the picker itself is tested in g24_screens_test
       SoundUtil.enabled = false;
       SharedPreferences.setMockInitialValues({
         'pos_sound_effects': false,
@@ -178,20 +180,20 @@ void main() {
       'DISCARD asks first: Cancel keeps it; Discard calls discardSale and removes the tile',
       (t) async {
         stubList([held('a'), held('b')]);
-        when(() => repo.discardSale('a')).thenAnswer((_) async => true);
+        when(() => repo.discardSale('a', reasonCode: any(named: 'reasonCode'), reason: any(named: 'reason'))).thenAnswer((_) async => true);
         await pump(t);
         await t.tap(find.byKey(const Key('discard-a')));
         await t.pump(const Duration(milliseconds: 400));
         expect(find.text('Discard Sale'), findsOneWidget);
         await t.tap(find.text('Cancel'));
         await t.pump(const Duration(milliseconds: 400));
-        verifyNever(() => repo.discardSale(any()));
+        verifyNever(() => repo.discardSale(any(), reasonCode: any(named: 'reasonCode'), reason: any(named: 'reason')));
         expect(c.heldSales.length, 2);
         await t.tap(find.byKey(const Key('discard-a')));
         await t.pump(const Duration(milliseconds: 400));
         await t.tap(find.text('Discard').last);
         await t.pump(const Duration(milliseconds: 400));
-        verify(() => repo.discardSale('a')).called(1);
+        verify(() => repo.discardSale('a', reasonCode: 'duplicate', reason: '')).called(1);
         expect(c.heldSales.map((s) => s.id), ['b']);
         expect(c.processingId.value, '');
         await t.pump(const Duration(seconds: 5));
@@ -200,7 +202,7 @@ void main() {
 
     testWidgets('a failed discard keeps the sale', (t) async {
       stubList([held('a')]);
-      when(() => repo.discardSale('a')).thenAnswer((_) async => false);
+      when(() => repo.discardSale('a', reasonCode: any(named: 'reasonCode'), reason: any(named: 'reason'))).thenAnswer((_) async => false);
       await pump(t);
       await c.discardSale(c.heldSales.first);
       expect(c.heldSales.length, 1);

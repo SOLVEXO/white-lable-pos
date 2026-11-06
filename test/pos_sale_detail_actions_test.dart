@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
+import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
@@ -53,6 +54,7 @@ void main() {
   });
 
   setUp(() {
+    ReasonPicker.testOverride = (_) async => const PosReasonChoice('wrong_item', 'size M'); // the picker itself is tested in g24_screens_test
     posRepo = MockPosRepository();
     c = PosSaleDetailController(posRepository: posRepo);
     c.saleId = 'sale-1';
@@ -68,6 +70,8 @@ void main() {
     // later test in this file.
     when(() => posRepo.getPosSettings(any())).thenAnswer((_) async => null);
   });
+
+  tearDown(() => ReasonPicker.testOverride = null);
 
   Future<void> pumpApp(WidgetTester tester) => tester.pumpWidget(
         ResponsiveSizer(
@@ -87,20 +91,21 @@ void main() {
     // all — a stub declared with `items: any(named: 'items')` only matches
     // calls that actually pass that named parameter (see refundPartial's
     // stub below), so this one must omit it too.
-    when(() => posRepo.refundSale(any())).thenAnswer(
+    when(() => posRepo.refundSale(any(), reasonCode: any(named: 'reasonCode'), reason: any(named: 'reason'))).thenAnswer(
       (_) async => (success: true, refundedAmount: 10.0, newStatus: 'refunded', message: 'Sale fully refunded.', tenders: const <PosPaymentLine>[]),
     );
 
     await c.refundFull();
     await settleSnackbar(tester);
 
-    verify(() => posRepo.refundSale('sale-1')).called(1);
+    // G2.4: the refund carries the reason the cashier picked
+    verify(() => posRepo.refundSale('sale-1', reasonCode: 'wrong_item', reason: 'size M')).called(1);
     verify(() => posRepo.getSaleById('sale-1')).called(greaterThanOrEqualTo(1));
   });
 
   testWidgets('refundFull leaves isProcessing false again after a failure, without reloading', (tester) async {
     await pumpApp(tester);
-    when(() => posRepo.refundSale(any())).thenAnswer(
+    when(() => posRepo.refundSale(any(), reasonCode: any(named: 'reasonCode'), reason: any(named: 'reason'))).thenAnswer(
       (_) async => (success: false, refundedAmount: null, newStatus: null, message: 'Refund window expired.', tenders: const <PosPaymentLine>[]),
     );
 
@@ -117,14 +122,14 @@ void main() {
   testWidgets('refundPartial sends only the selected line items and clears the selection on success', (tester) async {
     await pumpApp(tester);
     c.setRefundQty('item-1', 1);
-    when(() => posRepo.refundSale(any(), items: any(named: 'items'))).thenAnswer(
+    when(() => posRepo.refundSale(any(), items: any(named: 'items'), reasonCode: any(named: 'reasonCode'), reason: any(named: 'reason'))).thenAnswer(
       (_) async => (success: true, refundedAmount: 5.0, newStatus: 'partially_refunded', message: null, tenders: const <PosPaymentLine>[]),
     );
 
     await c.refundPartial();
     await settleSnackbar(tester);
 
-    final captured = verify(() => posRepo.refundSale('sale-1', items: captureAny(named: 'items'))).captured;
+    final captured = verify(() => posRepo.refundSale('sale-1', items: captureAny(named: 'items'), reasonCode: 'wrong_item', reason: 'size M')).captured;
     expect(captured.single, [
       {'saleItemId': 'item-1', 'qty': 1},
     ]);
@@ -133,18 +138,18 @@ void main() {
 
   testWidgets('voidSale reloads the sale on success', (tester) async {
     await pumpApp(tester);
-    when(() => posRepo.voidSale(any(), reason: any(named: 'reason'))).thenAnswer((_) async => true);
+    when(() => posRepo.voidSale(any(), reason: any(named: 'reason'), reasonCode: any(named: 'reasonCode'))).thenAnswer((_) async => true);
 
     await c.voidSale(reason: 'Customer changed mind');
     await settleSnackbar(tester);
 
-    verify(() => posRepo.voidSale('sale-1', reason: 'Customer changed mind')).called(1);
+    verify(() => posRepo.voidSale('sale-1', reason: 'size M', reasonCode: 'wrong_item')).called(1);
     verify(() => posRepo.getSaleById('sale-1')).called(greaterThanOrEqualTo(1));
   });
 
   testWidgets('voidSale does nothing further when the repository returns false', (tester) async {
     await pumpApp(tester);
-    when(() => posRepo.voidSale(any(), reason: any(named: 'reason'))).thenAnswer((_) async => false);
+    when(() => posRepo.voidSale(any(), reason: any(named: 'reason'), reasonCode: any(named: 'reasonCode'))).thenAnswer((_) async => false);
 
     await c.voidSale();
 
@@ -160,11 +165,11 @@ void main() {
   // doesn't wait for it to finish) rather than settling it like the others.
   testWidgets('discard calls discardSale', (tester) async {
     await pumpApp(tester);
-    when(() => posRepo.discardSale(any())).thenAnswer((_) async => true);
+    when(() => posRepo.discardSale(any(), reasonCode: any(named: 'reasonCode'), reason: any(named: 'reason'))).thenAnswer((_) async => true);
 
     await c.discard();
     await tester.pump();
 
-    verify(() => posRepo.discardSale('sale-1')).called(1);
+    verify(() => posRepo.discardSale('sale-1', reasonCode: 'wrong_item', reason: 'size M')).called(1);
   });
 }

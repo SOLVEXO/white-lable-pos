@@ -5,6 +5,7 @@ import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller
 import 'package:solvexo_pos/app/modules/pos_home/utils/cart_removal_undo.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/coupon_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/custom_item_sheet.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/discount_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/hold_confirm_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/payment_sheet.dart';
 import 'package:solvexo_pos/core/design/design.dart';
@@ -195,7 +196,7 @@ class CartFooter extends StatelessWidget {
                 Expanded(
                   child: AppButton(
                     key: const Key('customItemButton'),
-                    label: 'Custom item',
+                    label: 'Custom',
                     icon: Icons.edit_note_rounded,
                     variant: AppButtonVariant.secondary,
                     onPressed: c.isChargingOrHolding.value ? null : () => CustomItemSheet.open(c),
@@ -209,6 +210,16 @@ class CartFooter extends StatelessWidget {
                     icon: Icons.sell_rounded,
                     variant: AppButtonVariant.secondary,
                     onPressed: (!c.hasItems || c.isChargingOrHolding.value) ? null : () => CouponSheet.open(c),
+                  ),
+                ),
+                const SizedBox(width: Space.s2),
+                Expanded(
+                  child: AppButton(
+                    key: const Key('discountSheetButton'),
+                    label: 'Discount',
+                    icon: Icons.percent_rounded,
+                    variant: AppButtonVariant.secondary,
+                    onPressed: (!c.hasItems || c.isChargingOrHolding.value) ? null : () => DiscountSheet.open(c),
                   ),
                 ),
               ],

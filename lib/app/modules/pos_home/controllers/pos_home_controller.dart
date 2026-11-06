@@ -1,5 +1,6 @@
 import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/data/local/idempotency_intent_store.dart';
 import 'package:solvexo_pos/app/data/local/pos_local_caches.dart';
 import 'package:solvexo_pos/utils/money.dart';
@@ -31,6 +32,7 @@ import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/pos_role.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 
@@ -502,6 +504,7 @@ class PosHomeController extends GetxController {
       _loadSettings();
     });
     _loadCategoryNames();
+    unawaited(loadRecentSearches());
     PosRole.isCurrentEmployeeManager().then((v) => isManager.value = v);
 
     productScrollController.addListener(() {
@@ -654,6 +657,42 @@ class PosHomeController extends GetxController {
     }
   }
 
+  // ── Recent searches (what the cashier searched for before — plain words, no customer data) ──
+  final RxList<String> recentSearches = <String>[].obs;
+  static const _recentKey = 'pos_recent_searches';
+
+  Future<void> loadRecentSearches() async {
+    try {
+      final list = (await SharedPreferences.getInstance()).getStringList(_recentKey) ?? const <String>[];
+      recentSearches.assignAll(list.take(6));
+    } catch (_) {}
+  }
+
+  /// Remembers [term] (most recent first, no duplicates, at most 6). Called when the cashier submits a search or adds a found product.
+  Future<void> rememberSearch(String term) async {
+    final t = term.trim();
+    if (t.length < 2) return;
+    recentSearches.removeWhere((e) => e.toLowerCase() == t.toLowerCase());
+    recentSearches.insert(0, t);
+    if (recentSearches.length > 6) recentSearches.removeRange(6, recentSearches.length);
+    try {
+      await (await SharedPreferences.getInstance()).setStringList(_recentKey, recentSearches.toList());
+    } catch (_) {}
+  }
+
+  Future<void> clearRecentSearches() async {
+    recentSearches.clear();
+    try {
+      await (await SharedPreferences.getInstance()).remove(_recentKey);
+    } catch (_) {}
+  }
+
+  /// Runs a remembered search again.
+  void useRecentSearch(String term) {
+    searchController.text = term;
+    onSearchChanged(term);
+  }
+
   void onSearchChanged(String v) {
     searchText.value = v;
     _debounce?.cancel();
@@ -680,6 +719,7 @@ class PosHomeController extends GetxController {
     }
     variant ??= product.defaultVariant;
     if (variant == null) return;
+    if (searchText.value.trim().isNotEmpty) unawaited(rememberSearch(searchText.value)); // the search that found it is worth keeping
     final key = '${product.productId}_${variant.variantId}';
     final idx = cartItems.indexWhere((c) => c.cartKey == key);
     if (idx >= 0) {
@@ -902,6 +942,7 @@ class PosHomeController extends GetxController {
 
   // ── Charge (complete sale) ────────────────────────────────────────────────
   Future<void> completeSale() async {
+    if (isChargingOrHolding.value) return; // double-submit protection: a second Charge while one is in flight does nothing
     lastOutcome.value = null;
     lastReceipt.value = null;
     if (!hasItems) return;
@@ -1262,6 +1303,7 @@ class PosHomeController extends GetxController {
 
   // ── Hold sale ─────────────────────────────────────────────────────────────
   Future<void> holdSale() async {
+    if (isChargingOrHolding.value) return;
     if (!hasItems) return;
     if (!_hasValidSession()) return;
     if (isDiscountBlocked) {
@@ -1302,9 +1344,30 @@ class PosHomeController extends GetxController {
   // ── Held sales ────────────────────────────────────────────────────────────
   void openHeldSales() => Get.toNamed(Routes.posHeldSales);
 
+  /// A short tap in the hand (and the system click) when a scan put a line in the cart.
+  void _scanFeedback() {
+    HapticFeedback.mediumImpact();
+    SystemSound.play(SystemSoundType.click);
+  }
+
   // ── Barcode scan → add straight to cart ──────────────────────────────────
+  /// How long the last scan took from the scanner's event to the line being in the cart (ms) — measured, shown by the acceptance test.
+  int? lastScanMs;
+
   Future<void> addProductByBarcode(String barcode) async {
     if (storeId.value.isEmpty || barcode.trim().isEmpty) return;
+    final watch = Stopwatch()..start();
+    final code = barcode.trim();
+    // 1) the catalogue already on this device: no network, so the line is added (and the feedback given) at once
+    for (final p in allProducts) {
+      final v = p.variants.firstWhereOrNull((v) => (v.barcode ?? '') == code);
+      if (v != null && p.inStock) {
+        addToCart(p, v);
+        _scanFeedback();
+        lastScanMs = watch.elapsedMilliseconds;
+        return;
+      }
+    }
     isScanningBarcode.value = true;
     try {
       final product = await _posRepo.getProductByBarcode(
@@ -1316,6 +1379,8 @@ class PosHomeController extends GetxController {
         return;
       }
       addToCart(product, product.defaultVariant);
+      _scanFeedback();
+      lastScanMs = watch.elapsedMilliseconds;
     } finally {
       isScanningBarcode.value = false;
     }

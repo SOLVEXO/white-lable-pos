@@ -25,11 +25,15 @@ class ProductTile extends StatelessWidget {
     this.unlimited = false,
     this.cartKey,
     this.inCartQty = 0,
+    this.onLongPress,
   });
 
   final String name;
   final String priceText;
   final VoidCallback? onAdd;
+
+  /// Long-press: the product detail (variants, stock, SKU) instead of adding.
+  final VoidCallback? onLongPress;
   final String? imageUrl;
   final int? stock;
   final int stockCapacity;
@@ -72,6 +76,10 @@ class ProductTile extends StatelessWidget {
                 type: MaterialType.transparency,
                 child: InkWell(
                   borderRadius: Radii.rLg,
+                  onLongPress: onLongPress == null ? null : () {
+                    HapticFeedback.mediumImpact();
+                    onLongPress!();
+                  },
                   onTap: enabled
                       ? () {
                           HapticFeedback.lightImpact();

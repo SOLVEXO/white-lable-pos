@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/cart_removal_undo.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/category_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_barcode_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/product_grid.dart';
 import 'package:solvexo_pos/core/design/design.dart';
@@ -23,12 +24,7 @@ class SaleCatalog extends StatelessWidget {
         _Header(c: c),
         Padding(
           padding: const EdgeInsets.fromLTRB(Space.s4, 0, Space.s4, Space.s3),
-          child: AppSearchBar(
-            controller: c.searchController,
-            hint: 'Search products or SKU',
-            onChanged: c.onSearchChanged,
-            onScan: () => Get.bottomSheet(PosBarcodeSheet(c: c), isScrollControlled: true, backgroundColor: Colors.transparent),
-          ),
+          child: _SearchArea(c: c),
         ),
         _StaleDataBar(c: c),
         Obx(() {
@@ -37,10 +33,17 @@ class SaleCatalog extends StatelessWidget {
           final selected = cats.indexOf(c.selectedCategoryId.value);
           return Padding(
             padding: const EdgeInsets.only(bottom: Space.s1),
-            child: CategoryChips(
-              labels: [for (final id in cats) c.categoryLabel(id)],
-              selectedIndex: selected < 0 ? 0 : selected,
-              onSelected: (i) => c.selectCategory(cats[i]),
+            child: Row(
+              children: [
+                Expanded(
+                  child: CategoryChips(
+                    labels: [for (final id in cats) c.categoryLabel(id)],
+                    selectedIndex: selected < 0 ? 0 : selected,
+                    onSelected: (i) => c.selectCategory(cats[i]),
+                  ),
+                ),
+                IconButton(key: const Key('allCategoriesButton'), tooltip: 'All categories', constraints: const BoxConstraints(minWidth: Space.minTouch, minHeight: Space.minTouch), icon: const Icon(Icons.grid_view_rounded), onPressed: () => CategorySheet.open(c)),
+              ],
             ),
           );
         }),
@@ -122,5 +125,74 @@ class _StaleDataBar extends StatelessWidget {
         ),
       );
     });
+  }
+}
+
+
+/// The search field and, while it is focused and empty, the cashier's recent searches (one tap runs one again).
+class _SearchArea extends StatefulWidget {
+  const _SearchArea({required this.c});
+  final PosHomeController c;
+
+  @override
+  State<_SearchArea> createState() => _SearchAreaState();
+}
+
+class _SearchAreaState extends State<_SearchArea> {
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppSearchBar(
+          controller: c.searchController,
+          focusNode: _focus,
+          hint: 'Search products or SKU',
+          onChanged: c.onSearchChanged,
+          onSubmitted: c.rememberSearch,
+          onScan: () => Get.bottomSheet(PosBarcodeSheet(c: c), isScrollControlled: true, backgroundColor: Colors.transparent),
+        ),
+        Obx(() {
+          // read both observables first (a short-circuit that skips them all leaves the Obx with nothing to listen to)
+          final empty = c.searchText.value.isEmpty;
+          final has = c.recentSearches.isNotEmpty;
+          final show = _focus.hasFocus && empty && has;
+          if (!show) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(top: Space.s2),
+            child: Wrap(
+              key: const Key('recentSearches'),
+              spacing: Space.s2,
+              runSpacing: Space.s1,
+              children: [
+                for (final term in c.recentSearches)
+                  ActionChip(
+                    key: Key('recent_$term'),
+                    avatar: const Icon(Icons.history_rounded, size: 16),
+                    label: Text(term),
+                    onPressed: () => c.useRecentSearch(term),
+                  ),
+                TextButton(key: const Key('clearRecent'), onPressed: c.clearRecentSearches, child: const Text('Clear')),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
   }
 }

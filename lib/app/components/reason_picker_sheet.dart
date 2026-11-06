@@ -38,7 +38,11 @@ const Map<PosReasonKind, List<(String, String)>> kPosReasons = {
 
 /// "Why?" — a reason picker with an optional note (required words for "Other"). Returns null when cancelled.
 abstract final class ReasonPicker {
-  static Future<PosReasonChoice?> ask(PosReasonKind kind) => AppBottomSheet.showGet<PosReasonChoice>(_ReasonSheet(kind: kind), title: switch (kind) {
+  /// Tests that exercise the action behind the picker (not the picker itself) answer it here.
+  @visibleForTesting
+  static Future<PosReasonChoice?> Function(PosReasonKind kind)? testOverride;
+
+  static Future<PosReasonChoice?> ask(PosReasonKind kind) => testOverride != null ? testOverride!(kind) : AppBottomSheet.showGet<PosReasonChoice>(_ReasonSheet(kind: kind), title: switch (kind) {
         PosReasonKind.refund => 'Reason for the refund',
         PosReasonKind.voidSale => 'Reason for voiding',
         PosReasonKind.discard => 'Reason for discarding',

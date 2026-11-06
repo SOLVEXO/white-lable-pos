@@ -37,8 +37,8 @@ class PosMoreHubView extends StatelessWidget {
         HubSection('This shift', [
           HubRow(icon: Icons.schedule_rounded, title: 'Shift summary', subtitle: 'Sales, cash and card for the open shift', onTap: () => Get.toNamed(Routes.posSessionReport)),
           HubRow(icon: Icons.pause_circle_outline_rounded, title: 'Held sales', subtitle: 'Resume or discard parked sales', onTap: () => Get.toNamed(Routes.posHeldSales)),
-          HubRow(icon: Icons.cloud_off_rounded, title: 'Offline mode', subtitle: 'What works without internet and what is waiting to sync', onTap: () => Get.toNamed(Routes.posOfflineMode)),
           HubRow(icon: Icons.sync_problem_rounded, title: 'Sync & needs attention', subtitle: 'Offline sales that are not on the server yet', badge: unresolved, onTap: () => Get.toNamed(Routes.posNeedsAttention)),
+          HubRow(icon: Icons.cloud_off_rounded, title: 'Offline mode', subtitle: 'What works without internet and what is waiting to sync', onTap: () => Get.toNamed(Routes.posOfflineMode)),
         ]),
         if (a.canManage)
           HubSection('Business', [

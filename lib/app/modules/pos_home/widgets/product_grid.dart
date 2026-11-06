@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/product_detail_sheet.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/utils/money.dart';
 
@@ -98,6 +99,7 @@ class ProductTileObx extends StatelessWidget {
         // a multi-variant product opens the variant picker instead of adding straight away: no fly-to-cart then
         cartKey: product.hasMultipleVariants ? null : cartKey,
         onAdd: () => c.addToCart(product),
+        onLongPress: () => ProductDetailSheet.open(c, product),
       ),
     );
   }
