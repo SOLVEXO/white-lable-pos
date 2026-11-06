@@ -37,6 +37,7 @@ class PosMoreHubView extends StatelessWidget {
         HubSection('This shift', [
           HubRow(icon: Icons.schedule_rounded, title: 'Shift summary', subtitle: 'Sales, cash and card for the open shift', onTap: () => Get.toNamed(Routes.posSessionReport)),
           HubRow(icon: Icons.pause_circle_outline_rounded, title: 'Held sales', subtitle: 'Resume or discard parked sales', onTap: () => Get.toNamed(Routes.posHeldSales)),
+          HubRow(icon: Icons.cloud_off_rounded, title: 'Offline mode', subtitle: 'What works without internet and what is waiting to sync', onTap: () => Get.toNamed(Routes.posOfflineMode)),
           HubRow(icon: Icons.sync_problem_rounded, title: 'Sync & needs attention', subtitle: 'Offline sales that are not on the server yet', badge: unresolved, onTap: () => Get.toNamed(Routes.posNeedsAttention)),
         ]),
         if (a.canManage)
@@ -57,6 +58,7 @@ class PosMoreHubView extends StatelessWidget {
             HubRow(icon: Icons.manage_accounts_outlined, title: 'Team & registers', subtitle: 'Employees, PINs and registers', onTap: () => Get.toNamed(Routes.sellerPosManagement), locked: true),
             HubRow(icon: Icons.devices_other_rounded, title: 'Devices', subtitle: 'Registered tills', onTap: () => Get.toNamed(Routes.posDevices), locked: true),
             HubRow(icon: Icons.shield_outlined, title: 'Audit log', subtitle: 'Who did what, and when', onTap: () => Get.toNamed(Routes.posAuditLog), locked: true),
+            HubRow(icon: Icons.verified_user_outlined, title: 'Business verification', subtitle: 'Needed for Raast QR payments', onTap: () => Get.toNamed(Routes.posKyb), locked: true),
             HubRow(icon: Icons.workspace_premium_outlined, title: 'Plan status', subtitle: 'Your POS plan', onTap: () => Get.toNamed(Routes.posPlanStatus), locked: true),
           ]),
         HubSection('App', [

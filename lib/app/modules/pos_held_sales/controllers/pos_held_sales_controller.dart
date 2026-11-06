@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
@@ -83,9 +84,12 @@ class PosHeldSalesController extends GetxController {
 
   // ── Discard held sale ─────────────────────────────────────────────────────
   Future<void> discardSale(PosSaleModel sale) async {
+    if (processingId.value.isNotEmpty) return; // double-submit protection
     processingId.value = sale.id;
     try {
-      final ok = await _posRepo.discardSale(sale.id);
+      final why = await ReasonPicker.ask(PosReasonKind.discard);
+      if (why == null) return;
+      final ok = await _posRepo.discardSale(sale.id, reasonCode: why.code, reason: why.note);
       if (ok) {
         heldSales.remove(sale);
         CustomAppSnackbar.success('Sale discarded.');

@@ -53,6 +53,10 @@ import '../modules/pos_range_report/views/pos_range_report_view.dart';
 import '../modules/pos_inventory/bindings/pos_inventory_binding.dart';
 import '../modules/pos_inventory/views/pos_inventory_view.dart';
 import '../modules/pos_needs_attention/bindings/pos_needs_attention_binding.dart';
+import '../modules/pos_kyb/bindings/pos_kyb_binding.dart';
+import '../modules/pos_kyb/views/pos_kyb_view.dart';
+import '../modules/pos_offline/bindings/pos_offline_binding.dart';
+import '../modules/pos_offline/views/pos_offline_view.dart';
 import '../modules/pos_needs_attention/views/pos_needs_attention_view.dart';
 import '../modules/pos_stock_activity/bindings/pos_stock_activity_binding.dart';
 import '../modules/pos_stock_activity/views/pos_stock_activity_view.dart';
@@ -214,6 +218,20 @@ class AppPages {
       name: Routes.posNeedsAttention,
       page: () => PosNeedsAttentionView(),
       binding: PosNeedsAttentionBinding(),
+      middlewares: [PosAccessMiddleware()],
+    ),
+    // Owner-only business verification (G2.2 owner endpoints): behind the owner gate, screenshots blocked, wiped on background/lock
+    GetPage(
+      name: Routes.posKyb,
+      page: () => PosKybView(),
+      binding: PosKybBinding(),
+      middlewares: [OwnerAccessMiddleware()],
+    ),
+    // What works offline, what doesn't, the sync queue — reachable in restricted mode too (it only reads and syncs)
+    GetPage(
+      name: Routes.posOfflineMode,
+      page: () => PosOfflineView(),
+      binding: PosOfflineBinding(),
       middlewares: [PosAccessMiddleware()],
     ),
     GetPage(

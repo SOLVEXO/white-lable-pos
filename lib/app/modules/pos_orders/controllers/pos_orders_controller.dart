@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
 import 'package:solvexo_pos/app/components/refund_done_dialog.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
@@ -149,9 +150,12 @@ class PosOrdersController extends GetxController {
 
   // ── Full refund (from the list quick-action) ─────────────────────────────
   Future<void> refundSale(PosSaleModel sale) async {
+    if (processingId.value.isNotEmpty) return; // double-submit protection: one refund in flight (the picker counts)
     processingId.value = sale.id;
     try {
-      final result = await _posRepo.refundSale(sale.id);
+      final why = await ReasonPicker.ask(PosReasonKind.refund);
+      if (why == null) return;
+      final result = await _posRepo.refundSale(sale.id, reasonCode: why.code, reason: why.note);
       if (!result.success) {
         CustomAppSnackbar.error(result.message ?? 'Could not process refund.');
         return;
@@ -168,9 +172,12 @@ class PosOrdersController extends GetxController {
   }
 
   Future<void> voidSale(PosSaleModel sale) async {
+    if (processingId.value.isNotEmpty) return;
     processingId.value = sale.id;
     try {
-      final ok = await _posRepo.voidSale(sale.id);
+      final why = await ReasonPicker.ask(PosReasonKind.voidSale);
+      if (why == null) return;
+      final ok = await _posRepo.voidSale(sale.id, reason: why.note.isEmpty ? null : why.note, reasonCode: why.code);
       if (!ok) return;
       final idx = sales.indexWhere((s) => s.id == sale.id);
       if (idx >= 0) sales[idx] = _withStatus(sales[idx], 'voided');

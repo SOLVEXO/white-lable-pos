@@ -1,4 +1,5 @@
 import 'package:solvexo_pos/utils/unsynced_guard.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/manager_approval_sheet.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'dart:async';
@@ -118,6 +119,9 @@ class PosSettingsController extends GetxController {
 
   final TextEditingController closingCashController =
       TextEditingController(text: '0');
+
+  /// G2.4: the card total printed on the terminal's settlement slip (optional). A difference from what the till recorded needs a manager.
+  final TextEditingController cardSlipController = TextEditingController();
 
   // ── Computed ─────────────────────────────────────────────────────────────
   String get initials {
@@ -336,6 +340,7 @@ class PosSettingsController extends GetxController {
   @override
   void onClose() {
     closingCashController.dispose();
+    cardSlipController.dispose();
     super.onClose();
   }
 
@@ -566,6 +571,7 @@ class PosSettingsController extends GetxController {
     final ctx = Get.context;
     if (ctx == null || !ctx.mounted) return;
     closingCashController.text = '';
+    cardSlipController.text = '';
     showDialog(
       context: ctx,
       barrierDismissible: false,
@@ -607,6 +613,22 @@ class PosSettingsController extends GetxController {
               controller: closingCashController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               hintText: '0.00',
+              isborder: true,
+              fillColor: AppColors.background,
+              prefixIcon: const CustomText(text: '\$', fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
+            ),
+            const SizedBox(height: 14),
+            const CustomText(
+              text: 'Card total from the terminal slip (optional).',
+              fontSize: AppFontSize.verySmall,
+              color: AppColors.grey,
+            ),
+            const SizedBox(height: 10),
+            CustomTextField(
+              key: const Key('cardSlipField'),
+              controller: cardSlipController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              hintText: 'Leave empty to skip',
               isborder: true,
               fillColor: AppColors.background,
               prefixIcon: const CustomText(text: '\$', fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
@@ -670,12 +692,24 @@ class PosSettingsController extends GetxController {
       CustomAppSnackbar.warning('Enter a valid closing cash amount.');
       return;
     }
+    final slipText = cardSlipController.text.trim();
+    final slip = slipText.isEmpty ? null : double.tryParse(slipText);
+    if (slipText.isNotEmpty && (slip == null || slip < 0)) {
+      CustomAppSnackbar.warning('Enter a valid card total from the slip, or leave it empty.');
+      return;
+    }
+    if (isClosing.value) return; // double-submit protection
     isClosing.value = true;
     try {
-      final result = await _posRepo.closeSession(
-        sessionId: _sessionId,
-        closingCash: closingCash,
-      );
+      var result = slip == null
+          ? await _posRepo.closeSession(sessionId: _sessionId, closingCash: closingCash)
+          : await _posRepo.closeSession(sessionId: _sessionId, closingCash: closingCash, cardTotalFromSlip: slip);
+      if (!result.success && _posRepo.lastErrorCode == 'CARD_VARIANCE_APPROVAL_REQUIRED' && slip != null) {
+        // the slip total differs from what the till recorded: only a manager may close the shift with that difference
+        final token = await ManagerApproval.request(reason: result.message ?? 'The card total on the slip differs from the card total recorded at the till. A manager must approve closing the shift with this difference.', repository: _posRepo);
+        if (token == null) return;
+        result = await _posRepo.closeSession(sessionId: _sessionId, closingCash: closingCash, cardTotalFromSlip: slip, approverToken: token);
+      }
       final session = result.session;
       if (!result.success || session == null) {
         CustomAppSnackbar.error(_friendlyError(result.message ?? ''));

@@ -72,6 +72,9 @@ class ReceiptData {
   final String? offlineNote;
   final String? offlineRef;
 
+  /// The server's sale id (null for a provisional offline receipt): the digital receipt link is asked for with it.
+  final String? saleId;
+
   const ReceiptData({
     this.businessName,
     this.header,
@@ -97,6 +100,7 @@ class ReceiptData {
     this.footer,
     this.offlineNote,
     this.offlineRef,
+    this.saleId,
   });
 
   /// The note printed on a provisional (not yet synced) receipt.
@@ -127,6 +131,7 @@ class ReceiptData {
         footer: footer,
         offlineNote: clearOfflineNote ? null : (offlineNote ?? this.offlineNote),
         offlineRef: offlineRef ?? this.offlineRef,
+        saleId: saleId,
       );
 
   Map<String, dynamic> toJson() => {
@@ -278,6 +283,7 @@ class ReceiptData {
       isCopy: isCopy,
       footer: clean(settings?.receiptFooter),
       offlineRef: offlineRef,
+      saleId: sale.id.isEmpty ? null : sale.id,
     );
   }
 

@@ -2,7 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/core/design/design.dart';
@@ -15,8 +17,11 @@ import 'package:solvexo_pos/utils/receipt_pdf_builder.dart';
 ///
 /// Actions: Print again (auto-print already ran per the printer settings), Share (PDF of `lastReceipt`), New sale.
 class SaleSuccessView extends StatefulWidget {
-  const SaleSuccessView({super.key, required this.c});
+  const SaleSuccessView({super.key, required this.c, this.repository});
   final PosHomeController c;
+
+  /// Asks the server for the digital-receipt link (injectable for tests).
+  final PosRepository? repository;
 
   @override
   State<SaleSuccessView> createState() => _SaleSuccessViewState();
@@ -29,9 +34,33 @@ class _SaleSuccessViewState extends State<SaleSuccessView> with SingleTickerProv
   bool _printing = false;
   bool _sharing = false;
 
+  /// The public digital-receipt link (G2.4): its QR is shown to the customer, and it can be shared. Null while loading / when the
+  /// sale has none yet (an offline sale gets one after it syncs).
+  String? _link;
+  bool _linkLoading = false;
+
+  Future<void> _loadLink() async {
+    final id = _receipt?.saleId;
+    if (id == null || _outcome != SaleOutcome.completed) return;
+    setState(() => _linkLoading = true);
+    final url = await (widget.repository ?? PosRepository()).getReceiptLink(id);
+    if (!mounted) return;
+    setState(() {
+      _link = url;
+      _linkLoading = false;
+    });
+  }
+
+  Future<void> _shareLink() async {
+    final link = _link;
+    if (link == null) return;
+    await SharePlus.instance.share(ShareParams(text: link, subject: 'Receipt ${_receipt?.receiptNumber ?? ''}'));
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadLink());
     _paper = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
     if (_outcome == null) {
       // never show a "success" the controller did not report
@@ -154,7 +183,9 @@ class _SaleSuccessViewState extends State<SaleSuccessView> with SingleTickerProv
                             ),
                           ),
                   ),
-                  const SizedBox(height: Space.s4),
+                  const SizedBox(height: Space.s3),
+                  _DigitalReceipt(link: _link, loading: _linkLoading, offline: offline, onShare: _shareLink),
+                  const SizedBox(height: Space.s3),
                   Row(
                     children: [
                       Expanded(
@@ -256,6 +287,53 @@ class _Paper extends StatelessWidget {
             if (receipt.change != null) ReceiptRow('Change', receipt.change!, strong: true, valueColor: p.successFg),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+/// The customer's digital receipt: a QR that opens the public receipt page, and the same link to share. Hidden for a sale with no
+/// link (a failed lookup just means no QR — the printed / PDF receipt is unaffected).
+class _DigitalReceipt extends StatelessWidget {
+  const _DigitalReceipt({required this.link, required this.loading, required this.offline, required this.onShare});
+  final String? link;
+  final bool loading;
+  final bool offline;
+  final VoidCallback onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
+    if (offline) {
+      return Text('The digital receipt (QR) is available once this sale syncs.', key: const Key('digitalReceiptOffline'), textAlign: TextAlign.center, style: t.caption.copyWith(color: p.textMuted));
+    }
+    if (link == null) {
+      return loading ? const SizedBox(height: 4, child: LinearProgressIndicator(key: Key('digitalReceiptLoading'))) : const SizedBox.shrink();
+    }
+    return AppCard(
+      color: p.surface,
+      radius: Radii.rMd,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            color: Colors.white, // a QR needs a light quiet zone in dark mode too
+            child: QrImageView(key: const Key('receiptQr'), data: link!, size: 92, padding: EdgeInsets.zero, backgroundColor: Colors.white, eyeStyle: const QrEyeStyle(color: Colors.black, eyeShape: QrEyeShape.square), dataModuleStyle: const QrDataModuleStyle(color: Colors.black, dataModuleShape: QrDataModuleShape.square)),
+          ),
+          const SizedBox(width: Space.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Digital receipt', style: t.subtitle.copyWith(color: p.textPrimary)),
+                Text('The customer scans this to see their receipt — no personal details on it.', style: t.caption.copyWith(color: p.textSecondary)),
+                TextButton.icon(key: const Key('shareReceiptLink'), onPressed: onShare, icon: const Icon(Icons.link_rounded, size: 18), label: const Text('Share link')),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

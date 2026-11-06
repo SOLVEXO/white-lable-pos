@@ -268,6 +268,7 @@ class ApiConstants {
       "$apiPrefix/pos/customers/$storeId/search";
   // Offline-sync support: price a cart without selling it; manager review of flagged sales; audit of a discarded queued sale
   static String get posSalesQuote => "$apiPrefix/pos/sales/quote";
+  static String posSaleReceiptLink(String saleId) => "$apiPrefix/pos/sales/$saleId/receipt-link";
   static String posSalesNeedsReview(String storeId) => "$apiPrefix/pos/sales/needs-review?storeId=$storeId";
   static String posSaleResolveReview(String saleId) => "$apiPrefix/pos/sales/$saleId/resolve-review";
   static String get posOfflineDiscards => "$apiPrefix/pos/offline-discards";
@@ -312,6 +313,12 @@ class ApiConstants {
   static String posPaymentAttemptCancel(String key) => '$apiPrefix/pos/payments/attempts/${Uri.encodeComponent(key)}/cancel';
   static String get posPaymentAttention => '$apiPrefix/pos/payments/attention';
   static String get posPaymentVerification => '$apiPrefix/pos/payments/verification';
+  // Owner-only business verification (KYB) — the owner's own session, never a device token
+  static String kyb(String storeId) => '$apiPrefix/kyb/$storeId';
+  static String kybDraft(String storeId) => '$apiPrefix/kyb/$storeId/draft';
+  static String kybDocuments(String storeId) => '$apiPrefix/kyb/$storeId/documents';
+  static String kybDocument(String storeId, String docId) => '$apiPrefix/kyb/$storeId/documents/$docId';
+  static String kybSubmit(String storeId) => '$apiPrefix/kyb/$storeId/submit';
   static String get posPaymentMockSimulate => '$apiPrefix/pos/payments/mock/simulate'; // dev / mock provider only
 
   // Employees

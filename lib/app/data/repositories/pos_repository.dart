@@ -596,8 +596,11 @@ class PosRepository {
   Future<({bool success, PosSessionModel? session, String? message})> closeSession({
     required String sessionId,
     required double closingCash,
+    double? cardTotalFromSlip, // G2.4: the total printed on the card terminal's settlement slip (a difference needs a manager)
+    String? approverToken, // a manager's token approving a card variance (replaces the cashier's for this call)
   }) async {
-    final payload = {'sessionId': sessionId, 'closingCash': closingCash};
+    lastErrorCode = null;
+    final payload = {'sessionId': sessionId, 'closingCash': closingCash, if (cardTotalFromSlip != null) 'cardTotalFromSlip': cardTotalFromSlip};
     final fp = IdempotencyIntentStore.fingerprint('closeSession', payload);
     var settled = false;
     try {
@@ -605,7 +608,7 @@ class PosRepository {
         ApiConstants.posSessionsClose,
         data: payload,
         requiresAuth: true,
-        headers: await _writeHeaders(await _intents.keyFor(fp)),
+        headers: {...await _writeHeaders(await _intents.keyFor(fp)), if (approverToken != null) 'x-pos-employee-token': approverToken},
       );
       settled = true;
       final data = _data(res) as Map<String, dynamic>?;
@@ -613,6 +616,7 @@ class PosRepository {
       return (success: false, session: null, message: res.data['message'] as String?);
     } on DioException catch (e) {
       settled = _isFinalFailure(e);
+      lastErrorCode = _dioCode(e);
       _logDioError('closeSession', e);
       _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e, showToast: false);
@@ -1160,9 +1164,15 @@ class PosRepository {
     }
   }
 
-  Future<bool> discardSale(String saleId) async {
+  Future<bool> discardSale(String saleId, {String? reasonCode, String? reason}) async {
     try {
-      final res = await _client.delete(ApiConstants.posSaleDiscard(saleId), requiresAuth: true);
+      // the reason travels in the query string (some HTTP clients drop a DELETE body); an old server simply ignores it
+      final q = <String>[
+        if (reasonCode != null && reasonCode.isNotEmpty) 'reasonCode=${Uri.encodeQueryComponent(reasonCode)}',
+        if (reason != null && reason.trim().isNotEmpty) 'reason=${Uri.encodeQueryComponent(reason.trim())}',
+      ];
+      final url = ApiConstants.posSaleDiscard(saleId) + (q.isEmpty ? '' : '?${q.join('&')}');
+      final res = await _client.delete(url, requiresAuth: true);
       if (_ok(res)) return true;
       ToastUtil.showToast(res.data['message'] as String? ?? 'Failed to discard sale');
       return false;
@@ -1184,9 +1194,13 @@ class PosRepository {
   Future<({bool success, double? refundedAmount, String? newStatus, String? message, List<PosPaymentLine> tenders})> refundSale(
     String saleId, {
     List<Map<String, dynamic>>? items,
+    String? reasonCode, // G2.4 picker code (wrong_item, damaged_or_defective, …) — recorded on the refund and its audit event
+    String? reason, // optional free-text note
   }) async {
     final payload = {
       if (items != null && items.isNotEmpty) 'items': items,
+      if (reasonCode != null && reasonCode.isNotEmpty) 'reasonCode': reasonCode,
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
     };
     final fp = IdempotencyIntentStore.fingerprint('refundSale:$saleId', payload);
     var settled = false;
@@ -1227,9 +1241,10 @@ class PosRepository {
 
   /// Authorization comes from the current employee's signed token — see
   /// [refundSale]'s doc comment.
-  Future<bool> voidSale(String saleId, {String? reason}) async {
+  Future<bool> voidSale(String saleId, {String? reason, String? reasonCode}) async {
     final payload = {
       if (reason != null && reason.isNotEmpty) 'reason': reason,
+      if (reasonCode != null && reasonCode.isNotEmpty) 'reasonCode': reasonCode,
     };
     final fp = IdempotencyIntentStore.fingerprint('voidSale:$saleId', payload);
     var settled = false;
@@ -1294,6 +1309,22 @@ class PosRepository {
     } catch (e) {
       debugPrint('❌ quoteSale: $e');
       return (quote: null, message: null, code: null);
+    }
+  }
+
+  /// G2.4: the sale's public digital-receipt link (created on first use, the same link afterwards). Null when it can't be had
+  /// right now (offline, or the sale has no receipt) — the caller simply doesn't show the QR.
+  Future<String?> getReceiptLink(String saleId) async {
+    try {
+      final res = await _client.get(ApiConstants.posSaleReceiptLink(saleId), requiresAuth: true);
+      final data = _data(res);
+      return data is Map ? data['url'] as String? : null;
+    } on DioException catch (e) {
+      _logDioError('getReceiptLink', e);
+      return null;
+    } catch (e) {
+      debugPrint('❌ getReceiptLink: $e');
+      return null;
     }
   }
 

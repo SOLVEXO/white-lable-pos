@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
 import 'package:solvexo_pos/app/components/refund_done_dialog.dart';
 import 'package:solvexo_pos/utils/refund_instructions.dart';
 import 'package:solvexo_pos/utils/pos_totals.dart';
@@ -128,10 +129,12 @@ class PosSaleDetailController extends GetxController {
 
   Future<void> refundFull() async {
     final s = sale.value;
-    if (s == null) return;
+    if (s == null || isProcessing.value) return; // double-submit protection: one refund in flight (the picker counts)
     isProcessing.value = true;
     try {
-      final result = await _posRepo.refundSale(s.id);
+      final why = await ReasonPicker.ask(PosReasonKind.refund);
+      if (why == null) return;
+      final result = await _posRepo.refundSale(s.id, reasonCode: why.code, reason: why.note);
       if (!result.success) {
         CustomAppSnackbar.error(result.message ?? 'Could not process refund.');
         return;
@@ -146,13 +149,15 @@ class PosSaleDetailController extends GetxController {
 
   Future<void> refundPartial() async {
     final s = sale.value;
-    if (s == null || refundSelection.isEmpty) return;
+    if (s == null || refundSelection.isEmpty || isProcessing.value) return;
     isProcessing.value = true;
     try {
+      final why = await ReasonPicker.ask(PosReasonKind.refund);
+      if (why == null) return;
       final items = refundSelection.entries
           .map((e) => {'saleItemId': e.key, 'qty': e.value})
           .toList();
-      final result = await _posRepo.refundSale(s.id, items: items);
+      final result = await _posRepo.refundSale(s.id, items: items, reasonCode: why.code, reason: why.note);
       if (!result.success) {
         CustomAppSnackbar.error(result.message ?? 'Could not process refund.');
         return;
@@ -168,10 +173,12 @@ class PosSaleDetailController extends GetxController {
 
   Future<void> voidSale({String? reason}) async {
     final s = sale.value;
-    if (s == null) return;
+    if (s == null || isProcessing.value) return;
     isProcessing.value = true;
     try {
-      final ok = await _posRepo.voidSale(s.id, reason: reason);
+      final why = await ReasonPicker.ask(PosReasonKind.voidSale);
+      if (why == null) return;
+      final ok = await _posRepo.voidSale(s.id, reason: why.note.isNotEmpty ? why.note : reason, reasonCode: why.code);
       if (!ok) return;
       CustomAppSnackbar.success('Sale voided and stock restored.');
       await _load();
@@ -182,10 +189,12 @@ class PosSaleDetailController extends GetxController {
 
   Future<void> discard() async {
     final s = sale.value;
-    if (s == null) return;
+    if (s == null || isProcessing.value) return;
     isProcessing.value = true;
     try {
-      final ok = await _posRepo.discardSale(s.id);
+      final why = await ReasonPicker.ask(PosReasonKind.discard);
+      if (why == null) return;
+      final ok = await _posRepo.discardSale(s.id, reasonCode: why.code, reason: why.note);
       if (ok) {
         CustomAppSnackbar.success('Held sale discarded.');
         Get.back();
