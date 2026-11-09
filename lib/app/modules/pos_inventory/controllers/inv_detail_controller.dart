@@ -16,7 +16,8 @@ class InvDetailController extends GetxController {
   final RxString role = InvRole.cashier.obs;
   String storeId = '';
 
-  bool get canManage => InvRole.canManage(role.value);
+  /// Manager / owner: by role, or because the server sent cost (it only does for them).
+  bool get canManage => InvRole.canManage(role.value) || detail.value?.row.costMinor != null;
 
   @override
   void onInit() {

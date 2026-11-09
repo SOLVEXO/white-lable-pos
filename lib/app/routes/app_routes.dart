@@ -47,6 +47,13 @@ abstract class Routes {
   // Phase 2 — supporting modules
   static const posInventory = '/pos/inventory';
   static const posStockActivity = '/pos/stock-activity';
+  // G3.1 inventory (the legacy /pos/inventory screen stays reachable)
+  static const posStockOverview = '/pos/stock';
+  static const posStockList = '/pos/stock/list';
+  static const posStockDetail = '/pos/stock/item';
+  static const posStockMovements = '/pos/stock/movements';
+  static const posStockCount = '/pos/stock/count';
+  static const posStockLimits = '/pos/stock/limits';
   static const posNeedsAttention = '/pos/needs-attention';
   static const posOfflineMode = '/pos/offline-mode';
   static const posPermissions = '/pos/permissions';

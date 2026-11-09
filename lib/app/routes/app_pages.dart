@@ -51,6 +51,13 @@ import '../modules/pos_audit_log/views/pos_audit_log_view.dart';
 import '../modules/pos_range_report/bindings/pos_range_report_binding.dart';
 import '../modules/pos_range_report/views/pos_range_report_view.dart';
 import '../modules/pos_inventory/bindings/pos_inventory_binding.dart';
+import '../modules/pos_inventory/bindings/pos_stock_binding.dart';
+import '../modules/pos_inventory/views/inv_count_view.dart';
+import '../modules/pos_inventory/views/inv_detail_view.dart';
+import '../modules/pos_inventory/views/inv_limits_view.dart';
+import '../modules/pos_inventory/views/inv_movements_view.dart';
+import '../modules/pos_inventory/views/inv_overview_view.dart';
+import '../modules/pos_inventory/views/inv_stock_list_view.dart';
 import '../modules/pos_inventory/views/pos_inventory_view.dart';
 import '../modules/pos_needs_attention/bindings/pos_needs_attention_binding.dart';
 import '../modules/pos_documents/views/tax_invoice_view.dart';
@@ -219,6 +226,13 @@ class AppPages {
       binding: PosRangeReportBinding(),
       middlewares: [PosAccessMiddleware()],
     ),
+    // G3.1 inventory: overview, stock list / low stock, item detail, movement history, stock count, approval limits (the server enforces who may do what)
+    GetPage(name: Routes.posStockOverview, page: () => InvOverviewView(), binding: PosStockOverviewBinding(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posStockList, page: () => InvStockListView(lowOnly: (Get.arguments is Map && Get.arguments['lowOnly'] == true)), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posStockDetail, page: () => InvDetailView(variantId: '${(Get.arguments as Map)['variantId']}', role: (Get.arguments as Map)['role'] as String?), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posStockMovements, page: () => InvMovementsView(), binding: PosStockMovementsBinding(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posStockCount, page: () => InvCountView(), binding: PosStockCountBinding(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posStockLimits, page: () => InvLimitsView(), binding: PosStockLimitsBinding(), middlewares: [PosAccessMiddleware()]),
     GetPage(
       name: Routes.posInventory,
       page: () => PosInventoryView(),
