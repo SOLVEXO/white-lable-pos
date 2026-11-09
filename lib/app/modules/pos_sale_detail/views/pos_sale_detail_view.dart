@@ -206,6 +206,11 @@ class _ItemsCard extends StatelessWidget {
                   fontSize: AppFontSize.tiny,
                   color: AppColors.iosGrey,
                 ),
+                // G3.2: which lot(s) this line was taken from, and a plain mark when any of it was expired stock
+                if (item.lots.isNotEmpty)
+                  CustomText(key: Key('saleLots_${item.saleItemId ?? item.productId}'), text: item.lots.map((l) => l.label).join(' · '), fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+                if (item.soldExpired)
+                  CustomText(key: Key('saleExpired_${item.saleItemId ?? item.productId}'), text: 'Sold from an expired lot', fontSize: AppFontSize.tiny, fontWeight: FontWeight.w600, color: AppColors.red),
               ]),
             ),
             CustomText(
@@ -253,6 +258,9 @@ class _TotalsCard extends StatelessWidget {
           ],
           if (sale.changeGiven > 0) _row('Change given', sale.changeGiven),
         ],
+        // G3.3: points spent / earned on this sale (the discount above already includes the redemption)
+        if ((sale.loyalty?.redeemedPoints ?? 0) > 0) _note('Includes ${sale.loyalty!.redeemedPoints} points redeemed'),
+        if ((sale.loyalty?.earnedPoints ?? 0) > 0) _note('Earned ${sale.loyalty!.earnedPoints} points'),
         if (sale.refunds.isNotEmpty || sale.refundedAmount > 0) ...[
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.lightGrey2)),
           for (final r in sale.refunds)
@@ -371,5 +379,5 @@ class _ActionButton extends StatelessWidget {
 
 /// Display label for a tender method (cash / card / other).
 class PosPaymentMethodLabel {
-  static String of(String method) => switch (method) { 'cash' => 'Cash', 'card' => 'Card', 'raast_qr' => 'Raast', _ => 'Bank / Other' };
+  static String of(String method) => switch (method) { 'cash' => 'Cash', 'card' => 'Card', 'raast_qr' => 'Raast', 'store_credit' => 'Store credit', _ => 'Bank / Other' };
 }

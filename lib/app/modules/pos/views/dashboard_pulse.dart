@@ -138,7 +138,7 @@ class DashboardPulse extends StatelessWidget {
     );
   }
 
-  static String _label(String m) => switch (m) { 'cash' => 'Cash', 'card' => 'Card', 'raast_qr' => 'Raast', _ => 'Other' };
+  static String _label(String m) => switch (m) { 'cash' => 'Cash', 'card' => 'Card', 'raast_qr' => 'Raast', 'store_credit' => 'Store credit', _ => 'Other' };
 }
 
 class _Stat extends StatelessWidget {

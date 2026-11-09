@@ -33,7 +33,16 @@ class PosCustomer {
 
   /// `pos` (made at a till) or `user` (a storefront buyer of this store)
   final String kind;
-  final String? phone, email, address, ntn, cnic, registrationType, group, notes, linkedUserId, loyaltyTier;
+  final String? phone,
+      email,
+      address,
+      ntn,
+      cnic,
+      registrationType,
+      group,
+      notes,
+      linkedUserId,
+      loyaltyTier;
   final bool marketingConsent;
 
   /// null when the store's credit ledger is off
@@ -43,8 +52,10 @@ class PosCustomer {
   /// create only: the same phone number already belonged to this customer, so nothing new was made
   final bool existing;
 
-  String get initial => name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase();
-  String get subtitle => [if (phone != null) phone!, if (email != null) email!].join(' · ');
+  String get initial =>
+      name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase();
+  String get subtitle =>
+      [if (phone != null) phone!, if (email != null) email!].join(' · ');
 
   factory PosCustomer.fromJson(Map<String, dynamic> j) => PosCustomer(
     id: '${j['id'] ?? j['_id'] ?? ''}',
@@ -85,12 +96,25 @@ class PosCustomer {
     'loyaltyTier': loyaltyTier,
   };
 
-  PosCustomer withBalances({int? creditBalanceMinor, int? loyaltyPoints}) => PosCustomer(
-    id: id, kind: kind, name: name, phone: phone, email: email, address: address, ntn: ntn, cnic: cnic, registrationType: registrationType, group: group, notes: notes,
-    marketingConsent: marketingConsent, linkedUserId: linkedUserId, loyaltyTier: loyaltyTier,
-    creditBalanceMinor: creditBalanceMinor ?? this.creditBalanceMinor,
-    loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
-  );
+  PosCustomer withBalances({int? creditBalanceMinor, int? loyaltyPoints}) =>
+      PosCustomer(
+        id: id,
+        kind: kind,
+        name: name,
+        phone: phone,
+        email: email,
+        address: address,
+        ntn: ntn,
+        cnic: cnic,
+        registrationType: registrationType,
+        group: group,
+        notes: notes,
+        marketingConsent: marketingConsent,
+        linkedUserId: linkedUserId,
+        loyaltyTier: loyaltyTier,
+        creditBalanceMinor: creditBalanceMinor ?? this.creditBalanceMinor,
+        loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
+      );
 }
 
 /// A page of customers with the currency the balances are stated in. [asOf] is set when the page came from the offline cache.
@@ -102,7 +126,11 @@ class PosCustomerPage {
 }
 
 class LoyaltyRules {
-  const LoyaltyRules({this.enabled = false, this.earnSpendMinor, this.redeemMinorPerPoint});
+  const LoyaltyRules({
+    this.enabled = false,
+    this.earnSpendMinor,
+    this.redeemMinorPerPoint,
+  });
   final bool enabled;
   final int? earnSpendMinor, redeemMinorPerPoint;
 
@@ -110,22 +138,39 @@ class LoyaltyRules {
   bool get canRedeem => enabled && (redeemMinorPerPoint ?? 0) > 0;
 
   factory LoyaltyRules.fromJson(dynamic j) => j is Map
-      ? LoyaltyRules(enabled: j['enabled'] == true, earnSpendMinor: _int(j['earnSpendMinor']), redeemMinorPerPoint: _int(j['redeemMinorPerPoint']))
+      ? LoyaltyRules(
+          enabled: j['enabled'] == true,
+          earnSpendMinor: _int(j['earnSpendMinor']),
+          redeemMinorPerPoint: _int(j['redeemMinorPerPoint']),
+        )
       : const LoyaltyRules();
 }
 
 class CustomerConfig {
-  const CustomerConfig({this.cur, this.storeCreditTenderEnabled = false, this.loyalty = const LoyaltyRules()});
+  const CustomerConfig({
+    this.cur,
+    this.storeCreditTenderEnabled = false,
+    this.loyalty = const LoyaltyRules(),
+  });
   final InvCur? cur;
   final bool storeCreditTenderEnabled;
   final LoyaltyRules loyalty;
 
-  factory CustomerConfig.fromJson(Map<String, dynamic> j) =>
-      CustomerConfig(cur: InvCur.fromJson(j), storeCreditTenderEnabled: j['storeCreditTenderEnabled'] == true, loyalty: LoyaltyRules.fromJson(j['loyalty']));
+  factory CustomerConfig.fromJson(Map<String, dynamic> j) => CustomerConfig(
+    cur: InvCur.fromJson(j),
+    storeCreditTenderEnabled: j['storeCreditTenderEnabled'] == true,
+    loyalty: LoyaltyRules.fromJson(j['loyalty']),
+  );
 }
 
 class CustomerSaleRef {
-  const CustomerSaleRef({required this.id, required this.number, required this.totalMinor, required this.status, this.at});
+  const CustomerSaleRef({
+    required this.id,
+    required this.number,
+    required this.totalMinor,
+    required this.status,
+    this.at,
+  });
   final String id, number, status;
   final int totalMinor;
   final DateTime? at;
@@ -166,12 +211,23 @@ class CustomerProfile {
   final DateTime? asOf;
 
   CustomerProfile withAsOf(DateTime t) => CustomerProfile(
-    customer: customer, cur: cur, creditBalanceMinor: creditBalanceMinor, lifetimeSpendMinor: lifetimeSpendMinor, loyaltyPoints: loyaltyPoints, orderCount: orderCount,
-    loyaltyTier: loyaltyTier, loyalty: loyalty, lastVisitAt: lastVisitAt, recentSales: recentSales, asOf: t,
+    customer: customer,
+    cur: cur,
+    creditBalanceMinor: creditBalanceMinor,
+    lifetimeSpendMinor: lifetimeSpendMinor,
+    loyaltyPoints: loyaltyPoints,
+    orderCount: orderCount,
+    loyaltyTier: loyaltyTier,
+    loyalty: loyalty,
+    lastVisitAt: lastVisitAt,
+    recentSales: recentSales,
+    asOf: t,
   );
 
   factory CustomerProfile.fromJson(Map<String, dynamic> j) => CustomerProfile(
-    customer: PosCustomer.fromJson((j['customer'] as Map? ?? const {}).cast<String, dynamic>()),
+    customer: PosCustomer.fromJson(
+      (j['customer'] as Map? ?? const {}).cast<String, dynamic>(),
+    ),
     cur: InvCur.fromJson(j),
     creditBalanceMinor: _int(j['creditBalanceMinor']),
     loyaltyPoints: _int(j['loyaltyPoints']) ?? 0,
@@ -180,7 +236,10 @@ class CustomerProfile {
     orderCount: _int(j['orderCount']) ?? 0,
     lastVisitAt: DateTime.tryParse('${j['lastVisitAt'] ?? ''}')?.toLocal(),
     lifetimeSpendMinor: _int(j['lifetimeSpendMinor']),
-    recentSales: [for (final s in (j['recentSales'] as List? ?? const [])) if (s is Map) CustomerSaleRef.fromJson(s.cast<String, dynamic>())],
+    recentSales: [
+      for (final s in (j['recentSales'] as List? ?? const []))
+        if (s is Map) CustomerSaleRef.fromJson(s.cast<String, dynamic>()),
+    ],
     asOf: DateTime.tryParse('${j['asOf'] ?? ''}')?.toLocal(),
   );
 
@@ -191,17 +250,41 @@ class CustomerProfile {
     'creditBalanceMinor': creditBalanceMinor,
     'loyaltyPoints': loyaltyPoints,
     'loyaltyTier': loyaltyTier,
-    'loyalty': {'enabled': loyalty.enabled, 'earnSpendMinor': loyalty.earnSpendMinor, 'redeemMinorPerPoint': loyalty.redeemMinorPerPoint},
+    'loyalty': {
+      'enabled': loyalty.enabled,
+      'earnSpendMinor': loyalty.earnSpendMinor,
+      'redeemMinorPerPoint': loyalty.redeemMinorPerPoint,
+    },
     'orderCount': orderCount,
     'lastVisitAt': lastVisitAt?.toUtc().toIso8601String(),
     'lifetimeSpendMinor': lifetimeSpendMinor,
-    'recentSales': [for (final s in recentSales) {'id': s.id, 'number': s.number, 'totalMinor': s.totalMinor, 'status': s.status, 'at': s.at?.toUtc().toIso8601String()}],
+    'recentSales': [
+      for (final s in recentSales)
+        {
+          'id': s.id,
+          'number': s.number,
+          'totalMinor': s.totalMinor,
+          'status': s.status,
+          'at': s.at?.toUtc().toIso8601String(),
+        },
+    ],
     'asOf': asOf?.toUtc().toIso8601String(),
   };
 }
 
 class CreditEntry {
-  const CreditEntry({required this.id, required this.type, required this.amountMinor, required this.balanceAfterMinor, this.at, this.note, this.saleId, this.orderId, this.creditNoteNumber, this.expiresAt});
+  const CreditEntry({
+    required this.id,
+    required this.type,
+    required this.amountMinor,
+    required this.balanceAfterMinor,
+    this.at,
+    this.note,
+    this.saleId,
+    this.orderId,
+    this.creditNoteNumber,
+    this.expiresAt,
+  });
   final String id, type;
   final int amountMinor, balanceAfterMinor;
   final DateTime? at, expiresAt;
@@ -222,7 +305,12 @@ class CreditEntry {
 }
 
 class CreditLedgerPage {
-  const CreditLedgerPage({required this.enabled, required this.items, this.cur, this.hasMore = false});
+  const CreditLedgerPage({
+    required this.enabled,
+    required this.items,
+    this.cur,
+    this.hasMore = false,
+  });
   final bool enabled, hasMore;
   final InvCur? cur;
   final List<CreditEntry> items;
@@ -240,7 +328,9 @@ String creditTypeLabel(String type) => switch (type) {
 };
 
 /// "gold" → "Gold"
-String loyaltyTierLabel(String? tier) => tier == null || tier.isEmpty ? '' : '${tier[0].toUpperCase()}${tier.substring(1)}';
+String loyaltyTierLabel(String? tier) => tier == null || tier.isEmpty
+    ? ''
+    : '${tier[0].toUpperCase()}${tier.substring(1)}';
 
 /// Server error codes of the customer / credit / loyalty endpoints in plain English (the server enforces; this only explains).
 String customerErrorMessage(String? code, {String? fallback}) => switch (code) {
@@ -252,19 +342,28 @@ String customerErrorMessage(String? code, {String? fallback}) => switch (code) {
   'REGISTRATION_TYPE_INVALID' => 'Pick registered or unregistered.',
   'PHONE_IN_USE' => 'Another customer already uses that phone number.',
   'POS_ACTION_FORBIDDEN' => 'Only a manager or the owner can do this.',
-  'POS_OWNER_REQUIRED' => 'This amount is above the manager limit. The store owner must make this change.',
+  'POS_OWNER_REQUIRED' =>
+    'This amount is above the manager limit. The store owner must make this change.',
   'POS_PIN_REQUIRED' => 'Sign in with your PIN first.',
   'NOTE_REQUIRED' => 'Add a short note explaining the change.',
   'AMOUNT_INVALID' => 'Enter a whole amount that is not zero.',
-  'STORE_CREDIT_NOT_ENABLED' => 'Store credit is not switched on for this store.',
+  'STORE_CREDIT_NOT_ENABLED' =>
+    'Store credit is not switched on for this store.',
   'STORE_CREDIT_ONLINE_ONLY' => 'Store credit needs an internet connection.',
-  'STORE_CREDIT_INSUFFICIENT' => 'The customer does not have enough store credit for this.',
+  'STORE_CREDIT_INSUFFICIENT' =>
+    'The customer does not have enough store credit for this.',
   'CUSTOMER_REQUIRED' => 'Choose the customer first.',
-  'CUSTOMER_REQUIRED_FOR_CREDIT' => 'Refunding to store credit needs a customer on the sale.',
-  'LOYALTY_ONLINE_ONLY' => 'Points can only be redeemed with an internet connection.',
-  'LOYALTY_NOT_ENABLED' => 'Points cannot be redeemed at the till for this store.',
-  'LOYALTY_WITH_DISCOUNT' => 'Points cannot be combined with a coupon or a discount on the same sale.',
-  'LOYALTY_EXCEEDS_SALE' => 'Those points are worth more than the sale. Use fewer points.',
-  'LOYALTY_INSUFFICIENT_POINTS' => 'The customer does not have that many points.',
+  'CUSTOMER_REQUIRED_FOR_CREDIT' =>
+    'Refunding to store credit needs a customer on the sale.',
+  'LOYALTY_ONLINE_ONLY' =>
+    'Points can only be redeemed with an internet connection.',
+  'LOYALTY_NOT_ENABLED' =>
+    'Points cannot be redeemed at the till for this store.',
+  'LOYALTY_WITH_DISCOUNT' =>
+    'Points cannot be combined with a coupon or a discount on the same sale.',
+  'LOYALTY_EXCEEDS_SALE' =>
+    'Those points are worth more than the sale. Use fewer points.',
+  'LOYALTY_INSUFFICIENT_POINTS' =>
+    'The customer does not have that many points.',
   _ => fallback ?? 'Something went wrong. Please try again.',
 };

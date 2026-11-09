@@ -44,7 +44,7 @@ class TaxDocumentEscPos {
     return '$currency ${NumberFormat.decimalPatternDigits(locale: 'en_US', decimalDigits: exp).format(v)}';
   }
 
-  static String _tender(String m) => switch (m) { 'cash' => 'Cash', 'card' => 'Card', 'raast_qr' => 'Raast', _ => 'Bank / Other' };
+  static String _tender(String m) => switch (m) { 'cash' => 'Cash', 'card' => 'Card', 'raast_qr' => 'Raast', 'store_credit' => 'Store credit', _ => 'Bank / Other' };
 
   static List<DocLine> _seller(int cols, {String? name, String? address, String? ntn, String? strn}) => [
         if ((name ?? '').isNotEmpty) ..._centered(name!, cols ~/ 2, bold: true, big: true),

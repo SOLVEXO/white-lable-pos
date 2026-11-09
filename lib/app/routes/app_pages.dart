@@ -228,7 +228,7 @@ class AppPages {
     ),
     // G3.1 inventory: overview, stock list / low stock, item detail, movement history, stock count, approval limits (the server enforces who may do what)
     GetPage(name: Routes.posStockOverview, page: () => InvOverviewView(), binding: PosStockOverviewBinding(), middlewares: [PosAccessMiddleware()]),
-    GetPage(name: Routes.posStockList, page: () => InvStockListView(lowOnly: (Get.arguments is Map && Get.arguments['lowOnly'] == true)), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posStockList, page: () => InvStockListView(lowOnly: (Get.arguments is Map && Get.arguments['lowOnly'] == true), initialFilter: (Get.arguments is Map ? Get.arguments['filter'] as String? : null) ?? 'all'), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posStockDetail, page: () => InvDetailView(variantId: '${(Get.arguments as Map)['variantId']}', role: (Get.arguments as Map)['role'] as String?), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posStockMovements, page: () => InvMovementsView(), binding: PosStockMovementsBinding(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posStockCount, page: () => InvCountView(), binding: PosStockCountBinding(), middlewares: [PosAccessMiddleware()]),

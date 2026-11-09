@@ -48,6 +48,7 @@ List<String> posRefundInstructions(List<PosRefundSplit> splits, {String? currenc
       switch (s.method) {
         'cash' => 'Give ${m(s.amount)} in cash from the drawer',
         'card' => 'Refund ${m(s.amount)} on the card machine',
+        'store_credit' => 'Add ${m(s.amount)} to the customer\'s store credit',
         _ => 'Return ${m(s.amount)} by bank transfer / the original method',
       },
   ];

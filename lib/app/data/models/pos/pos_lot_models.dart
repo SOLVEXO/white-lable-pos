@@ -3,7 +3,13 @@
 int? _int(dynamic v) => v is num ? v.toInt() : null;
 
 class LotAllocation {
-  const LotAllocation({required this.lotId, required this.lotNumber, required this.take, this.expiryDate, this.daysLeft});
+  const LotAllocation({
+    required this.lotId,
+    required this.lotNumber,
+    required this.take,
+    this.expiryDate,
+    this.daysLeft,
+  });
   final String lotId, lotNumber;
   final int take;
   final DateTime? expiryDate;
@@ -19,7 +25,13 @@ class LotAllocation {
     daysLeft: _int(j['daysLeft']),
   );
 
-  Map<String, dynamic> toJson() => {'lotId': lotId, 'lotNumber': lotNumber, 'take': take, 'expiryDate': expiryDate?.toUtc().toIso8601String(), 'daysLeft': daysLeft};
+  Map<String, dynamic> toJson() => {
+    'lotId': lotId,
+    'lotNumber': lotNumber,
+    'take': take,
+    'expiryDate': expiryDate?.toUtc().toIso8601String(),
+    'daysLeft': daysLeft,
+  };
 }
 
 /// "expires in 3 d" / "expires today" / "expired" — plain words for a number of days left.
@@ -57,29 +69,48 @@ class LotPreview {
   bool get needsExpiredOverride => shortBy > 0 && expiredUnits > 0;
 
   /// The nearest lot expires within [days] days (never an expired lot: those are not offered).
-  bool expiresWithin(int days) => first?.daysLeft != null && first!.daysLeft! <= days;
+  bool expiresWithin(int days) =>
+      first?.daysLeft != null && first!.daysLeft! <= days;
 
   /// "Lot LOT-SOON · expires in 3 d", or null when there is nothing to say.
-  String? get headline => first == null ? null : 'Lot ${first!.lotNumber} · ${lotExpiryWords(first!.daysLeft)}';
+  String? get headline => first == null
+      ? null
+      : 'Lot ${first!.lotNumber} · ${lotExpiryWords(first!.daysLeft)}';
 
   /// "+ 1 from LOT-LATER" when the quantity spans several lots.
   String? get spill {
     if (allocations.length < 2) return null;
-    return allocations.skip(1).map((a) => '+ ${a.take} from ${a.lotNumber}').join(' ');
+    return allocations
+        .skip(1)
+        .map((a) => '+ ${a.take} from ${a.lotNumber}')
+        .join(' ');
   }
 
-  LotPreview withAsOf(DateTime t) => LotPreview(variantId: variantId, trackLots: trackLots, qty: qty, shortBy: shortBy, expiredUnits: expiredUnits, allocations: allocations, serverTime: serverTime, asOf: t);
-
-  factory LotPreview.fromJson(Map<String, dynamic> j, {DateTime? asOf}) => LotPreview(
-    variantId: '${j['variantId'] ?? ''}',
-    trackLots: j['trackLots'] == true,
-    qty: _int(j['qty']) ?? 0,
-    shortBy: _int(j['shortBy']) ?? 0,
-    expiredUnits: _int(j['expiredUnits']) ?? 0,
-    allocations: [for (final a in (j['allocations'] as List? ?? const [])) if (a is Map) LotAllocation.fromJson(a.cast<String, dynamic>())],
-    serverTime: DateTime.tryParse('${j['serverTime'] ?? ''}')?.toLocal(),
-    asOf: asOf ?? DateTime.tryParse('${j['asOf'] ?? ''}')?.toLocal(),
+  LotPreview withAsOf(DateTime t) => LotPreview(
+    variantId: variantId,
+    trackLots: trackLots,
+    qty: qty,
+    shortBy: shortBy,
+    expiredUnits: expiredUnits,
+    allocations: allocations,
+    serverTime: serverTime,
+    asOf: t,
   );
+
+  factory LotPreview.fromJson(Map<String, dynamic> j, {DateTime? asOf}) =>
+      LotPreview(
+        variantId: '${j['variantId'] ?? ''}',
+        trackLots: j['trackLots'] == true,
+        qty: _int(j['qty']) ?? 0,
+        shortBy: _int(j['shortBy']) ?? 0,
+        expiredUnits: _int(j['expiredUnits']) ?? 0,
+        allocations: [
+          for (final a in (j['allocations'] as List? ?? const []))
+            if (a is Map) LotAllocation.fromJson(a.cast<String, dynamic>()),
+        ],
+        serverTime: DateTime.tryParse('${j['serverTime'] ?? ''}')?.toLocal(),
+        asOf: asOf ?? DateTime.tryParse('${j['asOf'] ?? ''}')?.toLocal(),
+      );
 
   Map<String, dynamic> toJson() => {
     'variantId': variantId,
@@ -95,7 +126,13 @@ class LotPreview {
 
 /// One lot a sold line was taken from (on the sale response). Cost is deliberately not read: the till never shows it.
 class SaleLot {
-  const SaleLot({required this.lotId, required this.lotNumber, required this.qty, this.expiryDate, this.expired = false});
+  const SaleLot({
+    required this.lotId,
+    required this.lotNumber,
+    required this.qty,
+    this.expiryDate,
+    this.expired = false,
+  });
   final String lotId, lotNumber;
   final int qty;
   final DateTime? expiryDate;

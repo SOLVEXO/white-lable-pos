@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/cart_removal_undo.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/cart_lot_info.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/coupon_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/custom_item_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/discount_sheet.dart';
@@ -139,6 +140,7 @@ class CartLine extends StatelessWidget {
                       ),
                     const SizedBox(height: 2),
                     Text('${Money.format(item.unitPrice)} each', style: context.type.amountMd.copyWith(fontSize: 12, color: p.textMuted)),
+                    CartLotInfo(c: c, item: item),
                   ],
                 ),
               ),

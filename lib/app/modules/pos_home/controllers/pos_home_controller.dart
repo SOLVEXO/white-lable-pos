@@ -9,6 +9,8 @@ import 'dart:async';
 
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
@@ -17,6 +19,7 @@ import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_payments_repository.dart';
 import 'package:solvexo_pos/app/data/local/pending_qr_store.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
+import 'package:solvexo_pos/app/modules/pos_home/controllers/cart_lot_advisor.dart';
 import 'package:solvexo_pos/app/modules/pos_home/qr/raast_qr_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/qr/raast_qr_screen.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/qr_availability.dart';
@@ -54,6 +57,12 @@ class CartItem {
   /// G2.4 custom item: `standard` = the store tax rate, `exempt` = no tax on this line (only meaningful for custom items).
   final String taxCategory;
   final String customNote;
+
+  /// G3.2: the lot the sale would take from (null = not lot-tracked / not known yet), whether that answer is live from the server (false =
+  /// remembered from an earlier answer, shown as "as of"), and whether a manager approved selling EXPIRED units of this line.
+  final Rxn<LotPreview> lotPreview = Rxn<LotPreview>();
+  final RxBool lotPreviewLive = false.obs;
+  final RxBool sellExpired = false.obs;
 
   CartItem({required this.product, this.variant, int qty = 1, this.taxCategory = 'standard', this.customNote = ''})
     : quantity = qty.obs;
@@ -137,15 +146,22 @@ class PosHomeController extends GetxController {
     SettingsCacheStore? settingsCache,
     PosPaymentsRepository? paymentsRepository,
     PendingQrStore? pendingQrStore,
-  }) : _posRepo = posRepository ?? PosRepository(),
+    CartLotAdvisor? lotAdvisor,
+    Future<String?> Function({required String reason, PosRepository? repository})? approval,
+  }) : _approval = approval ?? ManagerApproval.request,
+       _posRepo = posRepository ?? PosRepository(),
        _payRepo = paymentsRepository ?? PosPaymentsRepository(),
        _pendingQr = pendingQrStore ?? PendingQrStore.instance,
        _categoryRepo = categoryRepository ?? CategoryRepository(),
        _cartStore = cartStore ?? CartSnapshotStore.instance,
        _catalogCache = catalogCache ?? CatalogCacheStore.instance,
-       _settingsCache = settingsCache ?? SettingsCacheStore.instance;
+       _settingsCache = settingsCache ?? SettingsCacheStore.instance {
+    _lots = lotAdvisor ?? CartLotAdvisor(repository: _posRepo, isOnline: () => _online, storeId: () => storeId.value);
+  }
 
   final PosRepository _posRepo;
+  late final CartLotAdvisor _lots;
+  final Future<String?> Function({required String reason, PosRepository? repository}) _approval;
   final CategoryRepository _categoryRepo;
   final CartSnapshotStore _cartStore;
   final CatalogCacheStore _catalogCache;
@@ -202,6 +218,9 @@ class PosHomeController extends GetxController {
   final RxBool isAddingCustomItem = false.obs;
   /// The last manager who approved a custom item on this sale (kept in memory only; the server re-checks it on every charge).
   String? _approverToken;
+
+  /// G3.2: the manager's token that approved selling EXPIRED units on this sale (kept only for the sale in progress).
+  String? _expiredApproverToken;
   bool get hasCustomItems => cartItems.any((i) => i.isCustom);
   /// See PosRole.isCurrentEmployeeManager's doc comment — gates the
   /// discount field to match the backend's real, token-verified check.
@@ -339,6 +358,9 @@ class PosHomeController extends GetxController {
   /// Charge attaches the SAME payment instead of charging the customer again. Dropped when the amount no longer matches.
   final Map<int, ({String intentId, int amountMinor})> _qrConfirmed = {};
   bool _qrStarted = false;
+
+  /// Whether the till can reach the server (observable: read it inside an Obx).
+  bool get tillOnline => _online;
 
   bool get _online => !Get.isRegistered<NetworkStatusService>() || Get.find<NetworkStatusService>().isOnline.value;
 
@@ -527,6 +549,7 @@ class PosHomeController extends GetxController {
   @override
   void onClose() {
     _debounce?.cancel();
+    _lots.dispose();
     _hidScanDetector.stop();
     productScrollController.dispose();
     searchController.dispose();
@@ -724,8 +747,11 @@ class PosHomeController extends GetxController {
     final idx = cartItems.indexWhere((c) => c.cartKey == key);
     if (idx >= 0) {
       cartItems[idx].quantity.value++;
+      _lots.request(cartItems[idx]);
     } else {
-      cartItems.add(CartItem(product: product, variant: variant));
+      final item = CartItem(product: product, variant: variant);
+      cartItems.add(item);
+      _lots.request(item);
     }
     cartItems.refresh();
   }
@@ -734,6 +760,7 @@ class PosHomeController extends GetxController {
 
   void increment(CartItem item) {
     item.quantity.value++;
+    _lots.request(item);
     cartItems.refresh();
   }
 
@@ -742,6 +769,7 @@ class PosHomeController extends GetxController {
       cartItems.remove(item);
     } else {
       item.quantity.value--;
+      _lots.request(item);
       cartItems.refresh();
     }
   }
@@ -813,7 +841,9 @@ class PosHomeController extends GetxController {
       for (final l in snap.lines) {
         final product = PosProductModel.fromJson(l.product);
         final variant = l.variantId == null ? null : product.variantById(l.variantId);
-        cartItems.add(CartItem(product: product, variant: variant, qty: l.qty, taxCategory: l.taxCategory ?? 'standard', customNote: l.note ?? ''));
+        final item = CartItem(product: product, variant: variant, qty: l.qty, taxCategory: l.taxCategory ?? 'standard', customNote: l.note ?? '');
+        cartItems.add(item);
+        _lots.request(item);
       }
       if (snap.coupon != null) appliedCoupon.value = PosAppliedCoupon.fromJson(snap.coupon!);
       discountController.text = snap.discountText;
@@ -857,6 +887,7 @@ class PosHomeController extends GetxController {
     cartItems.clear();
     appliedCoupon.value = null;
     _approverToken = null;
+    _expiredApproverToken = null;
     noteController.clear();
     customerController.clear();
     selectedCustomer.value = null;
@@ -1046,7 +1077,7 @@ class PosHomeController extends GetxController {
         return;
       }
       if (!result.success) {
-        CustomAppSnackbar.error(_friendlyError(result.message ?? ''));
+        CustomAppSnackbar.error(_saleError(result.message));
         if (_qrConfirmed.isNotEmpty) {
           CustomAppSnackbar.warning('The customer has paid by Raast but the sale could not be saved. Try Charge again — the same payment is used. If it keeps failing, ask a manager to check Needs attention.');
         }
@@ -1194,8 +1225,10 @@ class PosHomeController extends GetxController {
     bool withCoupon = true,
   }) {
     final coupon = withCoupon ? appliedCoupon.value?.code : null;
+    // G3.2: only a sale with a line the manager approved for expired stock carries the manager's token for it
+    final expiredToken = cartItems.any((i) => i.sellExpired.value) ? _expiredApproverToken : null;
     final name = customerController.text.trim().isEmpty ? 'Walk-in' : customerController.text.trim();
-    if (coupon == null && approver == null) {
+    if (coupon == null && approver == null && expiredToken == null) {
       return _posRepo.createSale(
         storeId: storeId.value,
         sessionId: sessionId.value,
@@ -1240,6 +1273,7 @@ class PosHomeController extends GetxController {
       status: status,
       couponCode: coupon,
       approverToken: approver,
+      expiredApproverToken: expiredToken,
     );
   }
 
@@ -1256,6 +1290,34 @@ class PosHomeController extends GetxController {
       result = await send(token);
     }
     return result;
+  }
+
+  // ── G3.2: expired stock ───────────────────────────────────────────────────
+  final RxBool isApprovingExpired = false.obs;
+
+  /// The cashier asks to sell EXPIRED units of a line (the server said the sellable units do not cover the quantity). A manager types
+  /// their PIN; their token rides with the sale and the line is marked. Online only — an offline sale is never sent `sellExpired`.
+  Future<bool> approveSellExpired(CartItem item) async {
+    if (isApprovingExpired.value || !_online) return false;
+    final p = item.lotPreview.value;
+    if (p == null || !p.needsExpiredOverride) return false;
+    isApprovingExpired.value = true;
+    try {
+      final token = await _approval(reason: 'Selling expired stock needs a manager\'s approval.', repository: _posRepo);
+      if (token == null) return false;
+      _expiredApproverToken = token;
+      item.sellExpired.value = true;
+      _onCartEdited();
+      return true;
+    } finally {
+      isApprovingExpired.value = false;
+    }
+  }
+
+  /// Takes the approval back (the sale will then use only sellable units, or be refused for stock).
+  void withdrawSellExpired(CartItem item) {
+    item.sellExpired.value = false;
+    _onCartEdited();
   }
 
   // ── G2.4: custom item ─────────────────────────────────────────────────────
@@ -1427,9 +1489,9 @@ class PosHomeController extends GetxController {
       final variant = liveProduct != null
           ? liveProduct.variantById(item.variantId)
           : product.defaultVariant;
-      cartItems.add(
-        CartItem(product: product, variant: variant, qty: item.qty),
-      );
+      final line = CartItem(product: product, variant: variant, qty: item.qty);
+      cartItems.add(line);
+      _lots.request(line);
     }
     cartItems.refresh();
     customerController.text = sale.customerName == 'Walk-in'
@@ -1483,6 +1545,7 @@ class PosHomeController extends GetxController {
             'productId': c.product.productId,
             if (c.variant != null) 'variantId': c.variant!.variantId,
             'qty': c.quantity.value,
+            if (c.sellExpired.value) 'sellExpired': true,
             // the price this till shows/charges — the server uses it only when the sale is replayed offline
             'unitPrice': c.unitPrice,
           },
@@ -1499,6 +1562,27 @@ class PosHomeController extends GetxController {
     }
     return true;
   }
+
+  /// The words for a refused sale: the server's machine code first (G3.2 / G3.3 rules), else the older message matching.
+  String _saleError(String? message) {
+    final code = _posRepo.lastErrorCode;
+    if (code == 'POS_APPROVAL_REQUIRED' || code == 'EXPIRED_LOT_APPROVAL_REQUIRED') {
+      // the approval did not count (expired / not a manager): take it back so the cashier asks again
+      for (final i in cartItems) {
+        i.sellExpired.value = false;
+      }
+      _expiredApproverToken = null;
+      return 'A manager must approve selling expired stock. Ask the manager again.';
+    }
+    if (code != null && customerCodes.contains(code)) return customerErrorMessage(code);
+    return _friendlyError(message ?? '');
+  }
+
+  /// Server codes of the store-credit / points rules of a sale (explained by [customerErrorMessage]).
+  static const customerCodes = {
+    'STORE_CREDIT_ONLINE_ONLY', 'CUSTOMER_REQUIRED', 'STORE_CREDIT_NOT_ENABLED', 'STORE_CREDIT_INSUFFICIENT',
+    'LOYALTY_ONLINE_ONLY', 'LOYALTY_NOT_ENABLED', 'LOYALTY_WITH_DISCOUNT', 'LOYALTY_EXCEEDS_SALE', 'LOYALTY_INSUFFICIENT_POINTS',
+  };
 
   String _friendlyError(String raw) {
     final lower = raw.toLowerCase();

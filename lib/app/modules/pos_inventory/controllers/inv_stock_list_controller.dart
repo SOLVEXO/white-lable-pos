@@ -7,12 +7,14 @@ import 'package:solvexo_pos/app/modules/pos_inventory/controllers/inv_common.dar
 
 /// Stock list: debounced search, All / Low / Out filter, infinite scroll. [lowOnly] is the "Low stock" screen — the same list, pre-filtered.
 class InvStockListController extends GetxController {
-  InvStockListController({PosRepository? repository, String? storeId, this.lowOnly = false, this.pageSize = 30, this.debounce = const Duration(milliseconds: 350)})
+  InvStockListController({PosRepository? repository, String? storeId, this.lowOnly = false, this.initialFilter = 'all', this.pageSize = 30, this.debounce = const Duration(milliseconds: 350)})
     : _repo = repository ?? PosRepository(),
       _storeIdOverride = storeId;
   final PosRepository _repo;
   final String? _storeIdOverride;
   final bool lowOnly;
+  /// the chip selected when the screen opens (the Home "Expiring soon" row opens it on `expiring`)
+  final String initialFilter;
   final int pageSize;
   final Duration debounce;
 
@@ -34,7 +36,7 @@ class InvStockListController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    if (lowOnly) filter.value = 'low';
+    filter.value = lowOnly ? 'low' : initialFilter;
     reload();
   }
 

@@ -81,6 +81,8 @@ class InvDetailView extends StatelessWidget {
               _kv(context, 'Committed (held for orders)', '${r.committed}', key: const Key('invDetailCommitted')),
               _kv(context, 'Damaged', '${r.damaged}', key: const Key('invDetailDamaged')),
               if (r.reorderPoint != null) _kv(context, 'Reorder point', '${r.reorderPoint}'),
+              if (r.trackLots) _kv(context, 'Expired units', '${r.expiredUnits}', key: const Key('invDetailExpired')),
+              if (r.trackLots && r.nextExpiryAt != null) _kv(context, 'Next expiry', invDate(r.nextExpiryAt), key: const Key('invDetailNextExpiry')),
               if (r.costMinor != null && d.cur != null) _kv(context, 'Cost (average)', invMoney(r.costMinor!, d.cur!), key: const Key('invDetailCost')),
               if (r.valueMinor != null && d.cur != null) _kv(context, 'Stock value', invMoney(r.valueMinor!, d.cur!), key: const Key('invDetailValue')),
               const SizedBox(height: Space.s3),

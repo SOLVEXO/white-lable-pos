@@ -24,6 +24,7 @@ class TaxDocumentPdf {
   }
 
   static String _m(int minor, String currency, int exp) => Money.format(minor / _pow10(exp), currency: currency, exponent: exp);
+  static String _tenderLabel(String m) => switch (m) { 'raast_qr' => 'Raast', 'store_credit' => 'Store credit', _ => '${m[0].toUpperCase()}${m.substring(1)}' };
   static num _pow10(int e) => e <= 0 ? 1 : List.filled(e, 10).fold<num>(1, (a, b) => a * b);
 
   static pw.Widget _row(String l, String r, {bool bold = false, double size = 10}) => pw.Padding(
@@ -79,7 +80,7 @@ class TaxDocumentPdf {
         _row('Sales tax', m(sale.tax)),
         _row('Total', m(sale.total), bold: true, size: 12),
         pw.SizedBox(height: 6),
-        for (final p in sale.payments) _row(p.method == 'raast_qr' ? 'Raast' : '${p.method[0].toUpperCase()}${p.method.substring(1)}', m(p.amount), size: 9),
+        for (final p in sale.payments) _row(_tenderLabel(p.method), m(p.amount), size: 9),
         // reserved for the fiscal block (invoice number from the tax authority, QR, logo) — printed only when one exists
         if (fiscalNumber != null) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('FBR invoice no. $fiscalNumber', style: const pw.TextStyle(fontSize: 9))),
       ]),
@@ -116,7 +117,7 @@ class TaxDocumentPdf {
         _row('Credited', m(note.totalMinor), bold: true, size: 12),
         pw.SizedBox(height: 6),
         pw.Text('Refunded to', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-        for (final t in note.tenders) _row(t.method == 'raast_qr' ? 'Raast' : '${t.method[0].toUpperCase()}${t.method.substring(1)}', m(t.amountMinor), size: 9),
+        for (final t in note.tenders) _row(_tenderLabel(t.method), m(t.amountMinor), size: 9),
         if (fiscalNumber != null) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('FBR invoice no. $fiscalNumber', style: const pw.TextStyle(fontSize: 9))),
       ]),
     ));

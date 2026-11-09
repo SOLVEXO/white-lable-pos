@@ -8,12 +8,12 @@ import 'package:solvexo_pos/core/design/design.dart';
 
 /// Stock list (and, with [lowOnly], the Low stock screen): debounced search, All / Low / Out chips, infinite scroll.
 class InvStockListView extends StatelessWidget {
-  InvStockListView({super.key, InvStockListController? controller, bool lowOnly = false, this.role})
-    : c = controller ?? Get.put(InvStockListController(lowOnly: lowOnly), tag: lowOnly ? 'low' : 'all');
+  InvStockListView({super.key, InvStockListController? controller, bool lowOnly = false, String initialFilter = 'all', this.role})
+    : c = controller ?? Get.put(InvStockListController(lowOnly: lowOnly, initialFilter: initialFilter), tag: lowOnly ? 'low' : initialFilter);
   final InvStockListController c;
   final String? role;
 
-  static const filters = <(String, String)>[('all', 'All'), ('low', 'Low'), ('out', 'Out')];
+  static const filters = <(String, String)>[('all', 'All'), ('low', 'Low'), ('out', 'Out'), ('expiring', 'Expiring')];
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +50,10 @@ class InvStockListView extends StatelessWidget {
               if (c.items.isEmpty) {
                 return EmptyState(
                   icon: Icons.inventory_2_outlined,
-                  title: c.lowOnly ? 'Nothing is low' : 'No items found',
-                  message: c.lowOnly ? 'Every item is above its reorder point.' : 'Try another name, SKU or filter.',
+                  title: c.lowOnly ? 'Nothing is low' : (c.filter.value == 'expiring' ? 'Nothing is expiring' : 'No items found'),
+                  message: c.lowOnly
+                      ? 'Every item is above its reorder point.'
+                      : (c.filter.value == 'expiring' ? 'No lot has expired or expires in the next 30 days.' : 'Try another name, SKU or filter.'),
                 );
               }
               return NotificationListener<ScrollNotification>(
@@ -125,6 +127,12 @@ class InvStockRowTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.caption.copyWith(color: p.textMuted),
+                    ),
+                  if (row.trackLots && (row.expiredUnits > 0 || row.nextExpiryAt != null))
+                    Text(
+                      [if (row.expiredUnits > 0) '${row.expiredUnits} expired', if (row.nextExpiryAt != null) 'next expiry ${invDate(row.nextExpiryAt)}'].join(' · '),
+                      key: Key('invRowExpiry_${row.variantId}'),
+                      style: t.caption.copyWith(color: row.expiredUnits > 0 ? p.dangerFg : p.warningFg),
                     ),
                   if (money != null && (row.costMinor != null || row.valueMinor != null))
                     Text(

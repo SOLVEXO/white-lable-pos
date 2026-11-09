@@ -129,7 +129,7 @@ class TaxInvoiceView extends StatelessWidget {
     );
   }
 
-  static String _label(String m) => m == 'raast_qr' ? 'Raast' : '${m[0].toUpperCase()}${m.substring(1)}';
+  static String _label(String m) => switch (m) { 'raast_qr' => 'Raast', 'store_credit' => 'Store credit', _ => '${m[0].toUpperCase()}${m.substring(1)}' };
   static num _p10(int e) => e <= 0 ? 1 : List.filled(e, 10).fold<num>(1, (a, b) => a * b);
 }
 

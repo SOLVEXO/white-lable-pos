@@ -77,7 +77,7 @@ class CreditNoteView extends StatelessWidget {
                         const SizedBox(height: Space.s1),
                         Row(children: [Expanded(child: Text('Credited', style: t.subtitle.copyWith(color: p.textPrimary))), AmountText(m(n.totalMinor), key: const Key('noteTotal'), style: t.amountLg)]),
                         const Divider(),
-                        for (final tn in n.tenders) ReceiptRow('Refunded to ${tn.method == 'raast_qr' ? 'Raast' : tn.method}', m(tn.amountMinor)),
+                        for (final tn in n.tenders) ReceiptRow('Refunded to ${switch (tn.method) { 'raast_qr' => 'Raast', 'store_credit' => 'store credit', _ => tn.method }}', m(tn.amountMinor)),
                       ],
                     ),
                   ),

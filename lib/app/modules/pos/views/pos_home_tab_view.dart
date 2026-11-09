@@ -598,6 +598,20 @@ class _Attention extends StatelessWidget {
         ),
       );
     }
+    // G3.2: lots past their date / about to pass it (the server sends this to managers and owners only)
+    final ex = c.dashboard.value?.expiring;
+    if (access.canManage && ex != null && (ex.expiredLots + ex.expiringIn7Days + ex.expiringIn30Days) > 0) {
+      rows.add(
+        _Row(
+          keyName: 'expiring',
+          icon: Icons.event_busy_outlined,
+          tone: StatusTone.warning,
+          title: 'Expiring soon',
+          subtitle: '${ex.expiredLots} expired · ${ex.expiringIn7Days} in 7 days · ${ex.expiringIn30Days} in 30 days',
+          onTap: () => Get.toNamed(Routes.posStockList, arguments: const {'filter': 'expiring'}),
+        ),
+      );
+    }
     final s = c.shift.value?.session;
     if (s != null) {
       final t = TimeOfDay.fromDateTime(s.openedAt.toLocal());
