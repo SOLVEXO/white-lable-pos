@@ -31,6 +31,9 @@ class PosOrdersController extends GetxController {
   /// quick refund/void actions to match the backend's actual (if weak) check.
   final RxBool isManager = false.obs;
 
+  /// The store / shift / currency are read once; a search typed before they are in must wait for them (an empty store id was a 500).
+  late final Future<void> _ready = _loadContext();
+
   String _storeId   = '';
   String _sessionId = '';
   int _page = 1;
@@ -56,7 +59,7 @@ class PosOrdersController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadContext().then((_) => loadSales());
+    _ready.then((_) => loadSales());
     PosRole.isCurrentEmployeeManager().then((v) => isManager.value = v);
     scrollController.addListener(() {
       if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
@@ -83,6 +86,7 @@ class PosOrdersController extends GetxController {
   String? get _statusParam => statusFilter.value == 'All' ? null : statusFilter.value;
 
   Future<void> searchByReceipt(String raw) async {
+    await _ready;
     searchQuery.value = raw.trim();
     await loadSales();
   }
@@ -91,7 +95,7 @@ class PosOrdersController extends GetxController {
     isLoading.value = true;
     _page = 1;
     try {
-      if (searchQuery.value.isNotEmpty) {
+      if (searchQuery.value.isNotEmpty && _storeId.isNotEmpty) {
         // a receipt-number lookup is store-wide (the return may be at a different till than the sale), not limited to this shift
         sales.assignAll(await _posRepo.lookupSales(_storeId, searchQuery.value));
         _hasMore = false;
