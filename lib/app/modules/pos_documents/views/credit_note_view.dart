@@ -81,6 +81,17 @@ class CreditNoteView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: Space.s4),
+                  if (controller.printNotice.value != null) Padding(padding: const EdgeInsets.only(bottom: Space.s2), child: Text(controller.printNotice.value!, key: const Key('printNotice'), style: t.body.copyWith(color: controller.printOk.value ? p.successFg : p.danger))),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Space.s3),
+                    child: Row(
+                      children: [
+                        Expanded(child: AppButton(key: const Key('notePrint'), label: 'Print credit note', icon: Icons.print_outlined, variant: AppButtonVariant.secondary, onPressed: controller.busy.value ? null : () => controller.printCreditNote(n))),
+                        const SizedBox(width: Space.s3),
+                        Expanded(child: AppButton(key: const Key('noteReturnSlip'), label: 'Return receipt', icon: Icons.receipt_long_outlined, variant: AppButtonVariant.secondary, onPressed: controller.busy.value ? null : () => controller.printReturnReceipt(n))),
+                      ],
+                    ),
+                  ),
                   Row(
                     children: [
                       Expanded(child: AppButton(key: const Key('notePdf'), label: 'Share PDF', icon: Icons.ios_share_rounded, loading: controller.busy.value, onPressed: controller.busy.value ? null : () => controller.shareCreditNotePdf(n))),

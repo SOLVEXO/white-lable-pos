@@ -1,0 +1,25 @@
+Test Traders Ltd
+          12 Mall Road
+         NTN 1234567-8
+          STRN 3277876
+--------------------------------
+          TAX INVOICE
+           INV-000007
+        <date time>
+--------------------------------
+Tea                    USD 30.00
+  3 x USD 10.00 HS 09024090
+excl. tax              USD 27.00
+tax                     USD 2.70
+Coffee                  USD 5.00
+  1 x USD 5.00
+excl. tax               USD 4.50
+tax                     USD 0.45
+--------------------------------
+Subtotal               USD 30.00
+Discount               -USD 3.00
+Sales tax               USD 2.70
+
+TOTAL                  USD 29.70
+
+Cash                   USD 29.70

@@ -108,6 +108,11 @@ class TaxInvoiceView extends StatelessWidget {
                   ],
                   if (c.error.value != null) Padding(padding: const EdgeInsets.only(top: Space.s3), child: Text(c.error.value!, key: const Key('invoiceShareError'), style: t.body.copyWith(color: p.danger))),
                   const SizedBox(height: Space.s4),
+                  if (c.printNotice.value != null) Padding(padding: const EdgeInsets.only(bottom: Space.s2), child: Text(c.printNotice.value!, key: const Key('printNotice'), style: t.body.copyWith(color: c.printOk.value ? p.successFg : p.danger))),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Space.s3),
+                    child: SizedBox(width: double.infinity, child: AppButton(key: const Key('invoicePrint'), label: 'Print', icon: Icons.print_outlined, variant: AppButtonVariant.secondary, onPressed: c.busy.value ? null : c.printInvoice)),
+                  ),
                   Row(
                     children: [
                       Expanded(child: AppButton(key: const Key('invoicePdf'), label: 'Share PDF', icon: Icons.ios_share_rounded, loading: c.busy.value, onPressed: c.busy.value ? null : c.shareInvoicePdf)),

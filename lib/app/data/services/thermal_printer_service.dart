@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:solvexo_pos/app/data/services/network_printer_transport.dart';
+import 'package:solvexo_pos/utils/tax_document_escpos.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:solvexo_pos/utils/receipt_escpos_builder.dart';
@@ -206,6 +207,11 @@ class ThermalPrinterService extends GetxController {
   /// Prints [receipt] [copies] times (and kicks the drawer first when [openDrawer]). Returns an error message or null.
   Future<String?> printReceipt({required ReceiptData receipt, bool openDrawer = false, PaperSize? paperSize}) =>
       _withPrinter(() => ReceiptEscPosBuilder.build(data: receipt, paperSize: paperSize ?? this.paperSize, copies: copies.value, openDrawer: openDrawer));
+
+  /// Prints a tax document (invoice / credit note / return receipt) laid out by [TaxDocumentEscPos]. [build] gets the characters per line
+  /// for the CURRENT paper width. Returns an error message or null, exactly like [printReceipt].
+  Future<String?> printDocument(List<DocLine> Function(int cols) build) =>
+      _withPrinter(() => TaxDocumentEscPos.bytes(build(ReceiptEscPosBuilder.columnsFor(paperMm.value)), paperSize: paperSize));
 
   Future<String?> printTest() => _withPrinter(() => ReceiptEscPosBuilder.buildTest(paperSize: paperSize, openDrawer: kickDrawer.value));
 

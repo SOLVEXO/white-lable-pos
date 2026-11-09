@@ -52,6 +52,28 @@ class PosReturnCompleteView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: Space.s3),
+                  Obx(() => c.printNotice.value == null ? const SizedBox.shrink() : Padding(padding: const EdgeInsets.only(bottom: Space.s2), child: Text(c.printNotice.value!, key: const Key('printNotice'), textAlign: TextAlign.center, style: t.body.copyWith(color: p.textSecondary)))),
+                  if (number != null && s != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: Space.s3),
+                      child: AppButton(
+                        key: const Key('printReturnReceipt'),
+                        label: 'Print return receipt',
+                        icon: Icons.print_outlined,
+                        onPressed: () async {
+                          final d = PosDocumentsController(saleId: s.id);
+                          Get.put<PosDocumentsController>(d, tag: 'return-print-${s.id}'); // onInit sets saleId
+                          await d.load();
+                          final n = d.note(number);
+                          if (n == null) {
+                            c.printNotice.value = 'The credit note could not be loaded. Share it as a PDF instead.';
+                            return;
+                          }
+                          await d.printReturnReceipt(n);
+                          c.printNotice.value = d.printNotice.value;
+                        },
+                      ),
+                    ),
                   if (number != null && s != null)
                     AppButton(
                       key: const Key('openCreditNote'),

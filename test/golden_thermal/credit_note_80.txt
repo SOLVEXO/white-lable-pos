@@ -1,0 +1,20 @@
+        Test Traders Ltd
+                 NTN 1234567-8
+------------------------------------------------
+                  CREDIT NOTE
+                   CN-000001
+           Against invoice INV-000007
+                <date time>
+------------------------------------------------
+Tea x1                                  USD 9.90
+  HS 09024090
+excl. tax                               USD 9.00
+tax                                     USD 0.90
+------------------------------------------------
+Value excl. tax                         USD 9.00
+Tax reversed                            USD 0.90
+
+CREDITED                                USD 9.90
+
+Refunded to
+Cash                                    USD 9.90

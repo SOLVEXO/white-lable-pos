@@ -1,0 +1,16 @@
+        Test Traders Ltd
+------------------------------------------------
+                 RETURN RECEIPT
+             Credit note CN-000001
+                Sale INV-000007
+                <date time>
+------------------------------------------------
+Tea x1                                  USD 9.90
+------------------------------------------------
+REFUND                                  USD 9.90
+
+Cash                                    USD 9.90
+
+Reason: size
+
+                 Keep this slip

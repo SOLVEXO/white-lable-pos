@@ -32,6 +32,8 @@ class PosReturnController extends GetxController {
   final Rxn<Map<String, dynamic>> result = Rxn<Map<String, dynamic>>();
   final RxList<String> resultInstructions = <String>[].obs;
   double resultAmount = 0;
+  /// Outcome of printing the return receipt (thermal) from the done screen.
+  final RxnString printNotice = RxnString();
 
   late final String saleId;
 
