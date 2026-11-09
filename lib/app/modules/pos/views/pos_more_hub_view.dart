@@ -64,6 +64,7 @@ class PosMoreHubView extends StatelessWidget {
             HubRow(icon: Icons.workspace_premium_outlined, title: 'Plan status', subtitle: 'Your POS plan', onTap: () => Get.toNamed(Routes.posPlanStatus), locked: true),
           ]),
         HubSection('App', [
+          HubRow(icon: Icons.privacy_tip_outlined, title: 'Permissions', subtitle: 'Camera, Bluetooth printer, local network', onTap: () => Get.toNamed(Routes.posPermissions)),
           HubRow(icon: Icons.settings_outlined, title: 'Settings', subtitle: a.canManage ? 'Receipt, printer, tax, auto-lock, shift close' : 'Printer, sound, auto-lock', onTap: () => Get.toNamed(Routes.posSettings)),
         ]),
       ],

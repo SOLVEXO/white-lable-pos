@@ -61,6 +61,8 @@ import '../modules/pos_kyb/bindings/pos_kyb_binding.dart';
 import '../modules/pos_kyb/views/pos_kyb_view.dart';
 import '../modules/pos_offline/bindings/pos_offline_binding.dart';
 import '../modules/pos_offline/views/pos_offline_view.dart';
+import '../modules/pos_permissions/bindings/pos_permissions_binding.dart';
+import '../modules/pos_permissions/views/pos_permissions_view.dart';
 import '../modules/pos_needs_attention/views/pos_needs_attention_view.dart';
 import '../modules/pos_stock_activity/bindings/pos_stock_activity_binding.dart';
 import '../modules/pos_stock_activity/views/pos_stock_activity_view.dart';
@@ -243,6 +245,12 @@ class AppPages {
       page: () => PosOfflineView(),
       binding: PosOfflineBinding(),
       middlewares: [PosAccessMiddleware()],
+    ),
+    // Camera / Bluetooth / local network explainer: reachable right after device setup (before the PIN login, so no access middleware) and from More
+    GetPage(
+      name: Routes.posPermissions,
+      page: () => PosPermissionsView(),
+      binding: PosPermissionsBinding(),
     ),
     GetPage(
       name: Routes.posStockActivity,

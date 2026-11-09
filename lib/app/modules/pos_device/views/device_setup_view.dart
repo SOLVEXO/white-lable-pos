@@ -66,7 +66,7 @@ class _DeviceSetupViewState extends State<DeviceSetupView> {
     if (!mounted) return;
     switch (r) {
       case DeviceSetupResult.ok:
-        Get.offAllNamed(Routes.posPinLogin);
+        Get.offAllNamed(Routes.posPermissions, arguments: {'afterSetup': true}); // explains camera / printer access, skippable, then the PIN login
         return;
       case DeviceSetupResult.otherStoreWithUnsyncedSales:
         setState(() => _error = 'This device still holds unsynced sales from a different store. Set it up for that store first so they can upload.');
