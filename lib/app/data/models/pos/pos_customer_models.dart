@@ -318,11 +318,14 @@ class CreditLedgerPage {
 
 /// A credit entry type in plain words.
 String creditTypeLabel(String type) => switch (type) {
-  'manual_adjustment' || 'adjustment' => 'Manual adjustment',
-  'refund' || 'return' || 'credit_note' => 'Refund to credit',
-  'spend' || 'sale' || 'tender' => 'Spent on a sale',
-  'issue' || 'issued' => 'Credit issued',
-  'expiry' || 'expired' => 'Expired',
+  'adjust_credit' => 'Credit added by a manager',
+  'adjust_debit' => 'Credit removed by a manager',
+  'spend' => 'Spent on a sale',
+  'spend_reversal' => 'Credit returned (sale reversed)',
+  'refund_credit' => 'Refund to store credit',
+  'redeem' => 'Spent online',
+  'restore' => 'Credit restored',
+  'expire' => 'Expired',
   '' => 'Credit',
   final t => '${t[0].toUpperCase()}${t.substring(1).replaceAll('_', ' ')}',
 };
@@ -335,10 +338,10 @@ String loyaltyTierLabel(String? tier) => tier == null || tier.isEmpty
 /// Server error codes of the customer / credit / loyalty endpoints in plain English (the server enforces; this only explains).
 String customerErrorMessage(String? code, {String? fallback}) => switch (code) {
   'NAME_REQUIRED' => 'Enter the customer\'s name.',
-  'PHONE_INVALID' => 'That phone number does not look right.',
+  'PHONE_INVALID' => 'Enter the phone number with digits only (5 to 18, an optional + first).',
   'EMAIL_INVALID' => 'That e-mail address does not look right.',
-  'NTN_INVALID' => 'That NTN does not look right.',
-  'CNIC_INVALID' => 'That CNIC does not look right (13 digits).',
+  'NTN_INVALID' => 'The NTN may contain letters, digits and dashes only.',
+  'CNIC_INVALID' => 'The CNIC may contain letters, digits and dashes only.',
   'REGISTRATION_TYPE_INVALID' => 'Pick registered or unregistered.',
   'PHONE_IN_USE' => 'Another customer already uses that phone number.',
   'POS_ACTION_FORBIDDEN' => 'Only a manager or the owner can do this.',

@@ -224,19 +224,19 @@ void main() {
   });
 
   group('More tab', () {
-    testWidgets('cashier: shift, held sales, sync, settings — nothing managerial, no placeholders', (t) async {
+    testWidgets('cashier: shift, held sales, sync, customers, settings — nothing managerial, no placeholders', (t) async {
       await mountHub(t, const PosMoreHubView(access: PosAccess.cashier, unresolvedOverride: 0));
-      for (final s in ['Shift summary', 'Held sales', 'Sync & needs attention', 'Settings']) {
+      for (final s in ['Shift summary', 'Held sales', 'Sync & needs attention', 'Customers', 'Settings']) {
         expect(find.text(s), findsOneWidget, reason: s);
       }
-      for (final s in ['Customers', 'Daily report', 'Date-range report', 'Shift history', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders', 'Expenses & daybook', 'Attendance', 'Coming soon']) {
+      for (final s in ['Past buyers', 'Daily report', 'Date-range report', 'Shift history', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders', 'Expenses & daybook', 'Attendance', 'Coming soon']) {
         expect(find.text(s), findsNothing, reason: '$s must not be shown to a cashier');
       }
     });
     for (final a in [PosAccess.manager, PosAccess.owner]) {
       testWidgets('${a.name}: business, team & security rows (locked where a gate applies) + coming-soon placeholders', (t) async {
         await mountHub(t, PosMoreHubView(access: a, unresolvedOverride: 0));
-        for (final s in ['Customers', 'Daily report', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders', 'Expenses & daybook', 'Attendance']) {
+        for (final s in ['Customers', 'Past buyers', 'Daily report', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders', 'Expenses & daybook', 'Attendance']) {
           await t.scrollUntilVisible(find.text(s), 200, scrollable: find.byType(Scrollable).first); // the list is lazy
           expect(find.text(s), findsOneWidget, reason: '${a.name} $s');
         }

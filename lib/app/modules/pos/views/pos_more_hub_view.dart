@@ -40,6 +40,9 @@ class PosMoreHubView extends StatelessWidget {
           HubRow(icon: Icons.sync_problem_rounded, title: 'Sync & needs attention', subtitle: 'Offline sales that are not on the server yet', badge: unresolved, onTap: () => Get.toNamed(Routes.posNeedsAttention)),
           HubRow(icon: Icons.cloud_off_rounded, title: 'Offline mode', subtitle: 'What works without internet and what is waiting to sync', onTap: () => Get.toNamed(Routes.posOfflineMode)),
         ]),
+        HubSection('People', [
+          HubRow(icon: Icons.groups_2_outlined, title: 'Customers', subtitle: 'Search, add, store credit and points', onTap: () => Get.toNamed(Routes.posCustomerDirectory)),
+        ]),
         if (!a.canManage)
           HubSection('Stock', [
             HubRow(icon: Icons.inventory_rounded, title: 'Stock', subtitle: 'Look up quantities and low stock', onTap: () => Get.toNamed(Routes.posStockOverview)),
@@ -47,7 +50,7 @@ class PosMoreHubView extends StatelessWidget {
         if (a.canManage)
           HubSection('Business', [
             HubRow(icon: Icons.inventory_rounded, title: 'Inventory', subtitle: 'Stock levels, history, counts and limits', onTap: () => Get.toNamed(Routes.posStockOverview)),
-            HubRow(icon: Icons.groups_2_outlined, title: 'Customers', subtitle: 'Directory and history', onTap: () => Get.toNamed(Routes.posCustomers), locked: true),
+            HubRow(icon: Icons.history_rounded, title: 'Past buyers', subtitle: 'Who has ordered from the store, and what they spent', onTap: () => Get.toNamed(Routes.posCustomers), locked: true),
             HubRow(icon: Icons.bar_chart_rounded, title: 'Daily report', subtitle: 'Sales, tenders and top products', onTap: () => Get.toNamed(Routes.posDailyReport), locked: true),
             HubRow(icon: Icons.date_range_rounded, title: 'Date-range report', subtitle: 'Any period', onTap: () => Get.toNamed(Routes.posRangeReport), locked: true),
             HubRow(icon: Icons.inventory_2_outlined, title: 'Catalog', subtitle: 'Price, barcode, HS code, category, stock', onTap: () => Get.toNamed(Routes.posCatalog), locked: true),

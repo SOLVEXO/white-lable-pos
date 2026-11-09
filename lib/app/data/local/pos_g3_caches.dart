@@ -157,11 +157,10 @@ class CustomerCache {
     )) {
       newest = s;
       for (final c in parse(s)) {
-        if (seen.add(c.id) &&
-            '${c.name} ${c.phone ?? ''} ${c.email ?? ''}'
-                .toLowerCase()
-                .contains(key))
+        final haystack = '${c.name} ${c.phone ?? ''} ${c.email ?? ''}'.toLowerCase();
+        if (seen.add(c.id) && haystack.contains(key)) {
           matches.add(c);
+        }
       }
     }
     return newest == null ? null : page(newest, matches);

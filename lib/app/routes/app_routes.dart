@@ -63,6 +63,9 @@ abstract class Routes {
   static const posCatalog = '/pos/catalog';
   static const posTaxProfile = '/pos/tax-profile';
   static const posCustomers = '/pos/customers';
+  // G3.3 customers: the directory (everyone) and one customer's profile
+  static const posCustomerDirectory = '/pos/customers/directory';
+  static const posCustomerProfile = '/pos/customers/profile';
 
   // 5D — shared-device security
   static const posDeviceSetup = '/pos/device-setup';

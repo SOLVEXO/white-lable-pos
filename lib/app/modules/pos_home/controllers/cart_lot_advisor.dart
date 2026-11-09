@@ -84,8 +84,7 @@ class CartLotAdvisor {
     }
     if (p == null) return; // not reachable / refused: keep showing what we have
     await _cache.put(p);
-    if (item.quantity.value != qty)
-      return; // a newer quantity has its own request
+    if (item.quantity.value != qty) return; // a newer quantity has its own request
     if (!p.trackLots) {
       item.lotPreview.value = null;
       item.sellExpired.value = false;
@@ -94,8 +93,7 @@ class CartLotAdvisor {
     item.lotPreview.value = p;
     item.lotPreviewLive.value = true;
     // expired units are only sold when the sellable ones do not cover the quantity: never keep the override once they do
-    if (item.sellExpired.value && !p.needsExpiredOverride)
-      item.sellExpired.value = false;
+    if (item.sellExpired.value && !p.needsExpiredOverride) item.sellExpired.value = false;
   }
 
   void dispose() {

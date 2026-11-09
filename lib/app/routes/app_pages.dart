@@ -74,6 +74,8 @@ import '../modules/pos_needs_attention/views/pos_needs_attention_view.dart';
 import '../modules/pos_stock_activity/bindings/pos_stock_activity_binding.dart';
 import '../modules/pos_stock_activity/views/pos_stock_activity_view.dart';
 import '../modules/pos_customers/bindings/pos_customers_binding.dart';
+import '../modules/pos_customers/views/customer_list_view.dart';
+import '../modules/pos_customers/views/customer_profile_view.dart';
 import '../modules/pos_customers/views/pos_customers_view.dart';
 part 'app_routes.dart';
 
@@ -278,6 +280,9 @@ class AppPages {
       binding: PosCustomersBinding(),
       middlewares: [PosAccessMiddleware(requireActiveSession: true), OwnerAccessMiddleware()],
     ),
+    // G3.3 customers: the directory and a profile (every role; the server decides what a role sees / may change). The legacy past-buyers list above stays on /pos/customers.
+    GetPage(name: Routes.posCustomerDirectory, page: () => CustomerListView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posCustomerProfile, page: () => CustomerProfileView(customerId: '${(Get.arguments as Map)['customerId']}'), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanInactive, page: () => const PosPlanInactiveView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanStatus, page: () => const PosPlanStatusView(), middlewares: [PosAccessMiddleware(), OwnerAccessMiddleware()]),
   ];
