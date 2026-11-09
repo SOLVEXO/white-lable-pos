@@ -58,7 +58,11 @@ class CustomerProfileView extends StatelessWidget {
         children: [
           Text(label, style: t.caption.copyWith(color: pal.textSecondary)),
           const SizedBox(height: Space.s1),
-          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: t.amountLg.copyWith(color: pal.textPrimary))),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: t.amountLg.copyWith(color: pal.textPrimary)),
+          ),
         ],
       ),
     );
@@ -67,7 +71,11 @@ class CustomerProfileView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s8),
       children: [
-        if (p.asOf != null) Padding(padding: const EdgeInsets.only(bottom: Space.s3), child: CustomerAsOfBanner(asOf: p.asOf!, subject: 'this customer')),
+        if (p.asOf != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Space.s3),
+            child: CustomerAsOfBanner(asOf: p.asOf!, subject: 'this customer'),
+          ),
         Row(
           children: [
             CustomerAvatar(customer, radius: 28),
@@ -76,7 +84,11 @@ class CustomerProfileView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(customer.name, key: const Key('profileName'), style: t.headline.copyWith(color: pal.textPrimary)),
+                  Text(
+                    customer.name,
+                    key: const Key('profileName'),
+                    style: t.headline.copyWith(color: pal.textPrimary),
+                  ),
                   if (customer.subtitle.isNotEmpty) Text(customer.subtitle, style: t.bodySmall.copyWith(color: pal.textMuted)),
                   if (customer.group != null) Text(customer.group!, style: t.caption.copyWith(color: pal.textMuted)),
                 ],
@@ -119,7 +131,11 @@ class CustomerProfileView extends StatelessWidget {
               ],
             ],
           ),
-          if (!online) const Padding(padding: EdgeInsets.only(top: Space.s2), child: CustomerNote(noteKey: Key('profileOffline'), icon: Icons.cloud_off_rounded, text: 'Needs internet to change a customer or their credit.')),
+          if (!online)
+            const Padding(
+              padding: EdgeInsets.only(top: Space.s2),
+              child: CustomerNote(noteKey: Key('profileOffline'), icon: Icons.cloud_off_rounded, text: 'Needs internet to change a customer or their credit.'),
+            ),
           _details(context, customer),
         ],
         if (p.recentSales.isNotEmpty) ...[
@@ -177,8 +193,13 @@ class CustomerProfileView extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(width: 110, child: Text(k, style: t.body.copyWith(color: pal.textSecondary))),
-                      Expanded(child: Text(v, style: t.body.copyWith(color: pal.textPrimary))),
+                      SizedBox(
+                        width: 110,
+                        child: Text(k, style: t.body.copyWith(color: pal.textSecondary)),
+                      ),
+                      Expanded(
+                        child: Text(v, style: t.body.copyWith(color: pal.textPrimary)),
+                      ),
                     ],
                   ),
                 ),
@@ -198,8 +219,20 @@ class CustomerProfileView extends StatelessWidget {
         const InvSectionTitle('Store credit history'),
         Obx(() {
           if (c.ledgerLoading.value && c.ledger.isEmpty) return const Center(child: CircularProgressIndicator());
-          if (c.ledgerError.value != null && c.ledger.isEmpty) return Text(c.ledgerError.value!, key: const Key('ledgerError'), style: t.body.copyWith(color: pal.dangerFg));
-          if (c.ledger.isEmpty) return Text('No credit movements yet', key: const Key('ledgerEmpty'), style: t.body.copyWith(color: pal.textSecondary));
+          if (c.ledgerError.value != null && c.ledger.isEmpty) {
+            return Text(
+              c.ledgerError.value!,
+              key: const Key('ledgerError'),
+              style: t.body.copyWith(color: pal.dangerFg),
+            );
+          }
+          if (c.ledger.isEmpty) {
+            return Text(
+              'No credit movements yet',
+              key: const Key('ledgerEmpty'),
+              style: t.body.copyWith(color: pal.textSecondary),
+            );
+          }
           return Column(
             children: [
               for (final e in c.ledger)
@@ -217,7 +250,13 @@ class CustomerProfileView extends StatelessWidget {
                             children: [
                               Text(creditTypeLabel(e.type), style: t.subtitle.copyWith(color: pal.textPrimary)),
                               Text(invDateTime(e.at), style: t.caption.copyWith(color: pal.textMuted)),
-                              if (e.note != null) Text(e.note!, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.bodySmall.copyWith(color: pal.textSecondary)),
+                              if (e.note != null)
+                                Text(
+                                  e.note!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.bodySmall.copyWith(color: pal.textSecondary),
+                                ),
                               if (e.creditNoteNumber != null) Text('Credit note ${e.creditNoteNumber}', style: t.caption.copyWith(color: pal.textMuted)),
                             ],
                           ),

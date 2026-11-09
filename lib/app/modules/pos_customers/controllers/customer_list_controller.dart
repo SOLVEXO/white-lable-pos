@@ -20,10 +20,12 @@ class CustomerListController extends GetxController {
   final Duration debounce;
 
   final RxList<PosCustomer> items = <PosCustomer>[].obs;
+
   /// the currency of the balances as the server stated it (null = it did not: no money is shown)
   final Rxn<InvCur> cur = Rxn<InvCur>();
   final RxBool loading = true.obs;
   final RxnString error = RxnString();
+
   /// set when the list came from the on-device memory because the server could not be reached
   final Rxn<DateTime> asOf = Rxn<DateTime>();
   final RxBool canManage = false.obs;

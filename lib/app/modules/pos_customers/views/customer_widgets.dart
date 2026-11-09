@@ -62,11 +62,7 @@ class CustomerBalanceBadges extends StatelessWidget {
       children: [
         if (credit != null && cur != null) StatusBadge('Credit ${invMoney(credit, cur!)}', tone: credit > 0 ? StatusTone.success : StatusTone.neutral, icon: Icons.account_balance_wallet_outlined),
         if (customer.loyaltyPoints > 0 || customer.loyaltyTier != null)
-          StatusBadge(
-            [if (customer.loyaltyTier != null) loyaltyTierLabel(customer.loyaltyTier), '${customer.loyaltyPoints} pts'].join(' · '),
-            tone: StatusTone.accent,
-            icon: Icons.stars_rounded,
-          ),
+          StatusBadge([if (customer.loyaltyTier != null) loyaltyTierLabel(customer.loyaltyTier), '${customer.loyaltyPoints} pts'].join(' · '), tone: StatusTone.accent, icon: Icons.stars_rounded),
       ],
     );
   }
@@ -97,8 +93,19 @@ class CustomerTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(customer.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.subtitle.copyWith(color: p.textPrimary)),
-                  if (customer.subtitle.isNotEmpty) Text(customer.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.caption.copyWith(color: p.textMuted)),
+                  Text(
+                    customer.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.subtitle.copyWith(color: p.textPrimary),
+                  ),
+                  if (customer.subtitle.isNotEmpty)
+                    Text(
+                      customer.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.caption.copyWith(color: p.textMuted),
+                    ),
                   if (customer.creditBalanceMinor != null || customer.loyaltyPoints > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: Space.s1),
@@ -130,7 +137,9 @@ class CustomerNote extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: p.textMuted),
         const SizedBox(width: Space.s2),
-        Expanded(child: Text(text, style: context.type.caption.copyWith(color: p.textSecondary))),
+        Expanded(
+          child: Text(text, style: context.type.caption.copyWith(color: p.textSecondary)),
+        ),
       ],
     );
   }

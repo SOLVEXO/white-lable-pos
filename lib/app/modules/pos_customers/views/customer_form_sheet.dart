@@ -52,11 +52,34 @@ class _CustomerFormSheetState extends State<CustomerFormSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Obx(() => AppTextField(key: const Key('cfName'), label: 'Name', controller: _name, prefixIcon: Icons.person_outline_rounded, errorText: c.fieldErrors['name'], onChanged: (s) => c.name.value = s)),
+        Obx(
+          () =>
+              AppTextField(key: const Key('cfName'), label: 'Name', controller: _name, prefixIcon: Icons.person_outline_rounded, errorText: c.fieldErrors['name'], onChanged: (s) => c.name.value = s),
+        ),
         gap(),
-        Obx(() => AppTextField(key: const Key('cfPhone'), label: 'Phone (optional)', controller: _phone, prefixIcon: Icons.phone_outlined, keyboardType: TextInputType.phone, errorText: c.fieldErrors['phone'], onChanged: (s) => c.phone.value = s)),
+        Obx(
+          () => AppTextField(
+            key: const Key('cfPhone'),
+            label: 'Phone (optional)',
+            controller: _phone,
+            prefixIcon: Icons.phone_outlined,
+            keyboardType: TextInputType.phone,
+            errorText: c.fieldErrors['phone'],
+            onChanged: (s) => c.phone.value = s,
+          ),
+        ),
         gap(),
-        Obx(() => AppTextField(key: const Key('cfEmail'), label: 'E-mail (optional)', controller: _email, prefixIcon: Icons.mail_outline_rounded, keyboardType: TextInputType.emailAddress, errorText: c.fieldErrors['email'], onChanged: (s) => c.email.value = s)),
+        Obx(
+          () => AppTextField(
+            key: const Key('cfEmail'),
+            label: 'E-mail (optional)',
+            controller: _email,
+            prefixIcon: Icons.mail_outline_rounded,
+            keyboardType: TextInputType.emailAddress,
+            errorText: c.fieldErrors['email'],
+            onChanged: (s) => c.email.value = s,
+          ),
+        ),
         gap(),
         AppTextField(key: const Key('cfAddress'), label: 'Address (optional)', controller: _address, prefixIcon: Icons.home_outlined, onChanged: (s) => c.address.value = s),
         gap(),
@@ -96,10 +119,18 @@ class _CustomerFormSheetState extends State<CustomerFormSheet> {
               ? const SizedBox.shrink()
               : Padding(
                   padding: const EdgeInsets.only(bottom: Space.s2),
-                  child: Text(c.error.value!, key: const Key('cfError'), style: t.body.copyWith(color: p.dangerFg)),
+                  child: Text(
+                    c.error.value!,
+                    key: const Key('cfError'),
+                    style: t.body.copyWith(color: p.dangerFg),
+                  ),
                 ),
         ),
-        Obx(() => customersOnlineRx().value ? const SizedBox.shrink() : const CustomerNote(noteKey: Key('cfOffline'), icon: Icons.cloud_off_rounded, text: 'Needs internet. A customer can only be saved while the till is online.')),
+        Obx(
+          () => customersOnlineRx().value
+              ? const SizedBox.shrink()
+              : const CustomerNote(noteKey: Key('cfOffline'), icon: Icons.cloud_off_rounded, text: 'Needs internet. A customer can only be saved while the till is online.'),
+        ),
         const SizedBox(height: Space.s3),
         Obx(() => AppButton(key: const Key('cfSave'), label: c.isEdit ? 'Save changes' : 'Save customer', loading: c.busy.value, onPressed: (c.canSubmit && customersOnlineRx().value) ? _save : null)),
         const SizedBox(height: Space.s2),

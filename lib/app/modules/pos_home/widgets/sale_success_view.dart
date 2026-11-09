@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/core/design/design.dart';
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:solvexo_pos/utils/receipt_pdf_builder.dart';
 
@@ -30,6 +32,7 @@ class SaleSuccessView extends StatefulWidget {
 class _SaleSuccessViewState extends State<SaleSuccessView> with SingleTickerProviderStateMixin {
   late final SaleOutcome? _outcome = widget.c.lastOutcome.value;
   late final ReceiptData? _receipt = widget.c.lastReceipt.value;
+  late final PosSaleModel? _sale = widget.c.lastSale.value;
   late final AnimationController _paper;
   bool _printing = false;
   bool _sharing = false;
@@ -159,6 +162,7 @@ class _SaleSuccessViewState extends State<SaleSuccessView> with SingleTickerProv
                     textAlign: TextAlign.center,
                     style: context.type.body.copyWith(color: p.textSecondary),
                   ),
+                  if (_sale != null) _CustomerRecap(sale: _sale),
                   if (r != null) ...[
                     const SizedBox(height: Space.s3),
                     StatusBadge(
@@ -337,4 +341,31 @@ class _DigitalReceipt extends StatelessWidget {
       ),
     );
   }
+}
+
+/// G3.3: what the sale did for the customer — points earned and redeemed, store credit spent. Nothing for a sale without those.
+/// Money is shown in the SALE's own currency and decimals.
+class _CustomerRecap extends StatelessWidget {
+  const _CustomerRecap({required this.sale});
+  final PosSaleModel sale;
+
+  @override
+  Widget build(BuildContext context) {
+    String m(num v) => Money.format(v, currency: sale.currency, exponent: sale.currencyExponent);
+    final loyalty = sale.loyalty;
+    final credit = sale.payments.where((p) => p.method == 'store_credit').fold(0.0, (a, p) => a + p.amount);
+    final chips = <Widget>[
+      if (credit > 0) StatusBadge('Store credit used ${m(credit)}', key: const Key('recapCredit'), tone: StatusTone.info, icon: Icons.account_balance_wallet_outlined),
+      if (loyalty != null && loyalty.redeemedPoints > 0)
+        StatusBadge('Redeemed ${loyalty.redeemedPoints} points (−${Money.format(loyalty.redeemValueMinor / _pow10(sale.currencyExponent), currency: sale.currency, exponent: sale.currencyExponent)})', key: const Key('recapRedeemed'), tone: StatusTone.accent, icon: Icons.stars_rounded),
+      if (loyalty != null && loyalty.earnedPoints > 0) StatusBadge('Earned ${loyalty.earnedPoints} points', key: const Key('recapEarned'), tone: StatusTone.success, icon: Icons.add_circle_outline_rounded),
+    ];
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.s3),
+      child: Wrap(alignment: WrapAlignment.center, spacing: Space.s2, runSpacing: Space.s1, children: chips),
+    );
+  }
+
+  static num _pow10(int e) => e <= 0 ? 1 : List.filled(e, 10).fold<num>(1, (a, b) => a * b);
 }

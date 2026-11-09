@@ -21,15 +21,9 @@ class CartLotInfo extends StatelessWidget {
       final approved = item.sellExpired.value;
       if (preview == null && !approved) return const SizedBox.shrink();
       final live = item.lotPreviewLive.value;
-      final spill = preview != null && preview.qty == item.quantity.value
-          ? preview.spill
-          : null;
+      final spill = preview != null && preview.qty == item.quantity.value ? preview.spill : null;
       final soon = preview?.expiresWithin(7) ?? false;
-      final canAsk =
-          live &&
-          c.tillOnline &&
-          !approved &&
-          (preview?.needsExpiredOverride ?? false);
+      final canAsk = live && c.tillOnline && !approved && (preview?.needsExpiredOverride ?? false);
       return Padding(
         padding: const EdgeInsets.only(top: Space.s1),
         child: Column(
@@ -39,9 +33,7 @@ class CartLotInfo extends StatelessWidget {
               Text(
                 [preview!.headline!, ?spill].join(' '),
                 key: Key('lotLine_${item.cartKey}'),
-                style: t.caption.copyWith(
-                  color: soon ? p.warningFg : p.textSecondary,
-                ),
+                style: t.caption.copyWith(color: soon ? p.warningFg : p.textSecondary),
               ),
             if (preview != null && !live && preview.asOf != null)
               Text(
@@ -52,18 +44,11 @@ class CartLotInfo extends StatelessWidget {
             if (soon)
               const Padding(
                 padding: EdgeInsets.only(top: Space.s1),
-                child: StatusBadge(
-                  'Expiring soon',
-                  tone: StatusTone.warning,
-                  icon: Icons.hourglass_bottom_rounded,
-                ),
+                child: StatusBadge('Expiring soon', tone: StatusTone.warning, icon: Icons.hourglass_bottom_rounded),
               ),
             if (canAsk) ...[
               const SizedBox(height: Space.s1),
-              Text(
-                'Only ${preview!.qty - preview.shortBy} sellable; ${preview.expiredUnits} expired.',
-                style: t.caption.copyWith(color: p.dangerFg),
-              ),
+              Text('Only ${preview!.qty - preview.shortBy} sellable; ${preview.expiredUnits} expired.', style: t.caption.copyWith(color: p.dangerFg)),
               const SizedBox(height: Space.s1),
               AppButton(
                 key: Key('sellExpired_${item.cartKey}'),
@@ -79,23 +64,13 @@ class CartLotInfo extends StatelessWidget {
               Row(
                 children: [
                   const Flexible(
-                    child: StatusBadge(
-                      'Expired stock approved',
-                      tone: StatusTone.danger,
-                      icon: Icons.verified_user_outlined,
-                    ),
+                    child: StatusBadge('Expired stock approved', tone: StatusTone.danger, icon: Icons.verified_user_outlined),
                   ),
                   TextButton(
                     key: Key('withdrawExpired_${item.cartKey}'),
                     onPressed: () => c.withdrawSellExpired(item),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(Space.minTouch, Space.minTouch),
-                      foregroundColor: p.accentFg,
-                    ),
-                    child: Text(
-                      'Undo',
-                      style: t.label.copyWith(color: p.accentFg),
-                    ),
+                    style: TextButton.styleFrom(minimumSize: const Size(Space.minTouch, Space.minTouch), foregroundColor: p.accentFg),
+                    child: Text('Undo', style: t.label.copyWith(color: p.accentFg)),
                   ),
                 ],
               ),

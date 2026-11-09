@@ -8,6 +8,7 @@ import 'package:solvexo_pos/app/modules/pos_customers/controllers/customer_commo
 class CreditAdjustController extends GetxController {
   CreditAdjustController({required this.customerId, required this.exponent, PosRepository? repository, String? storeId}) : _repo = repository ?? PosRepository(), _storeIdOverride = storeId;
   final String customerId;
+
   /// the exponent of the currency the balance is stated in (from the profile response)
   final int exponent;
   final PosRepository _repo;

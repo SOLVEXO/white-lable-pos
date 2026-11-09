@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart' show InvCur;
 import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
@@ -19,7 +20,9 @@ import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_payments_repository.dart';
 import 'package:solvexo_pos/app/data/local/pending_qr_store.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
+import 'package:solvexo_pos/app/modules/pos_customers/views/customer_picker_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/cart_lot_advisor.dart';
+import 'package:solvexo_pos/app/modules/pos_home/controllers/sale_customer_state.dart';
 import 'package:solvexo_pos/app/modules/pos_home/qr/raast_qr_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/qr/raast_qr_screen.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/qr_availability.dart';
@@ -29,7 +32,6 @@ import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/modules/category/models/category_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/hid_scan_detector.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/manager_approval_sheet.dart';
-import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_customer_picker_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_variant_picker_sheet.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
@@ -107,6 +109,8 @@ class PosPaymentMethod {
   static const card = 'card';
   static const other = 'other';
   static const raastQr = 'raast_qr';
+  /// G3.3: spends the attached customer's store credit (online only; offered by the payment sheet, never one of the plain tiles)
+  static const storeCredit = 'store_credit';
 
   /// The tenders every till offers. Raast QR is added by the payment sheet (it can be unavailable for a store).
   static const List<String> all = [cash, card, other];
@@ -124,6 +128,8 @@ class PosPaymentMethod {
         return 'Card';
       case raastQr:
         return 'Raast QR';
+      case storeCredit:
+        return 'Store credit';
       case other:
         // The backend only has cash|card|other — bank transfer and any
         // other non-card electronic payment are recorded as 'other' with an
@@ -157,10 +163,14 @@ class PosHomeController extends GetxController {
        _catalogCache = catalogCache ?? CatalogCacheStore.instance,
        _settingsCache = settingsCache ?? SettingsCacheStore.instance {
     _lots = lotAdvisor ?? CartLotAdvisor(repository: _posRepo, isOnline: () => _online, storeId: () => storeId.value);
+    saleCustomer = SaleCustomerState(repository: _posRepo, storeId: () => storeId.value, isOnline: () => _online);
   }
 
   final PosRepository _posRepo;
   late final CartLotAdvisor _lots;
+
+  /// G3.3: the attached customer's balances and the store's credit / loyalty rules, and the points chosen for this sale.
+  late final SaleCustomerState saleCustomer;
   final Future<String?> Function({required String reason, PosRepository? repository}) _approval;
   final CategoryRepository _categoryRepo;
   final CartSnapshotStore _cartStore;
@@ -206,6 +216,9 @@ class PosHomeController extends GetxController {
   /// The receipt of that Charge: the server's receipt for [SaleOutcome.completed], the provisional `OFF-…` receipt for
   /// [SaleOutcome.queuedOffline] (null if it could not be built — the sale itself is safe in the queue either way).
   final Rxn<ReceiptData> lastReceipt = Rxn<ReceiptData>();
+
+  /// G3.3: the sale the server just recorded (its points and tenders feed the success view). Null for a queued offline sale.
+  final Rxn<PosSaleModel> lastSale = Rxn<PosSaleModel>();
   final RxBool isScanningBarcode = false.obs;
 
   // ── G2.4: coupon + custom items ───────────────────────────────────────────
@@ -301,6 +314,31 @@ class PosHomeController extends GetxController {
 
   double get _rawDiscountInput => double.tryParse(discountController.text) ?? 0.0;
 
+  /// A manual discount is typed (points cannot be combined with one).
+  bool get isManualDiscountEntered => _rawDiscountInput > 0;
+
+  // ── G3.3 loyalty redemption ───────────────────────────────────────────────────
+  /// Points spent on this sale. Points cannot be combined with a coupon or a manual discount (the server refuses it), so they count as
+  /// zero while one of those is on the sale, and never on a sale without a customer or while offline.
+  int get redeemPointsEffective => (saleCustomer.attached && saleCustomer.pointsEnabled && appliedCoupon.value == null && _rawDiscountInput <= 0) ? saleCustomer.redeemPoints.value : 0;
+
+  /// What those points take off the sale, in the sale's major units. Display only — the server prices the redemption and its total is
+  /// what the sale is charged; this is the same figure (a flat amount discount).
+  double get redeemValueMajor => redeemPointsEffective <= 0 ? 0 : Money.fromMinor(redeemPointsEffective * (saleCustomer.rules.redeemMinorPerPoint ?? 0));
+
+  /// The cart's subtotal in minor units (before any discount).
+  int get _subtotalMinor => Money.toMinor(PosTotals.compute([for (final i in cartItems) (price: i.unitPrice, qty: i.quantity.value, taxable: i.isTaxable)], exponent: Money.exponent, percentDiscount: false, discountInput: 0, taxRate: 0).subtotal);
+
+  /// Most points that can be spent on the cart as it is now.
+  int get maxRedeemPoints => saleCustomer.maxPoints(_subtotalMinor);
+
+  void setRedeemPoints(int v) {
+    if (!saleCustomer.pointsEnabled || !_online) return;
+    final max = maxRedeemPoints;
+    saleCustomer.redeemPoints.value = v < 0 ? 0 : (v > max ? max : v);
+    cartItems.refresh();
+  }
+
   /// The store's tax rate from POS settings (0.08 = 8%). NOT typed by the cashier — the server applies the same
   /// rate and ignores any client tax, so a cashier-editable field would be a lie.
   double get taxRate => settings.value?.taxRate ?? 0.0;
@@ -310,8 +348,8 @@ class PosHomeController extends GetxController {
   PosTotals get totals => PosTotals.compute(
         [for (final i in cartItems) (price: i.unitPrice, qty: i.quantity.value, taxable: i.isTaxable)],
         exponent: Money.exponent,
-        percentDiscount: appliedCoupon.value != null ? appliedCoupon.value!.discountType == 'percentage' : isPercentDiscount.value,
-        discountInput: appliedCoupon.value != null ? appliedCoupon.value!.discountValue : _rawDiscountInput,
+        percentDiscount: redeemValueMajor > 0 ? false : (appliedCoupon.value != null ? appliedCoupon.value!.discountType == 'percentage' : isPercentDiscount.value),
+        discountInput: redeemValueMajor > 0 ? redeemValueMajor : (appliedCoupon.value != null ? appliedCoupon.value!.discountValue : _rawDiscountInput),
         taxRate: taxRate,
       );
 
@@ -390,7 +428,51 @@ class PosHomeController extends GetxController {
     final qrTaken = [for (var i = 0; i < splitLines.length; i++) if (i != index && splitLines[i].method.value == PosPaymentMethod.raastQr) i].isNotEmpty;
     final isQr = index >= 0 && index < splitLines.length && splitLines[index].method.value == PosPaymentMethod.raastQr;
     final offerQr = isQr || (!qrTaken && qrAvailability.isAvailable);
-    return [...PosPaymentMethod.all, if (offerQr) PosPaymentMethod.raastQr];
+    final isCredit = index >= 0 && index < splitLines.length && splitLines[index].method.value == PosPaymentMethod.storeCredit;
+    final creditTaken = [for (var i = 0; i < splitLines.length; i++) if (i != index && splitLines[i].method.value == PosPaymentMethod.storeCredit) i].isNotEmpty;
+    final offerCredit = isCredit || (!creditTaken && storeCreditOffered);
+    return [...PosPaymentMethod.all, if (offerQr) PosPaymentMethod.raastQr, if (offerCredit) PosPaymentMethod.storeCredit];
+  }
+
+  // ── G3.3 store credit tender ──────────────────────────────────────────────────
+  /// Store credit can be offered: the store accepts it as a tender, a customer with a balance is on the sale, and the till is online.
+  bool get storeCreditOffered => saleCustomer.storeCreditEnabled && saleCustomer.creditBalanceMinor > 0 && _online;
+
+  /// What the split rows say is paid with store credit.
+  double get storeCreditEntered => splitLines.where((l) => l.method.value == PosPaymentMethod.storeCredit).fold(0.0, (a, l) => a + l.amountValue);
+
+  /// Why the store credit tender cannot be charged right now, in plain words (null = nothing in the way). The server decides in the end.
+  String? get storeCreditIssue {
+    if (!isSplitPayment.value || storeCreditEntered <= 0) return null;
+    if (!_online) return customerErrorMessage('STORE_CREDIT_ONLINE_ONLY');
+    if (!saleCustomer.attached) return customerErrorMessage('CUSTOMER_REQUIRED');
+    if (Money.toMinor(storeCreditEntered) > saleCustomer.creditBalanceMinor) return 'That is more than the customer\'s store credit (${Money.format(saleCustomer.creditBalance)}).';
+    return null;
+  }
+
+  /// Points chosen but the till went offline: the redemption cannot be checked, so the sale waits (it is never charged without them).
+  String? get redeemIssue => saleCustomer.redeemPoints.value > 0 && redeemPointsEffective > 0 && !_online ? customerErrorMessage('LOYALTY_ONLINE_ONLY') : null;
+
+  /// The first thing in the way of charging because of the customer's credit or points (null = nothing).
+  String? get customerSaleIssue => storeCreditIssue ?? redeemIssue;
+
+  /// One tap: pay with the customer's store credit — the whole amount due, or the whole balance with the rest left in a second row
+  /// (cash) for the cashier to settle. Uses the split-payment rows.
+  void useStoreCredit() {
+    if (!storeCreditOffered) return;
+    final due = Money.toMinor(total);
+    final credit = saleCustomer.creditBalanceMinor < due ? saleCustomer.creditBalanceMinor : due;
+    for (final l in splitLines) {
+      l.dispose();
+    }
+    splitLines.clear();
+    isSplitPayment.value = true;
+    final creditLine = SplitPaymentLine(PosPaymentMethod.storeCredit)..amount.text = Money.plain(Money.fromMinor(credit));
+    splitLines.add(creditLine);
+    if (credit < due) {
+      splitLines.add(SplitPaymentLine(PosPaymentMethod.cash)..amount.text = Money.plain(Money.fromMinor(due - credit)));
+    }
+    cartItems.refresh();
   }
 
   /// Shows the QR screen for every QR line that is not yet confirmed. True only when every QR line is confirmed.
@@ -503,7 +585,7 @@ class PosHomeController extends GetxController {
   bool get isDiscountBlocked => _rawDiscountInput > 0 && !isManager.value;
 
   bool get canCharge =>
-      hasItems && paymentCheck.covered && !isDiscountBlocked && !isDiscountInvalid && !PosEntitlementService.isRestricted;
+      hasItems && paymentCheck.covered && !isDiscountBlocked && !isDiscountInvalid && !PosEntitlementService.isRestricted && customerSaleIssue == null;
 
   int cartQtyFor(PosProductModel p, [PosProductVariant? v]) {
     final key = v != null ? '${p.productId}_${v.variantId}' : p.productId;
@@ -851,6 +933,7 @@ class PosHomeController extends GetxController {
       customerController.text = snap.customerName;
       if (snap.customerId != null && snap.customerName.isNotEmpty) {
         selectedCustomer.value = CustomerModel(id: snap.customerId!, name: snap.customerName);
+        saleCustomer.attach(PosCustomer(id: snap.customerId!, kind: 'pos', name: snap.customerName), null);
       }
       noteController.text = snap.note;
       selectedPayment.value = snap.payment;
@@ -891,6 +974,7 @@ class PosHomeController extends GetxController {
     noteController.clear();
     customerController.clear();
     selectedCustomer.value = null;
+    saleCustomer.detach();
     discountController.text = '0';
     isPercentDiscount.value = false;
     tenderedController.clear();
@@ -938,15 +1022,16 @@ class PosHomeController extends GetxController {
   // ── Customer picker ───────────────────────────────────────────────────────
   Future<void> openCustomerPicker() async {
     if (storeId.value.isEmpty) return;
-    final picked = await Get.bottomSheet<CustomerModel>(
-      PosCustomerPickerSheet(storeId: storeId.value),
-      isScrollControlled: true,
-      backgroundColor: AppColors.transparent,
-    );
-    if (picked != null) {
-      selectedCustomer.value = picked;
-      customerController.text = picked.name;
-    }
+    final picked = await CustomerPickerSheet.open();
+    if (picked != null) attachCustomer(picked.customer, picked.cur);
+  }
+
+  /// Attaches a customer to this sale (name field, id, and their balances / points for the payment sheet).
+  void attachCustomer(PosCustomer c, InvCur? cur) {
+    selectedCustomer.value = CustomerModel(id: c.id, name: c.name, email: c.email, phone: c.phone);
+    customerController.text = c.name;
+    saleCustomer.attach(c, cur);
+    if (c.existing) CustomAppSnackbar.warning('${c.name} already has that phone number, so that customer was used.');
   }
 
   /// Call from the customer field's onChanged — a manual edit means the
@@ -954,6 +1039,7 @@ class PosHomeController extends GetxController {
   void onCustomerTextChanged(String value) {
     if (selectedCustomer.value != null && value != selectedCustomer.value!.name) {
       selectedCustomer.value = null;
+      saleCustomer.detach();
     }
   }
 
@@ -976,6 +1062,7 @@ class PosHomeController extends GetxController {
     if (isChargingOrHolding.value) return; // double-submit protection: a second Charge while one is in flight does nothing
     lastOutcome.value = null;
     lastReceipt.value = null;
+    lastSale.value = null;
     if (!hasItems) return;
     if (!_hasValidSession()) return;
     if (isCashUnderTendered) {
@@ -988,6 +1075,11 @@ class PosHomeController extends GetxController {
     }
     if (isDiscountInvalid) {
       CustomAppSnackbar.warning('The discount cannot be more than the subtotal.');
+      return;
+    }
+    final customerIssue = customerSaleIssue;
+    if (customerIssue != null) {
+      CustomAppSnackbar.warning(customerIssue);
       return;
     }
     if (appliedCoupon.value != null && _rawDiscountInput > 0) {
@@ -1095,6 +1187,7 @@ class PosHomeController extends GetxController {
       }
       final soldSale = result.sale;
       clearSale();
+      lastSale.value = soldSale;
       Get.back(); // close cart sheet
       final receipt = soldSale == null ? null : ReceiptData.fromSale(soldSale, settings.value, isCopy: false, asciiSafeMoney: true);
       lastReceipt.value = receipt;
@@ -1203,8 +1296,8 @@ class PosHomeController extends GetxController {
       return _posRepo.quoteSale(
         storeId: storeId.value,
         items: _buildItems(),
-        discountType: isPercentDiscount.value ? 'percent' : 'amount',
-        discountValue: _rawDiscountInput,
+        discountType: redeemValueMajor > 0 ? 'amount' : (isPercentDiscount.value ? 'percent' : 'amount'),
+        discountValue: redeemValueMajor > 0 ? redeemValueMajor : _rawDiscountInput, // a redemption prices exactly like a flat discount
         settingsVersion: version,
       );
     }
@@ -1227,8 +1320,9 @@ class PosHomeController extends GetxController {
     final coupon = withCoupon ? appliedCoupon.value?.code : null;
     // G3.2: only a sale with a line the manager approved for expired stock carries the manager's token for it
     final expiredToken = cartItems.any((i) => i.sellExpired.value) ? _expiredApproverToken : null;
+    final redeem = redeemPointsEffective;
     final name = customerController.text.trim().isEmpty ? 'Walk-in' : customerController.text.trim();
-    if (coupon == null && approver == null && expiredToken == null) {
+    if (coupon == null && approver == null && expiredToken == null && redeem == 0) {
       return _posRepo.createSale(
         storeId: storeId.value,
         sessionId: sessionId.value,
@@ -1274,6 +1368,7 @@ class PosHomeController extends GetxController {
       couponCode: coupon,
       approverToken: approver,
       expiredApproverToken: expiredToken,
+      redeemPoints: redeem > 0 ? redeem : null,
     );
   }
 
@@ -1499,6 +1594,7 @@ class PosHomeController extends GetxController {
         : sale.customerName;
     if (sale.customerId != null && sale.customerId!.isNotEmpty) {
       selectedCustomer.value = CustomerModel(id: sale.customerId!, name: sale.customerName);
+      saleCustomer.attach(PosCustomer(id: sale.customerId!, kind: 'pos', name: sale.customerName), null);
     }
     noteController.text = sale.notes;
     final held = sale.heldCouponCode;

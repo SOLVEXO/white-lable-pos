@@ -5,7 +5,9 @@ import 'package:solvexo_pos/app/modules/pos_home/utils/cart_removal_undo.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/cash_suggestions.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/qr_availability.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/cash_keypad.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/customer_money_panel.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/sale_success_view.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart' show invMoney;
 import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/utils/money.dart';
 
@@ -28,6 +30,7 @@ class PaymentSheet extends StatelessWidget {
     PosPaymentMethod.card: Icons.credit_card_rounded,
     PosPaymentMethod.other: Icons.account_balance_outlined,
     PosPaymentMethod.raastQr: Icons.qr_code_2_rounded,
+    PosPaymentMethod.storeCredit: Icons.account_balance_wallet_outlined,
   };
 
   Future<void> _charge() async {
@@ -66,6 +69,7 @@ class PaymentSheet extends StatelessWidget {
                     label: Text(split ? 'Single payment' : 'Split payment', style: context.type.label.copyWith(color: context.palette.accentFg)),
                   ),
                 ),
+                CustomerMoneyPanel(c: c, busy: busy),
               ],
             );
             final right = split
@@ -389,6 +393,7 @@ class _SplitPanel extends StatelessWidget {
             ReceiptRow('Remaining', Money.format(check.shortBy), strong: true, valueColor: p.dangerFg, key: const Key('splitRemaining'))
           else if (check.change > 0)
             ReceiptRow('Change due', Money.format(check.change), strong: true, valueColor: p.successFg, key: const Key('splitChange')),
+          if (c.storeCreditIssue != null) Padding(padding: const EdgeInsets.only(top: Space.s2), child: Text(c.storeCreditIssue!, key: const Key('storeCreditIssue'), style: context.type.caption.copyWith(color: p.dangerFg))),
         ],
       );
     });
@@ -446,6 +451,7 @@ class _SplitLineCard extends StatelessWidget {
             AppTextField(
               key: Key('splitAmount-$index'),
               label: method == PosPaymentMethod.cash ? 'Cash handed over' : 'Amount',
+              helperText: method == PosPaymentMethod.storeCredit && c.saleCustomer.cur.value != null ? 'Balance ${invMoney(c.saleCustomer.creditBalanceMinor, c.saleCustomer.cur.value!)}' : null,
               controller: line.amount,
               mono: true,
               prefixIcon: Icons.payments_outlined,
@@ -458,7 +464,7 @@ class _SplitLineCard extends StatelessWidget {
                 child: Text('Fill rest', style: context.type.label.copyWith(color: p.accentFg)),
               ),
             ),
-            if (method != PosPaymentMethod.cash && method != PosPaymentMethod.raastQr) ...[
+            if (method != PosPaymentMethod.cash && method != PosPaymentMethod.raastQr && method != PosPaymentMethod.storeCredit) ...[
               const SizedBox(height: Space.s2),
               AppTextField(key: Key('splitRef-$index'), label: 'Reference (optional)', controller: line.reference, prefixIcon: Icons.tag_rounded),
             ],

@@ -12,7 +12,10 @@ class CreditAdjustSheet extends StatefulWidget {
   final String currencyCode;
 
   static Future<bool?> open({required String customerId, required int exponent, required String currencyCode, CreditAdjustController? controller}) => AppBottomSheet.showGet<bool>(
-    CreditAdjustSheet(controller: controller ?? CreditAdjustController(customerId: customerId, exponent: exponent), currencyCode: currencyCode),
+    CreditAdjustSheet(
+      controller: controller ?? CreditAdjustController(customerId: customerId, exponent: exponent),
+      currencyCode: currencyCode,
+    ),
     title: 'Adjust store credit',
   );
 
@@ -47,9 +50,23 @@ class _CreditAdjustSheetState extends State<CreditAdjustSheet> {
         Obx(
           () => Row(
             children: [
-              Expanded(child: ChoiceChip(key: const Key('caAdd'), label: const Center(child: Text('Add credit')), selected: c.adding.value, onSelected: (_) => c.adding.value = true)),
+              Expanded(
+                child: ChoiceChip(
+                  key: const Key('caAdd'),
+                  label: const Center(child: Text('Add credit')),
+                  selected: c.adding.value,
+                  onSelected: (_) => c.adding.value = true,
+                ),
+              ),
               const SizedBox(width: Space.s2),
-              Expanded(child: ChoiceChip(key: const Key('caRemove'), label: const Center(child: Text('Remove credit')), selected: !c.adding.value, onSelected: (_) => c.adding.value = false)),
+              Expanded(
+                child: ChoiceChip(
+                  key: const Key('caRemove'),
+                  label: const Center(child: Text('Remove credit')),
+                  selected: !c.adding.value,
+                  onSelected: (_) => c.adding.value = false,
+                ),
+              ),
             ],
           ),
         ),
@@ -70,7 +87,11 @@ class _CreditAdjustSheetState extends State<CreditAdjustSheet> {
               ? const SizedBox.shrink()
               : Padding(
                   padding: const EdgeInsets.only(top: Space.s3),
-                  child: Text(c.error.value!, key: const Key('caError'), style: t.body.copyWith(color: p.dangerFg)),
+                  child: Text(
+                    c.error.value!,
+                    key: const Key('caError'),
+                    style: t.body.copyWith(color: p.dangerFg),
+                  ),
                 ),
         ),
         const SizedBox(height: Space.s4),

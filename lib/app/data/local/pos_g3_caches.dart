@@ -11,11 +11,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 /// first, plus a small persisted JSON (capped, oldest answers dropped first). The suggestion is a hint only: the server allocates
 /// the lots for real when the sale reaches it, and an offline sale is never blocked by it.
 class LotPreviewCache {
-  LotPreviewCache({
-    Future<SharedPreferences> Function()? prefs,
-    DateTime Function()? clock,
-  }) : _prefs = prefs ?? SharedPreferences.getInstance,
-       _clock = clock ?? DateTime.now;
+  LotPreviewCache({Future<SharedPreferences> Function()? prefs, DateTime Function()? clock}) : _prefs = prefs ?? SharedPreferences.getInstance, _clock = clock ?? DateTime.now;
 
   static final LotPreviewCache instance = LotPreviewCache();
   static const _key = 'pos_lot_preview_cache';
@@ -48,18 +44,13 @@ class LotPreviewCache {
 
   /// Remembers [p] as the latest answer for its item (marked with the time it was received).
   Future<void> put(LotPreview p) async {
-    _byVariant.remove(
-      p.variantId,
-    ); // re-insert: the newest answer is the last one
+    _byVariant.remove(p.variantId); // re-insert: the newest answer is the last one
     _byVariant[p.variantId] = p.asOf == null ? p.withAsOf(_clock()) : p;
     while (_byVariant.length > maxEntries) {
       _byVariant.remove(_byVariant.keys.first);
     }
     try {
-      await (await _prefs()).setString(
-        _key,
-        jsonEncode([for (final v in _byVariant.values) v.toJson()]),
-      );
+      await (await _prefs()).setString(_key, jsonEncode([for (final v in _byVariant.values) v.toJson()]));
     } catch (_) {}
   }
 }
@@ -67,13 +58,10 @@ class LotPreviewCache {
 /// Customers as last seen, so search and a profile still open without internet (marked "as of <time>"). Names, phones, e-mails and tax
 /// ids are personal data: the blob is sealed at rest like the saved cart. Creating a customer is NOT possible offline.
 class CustomerCache {
-  CustomerCache({
-    Future<SharedPreferences> Function()? prefs,
-    DateTime Function()? clock,
-    SealedText? sealed,
-  }) : _prefs = prefs ?? SharedPreferences.getInstance,
-       _clock = clock ?? DateTime.now,
-       _sealed = sealed ?? SealedText();
+  CustomerCache({Future<SharedPreferences> Function()? prefs, DateTime Function()? clock, SealedText? sealed})
+    : _prefs = prefs ?? SharedPreferences.getInstance,
+      _clock = clock ?? DateTime.now,
+      _sealed = sealed ?? SealedText();
 
   static final CustomerCache instance = CustomerCache();
   static const _key = 'pos_customer_cache';
@@ -103,15 +91,9 @@ class CustomerCache {
     } catch (_) {}
   }
 
-  Future<void> saveSearch(
-    String storeId,
-    String q,
-    PosCustomerPage page,
-  ) async {
+  Future<void> saveSearch(String storeId, String q, PosCustomerPage page) async {
     final j = await _read(storeId);
-    final searches = LinkedHashMap<String, dynamic>.from(
-      (j['searches'] as Map?) ?? const {},
-    );
+    final searches = LinkedHashMap<String, dynamic>.from((j['searches'] as Map?) ?? const {});
     final key = q.trim().toLowerCase();
     searches.remove(key);
     searches[key] = {
@@ -130,18 +112,11 @@ class CustomerCache {
   /// The remembered answer to [q], or — when that exact search was never made — the customers of any remembered search that match it.
   Future<PosCustomerPage?> loadSearch(String storeId, String q) async {
     final j = await _read(storeId);
-    final searches =
-        (j['searches'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final searches = (j['searches'] as Map?)?.cast<String, dynamic>() ?? const {};
     final key = q.trim().toLowerCase();
-    Map<String, dynamic>? hit = (searches[key] as Map?)
-        ?.cast<String, dynamic>();
+    Map<String, dynamic>? hit = (searches[key] as Map?)?.cast<String, dynamic>();
     final at = DateTime.tryParse('${hit?['at'] ?? ''}')?.toLocal();
-    PosCustomerPage page(Map<String, dynamic> s, List<PosCustomer> items) =>
-        PosCustomerPage(
-          items: items,
-          cur: InvCur.fromJson(s),
-          asOf: DateTime.tryParse('${s['at'] ?? ''}')?.toLocal(),
-        );
+    PosCustomerPage page(Map<String, dynamic> s, List<PosCustomer> items) => PosCustomerPage(items: items, cur: InvCur.fromJson(s), asOf: DateTime.tryParse('${s['at'] ?? ''}')?.toLocal());
     List<PosCustomer> parse(Map<String, dynamic> s) => [
       for (final c in (s['items'] as List? ?? const []))
         if (c is Map) PosCustomer.fromJson(c.cast<String, dynamic>()),
@@ -152,9 +127,7 @@ class CustomerCache {
     final seen = <String>{};
     final matches = <PosCustomer>[];
     Map<String, dynamic>? newest;
-    for (final s in searches.values.map(
-      (e) => (e as Map).cast<String, dynamic>(),
-    )) {
+    for (final s in searches.values.map((e) => (e as Map).cast<String, dynamic>())) {
       newest = s;
       for (final c in parse(s)) {
         final haystack = '${c.name} ${c.phone ?? ''} ${c.email ?? ''}'.toLowerCase();
@@ -168,9 +141,7 @@ class CustomerCache {
 
   Future<void> saveProfile(String storeId, CustomerProfile p) async {
     final j = await _read(storeId);
-    final profiles = LinkedHashMap<String, dynamic>.from(
-      (j['profiles'] as Map?) ?? const {},
-    );
+    final profiles = LinkedHashMap<String, dynamic>.from((j['profiles'] as Map?) ?? const {});
     profiles.remove(p.customer.id);
     profiles[p.customer.id] = p.withAsOf(_clock()).toJson();
     while (profiles.length > maxProfiles) {
@@ -183,9 +154,7 @@ class CustomerCache {
   Future<CustomerProfile?> loadProfile(String storeId, String id) async {
     final j = await _read(storeId);
     final m = ((j['profiles'] as Map?) ?? const {})[id];
-    return m is Map
-        ? CustomerProfile.fromJson(m.cast<String, dynamic>())
-        : null;
+    return m is Map ? CustomerProfile.fromJson(m.cast<String, dynamic>()) : null;
   }
 
   Future<void> clear() async {

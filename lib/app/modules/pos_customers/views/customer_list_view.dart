@@ -47,7 +47,14 @@ class CustomerListView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s2),
             child: AppSearchBar(hint: 'Search name, phone or e-mail', onChanged: c.onQueryChanged),
           ),
-          Obx(() => c.asOf.value == null ? const SizedBox.shrink() : Padding(padding: const EdgeInsets.fromLTRB(Space.s4, 0, Space.s4, Space.s2), child: CustomerAsOfBanner(asOf: c.asOf.value!))),
+          Obx(
+            () => c.asOf.value == null
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(Space.s4, 0, Space.s4, Space.s2),
+                    child: CustomerAsOfBanner(asOf: c.asOf.value!),
+                  ),
+          ),
           Expanded(
             child: Obx(() {
               if (c.loading.value && c.items.isEmpty) return const Center(child: CircularProgressIndicator(key: Key('customersLoading')));
@@ -68,7 +75,11 @@ class CustomerListView extends StatelessWidget {
                 itemCount: c.items.length,
                 itemBuilder: (_, i) {
                   final PosCustomer customer = c.items[i];
-                  return CustomerTile(customer: customer, cur: cur, onTap: () => Get.toNamed(Routes.posCustomerProfile, arguments: {'customerId': customer.id}));
+                  return CustomerTile(
+                    customer: customer,
+                    cur: cur,
+                    onTap: () => Get.toNamed(Routes.posCustomerProfile, arguments: {'customerId': customer.id}),
+                  );
                 },
               );
             }),

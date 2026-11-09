@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/services/pos_entitlement_service.dart';
+import 'package:solvexo_pos/app/modules/pos_customers/views/customer_widgets.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/cart_removal_undo.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/cart_lot_info.dart';
@@ -233,6 +234,15 @@ class CartFooter extends StatelessWidget {
                 onPressed: c.openCustomerPicker,
               ),
             ),
+            // G3.3: the chosen customer's store credit and points (own Obx: it reads the customer state, not the cart)
+            Obx(() {
+              final cust = c.saleCustomer.customer.value;
+              if (cust == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: Space.s2),
+                child: Align(alignment: Alignment.centerLeft, child: CustomerBalanceBadges(key: const Key('cartCustomerBadges'), customer: cust, cur: c.saleCustomer.cur.value)),
+              );
+            }),
             const SizedBox(height: Space.s2),
             Opacity(
               opacity: (c.isManager.value && c.appliedCoupon.value == null) ? 1 : 0.5,

@@ -30,6 +30,7 @@ class CustomerFormController extends GetxController {
   final RxnString registrationType = RxnString();
   final RxBool marketingConsent = false.obs;
   final RxBool busy = false.obs;
+
   /// error text per field key (`name`, `phone`, `email`, `ntn`, `cnic`, `registrationType`)
   final RxMap<String, String> fieldErrors = <String, String>{}.obs;
   final RxnString error = RxnString();
@@ -73,8 +74,16 @@ class CustomerFormController extends GetxController {
       };
     }
     final before = <String, dynamic>{
-      'name': e.name, 'phone': e.phone ?? '', 'email': e.email ?? '', 'address': e.address ?? '', 'ntn': e.ntn ?? '', 'cnic': e.cnic ?? '',
-      'group': e.group ?? '', 'notes': e.notes ?? '', 'marketingConsent': e.marketingConsent, 'registrationType': e.registrationType,
+      'name': e.name,
+      'phone': e.phone ?? '',
+      'email': e.email ?? '',
+      'address': e.address ?? '',
+      'ntn': e.ntn ?? '',
+      'cnic': e.cnic ?? '',
+      'group': e.group ?? '',
+      'notes': e.notes ?? '',
+      'marketingConsent': e.marketingConsent,
+      'registrationType': e.registrationType,
     };
     return {
       for (final f in all.entries)

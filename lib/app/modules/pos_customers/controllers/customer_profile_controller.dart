@@ -81,8 +81,15 @@ class CustomerProfileController extends GetxController {
     if (p == null) return;
     profile.value = CustomerProfile(
       customer: c.withBalances(creditBalanceMinor: p.creditBalanceMinor, loyaltyPoints: p.loyaltyPoints),
-      cur: p.cur, creditBalanceMinor: p.creditBalanceMinor, lifetimeSpendMinor: p.lifetimeSpendMinor, loyaltyPoints: p.loyaltyPoints, orderCount: p.orderCount,
-      loyaltyTier: p.loyaltyTier, loyalty: p.loyalty, lastVisitAt: p.lastVisitAt, recentSales: p.recentSales,
+      cur: p.cur,
+      creditBalanceMinor: p.creditBalanceMinor,
+      lifetimeSpendMinor: p.lifetimeSpendMinor,
+      loyaltyPoints: p.loyaltyPoints,
+      orderCount: p.orderCount,
+      loyaltyTier: p.loyaltyTier,
+      loyalty: p.loyalty,
+      lastVisitAt: p.lastVisitAt,
+      recentSales: p.recentSales,
     );
   }
 }

@@ -12,19 +12,16 @@ import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
-import 'package:solvexo_pos/app/data/repositories/customer_repository.dart';
 import 'package:solvexo_pos/app/modules/pos_held_sales/controllers/pos_held_sales_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_held_sales/views/pos_held_sales_view.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/hid_scan_detector.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_barcode_sheet.dart';
-import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_customer_picker_sheet.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/utils/sound_util.dart';
 
 import 'support/sale_harness.dart';
 
-class MockCustomerRepository extends Mock implements CustomerRepository {}
 
 PosSaleModel held(
   String id, {
@@ -603,9 +600,8 @@ void main() {
     });
   });
 
-  // ── customer picker ──────────────────────────────────────────────────────────────────────────────────────────
-  group('customer picker sheet', () {
-    late MockCustomerRepository repo;
+  // ── customer on the sale (the picker sheet itself is covered in g33_customers_screens_test.dart) ─────────────────
+  group('customer on the sale', () {
     late SaleHarness h;
     const ada = CustomerModel(
       id: 'c1',
@@ -613,85 +609,9 @@ void main() {
       phone: '555-0101',
       orderCount: 4,
     );
-    const bob = CustomerModel(id: 'c2', name: 'Bob', email: 'bob@x.com');
 
     setUp(() {
-      repo = MockCustomerRepository();
       h = SaleHarness();
-    });
-
-    Future<void> open(WidgetTester t) async {
-      Get.bottomSheet<CustomerModel>(
-        PosCustomerPickerSheet(storeId: 'store-1', customerRepository: repo),
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-      );
-      await h.settle(t, frames: 5);
-    }
-
-    testWidgets('browse list loads; tapping a customer returns it', (t) async {
-      await h.mount(t);
-      when(() => repo.getStoreCustomers('store-1')).thenAnswer(
-        (_) async =>
-            (items: [ada, bob], total: 2, totalPages: 1, hasMore: false),
-      );
-      CustomerModel? result;
-      Get.bottomSheet<CustomerModel>(
-        PosCustomerPickerSheet(storeId: 'store-1', customerRepository: repo),
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-      ).then((v) => result = v);
-      await h.settle(t, frames: 5);
-      expect(find.text('Select customer'), findsOneWidget);
-      expect(find.text('Ada Lovelace'), findsOneWidget);
-      expect(find.text('555-0101'), findsOneWidget);
-      expect(find.text('4 orders'), findsOneWidget);
-      expect(find.text('bob@x.com'), findsOneWidget);
-      await t.tap(find.byKey(const Key('customer-c1')));
-      await h.settle(t, frames: 5);
-      expect(result?.id, 'c1');
-      expect(find.text('Select customer'), findsNothing);
-    });
-
-    testWidgets(
-      'typing searches (debounced); clearing returns to the browse list; no match → empty state',
-      (t) async {
-        await h.mount(t);
-        when(() => repo.getStoreCustomers('store-1')).thenAnswer(
-          (_) async =>
-              (items: [ada, bob], total: 2, totalPages: 1, hasMore: false),
-        );
-        when(
-          () => repo.searchCustomers('store-1', 'zed'),
-        ).thenAnswer((_) async => []);
-        await open(t);
-        await t.enterText(find.byType(TextField).last, 'zed');
-        await t.pump(const Duration(milliseconds: 500));
-        await t.pump(const Duration(milliseconds: 100));
-        verify(() => repo.searchCustomers('store-1', 'zed')).called(1);
-        expect(find.text('No customers found.'), findsOneWidget);
-        await t.tap(find.byTooltip('Clear'));
-        await h.settle(t, frames: 4);
-        expect(find.text('Ada Lovelace'), findsOneWidget);
-      },
-    );
-
-    testWidgets('Walk-in closes the sheet with no customer', (t) async {
-      await h.mount(t);
-      when(() => repo.getStoreCustomers('store-1')).thenAnswer(
-        (_) async => (items: [ada], total: 1, totalPages: 1, hasMore: false),
-      );
-      CustomerModel? result = ada;
-      Get.bottomSheet<CustomerModel>(
-        PosCustomerPickerSheet(storeId: 'store-1', customerRepository: repo),
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-      ).then((v) => result = v);
-      await h.settle(t, frames: 5);
-      await t.tap(find.byKey(const Key('walkInButton')));
-      await h.settle(t, frames: 5);
-      expect(result, isNull);
-      expect(find.text('Select customer'), findsNothing);
     });
 
     testWidgets(

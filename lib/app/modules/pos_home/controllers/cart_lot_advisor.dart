@@ -34,11 +34,7 @@ class CartLotAdvisor {
   /// "This item is not lot-tracked" is remembered this long before the server is asked again.
   static const untrackedFor = Duration(hours: 1);
 
-  bool _untrackedKnown(LotPreview? p) =>
-      p != null &&
-      !p.trackLots &&
-      p.asOf != null &&
-      _clock().difference(p.asOf!) < untrackedFor;
+  bool _untrackedKnown(LotPreview? p) => p != null && !p.trackLots && p.asOf != null && _clock().difference(p.asOf!) < untrackedFor;
 
   /// Call when a line is added or its quantity changed.
   void request(CartItem item) {
@@ -62,9 +58,7 @@ class CartLotAdvisor {
     // the first look is immediate; quick taps after it are folded into one trailing request with the newest quantity
     final key = item.cartKey;
     _timers[key]?.cancel();
-    final wait = _lastFetch[key] == null
-        ? Duration.zero
-        : debounce - _clock().difference(_lastFetch[key]!);
+    final wait = _lastFetch[key] == null ? Duration.zero : debounce - _clock().difference(_lastFetch[key]!);
     if (wait <= Duration.zero) {
       unawaited(_fetch(item, variantId));
     } else {
