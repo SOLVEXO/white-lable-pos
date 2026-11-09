@@ -6,14 +6,12 @@ import 'package:flutter/material.dart';
 
 class PosTransactionButtons extends StatelessWidget {
   final VoidCallback onReceipt;
-  final VoidCallback? onRefund;
-  final VoidCallback? onVoid;
+  final VoidCallback? onReturn;
 
   const PosTransactionButtons({
     super.key,
     required this.onReceipt,
-    this.onRefund,
-    this.onVoid,
+    this.onReturn,
   });
 
   @override
@@ -29,24 +27,12 @@ class PosTransactionButtons extends StatelessWidget {
             borderColor: AppColors.lightGrey2,
           ),
         ),
-        if (onVoid != null) ...[
+        if (onReturn != null) ...[
           const SizedBox(width: 10),
           Expanded(
             child: _TxnBtn(
-              label: 'Void',
-              onTap: onVoid!,
-              color: AppColors.iosGrey,
-              bgColor: AppColors.background,
-              borderColor: AppColors.iosGrey,
-            ),
-          ),
-        ],
-        if (onRefund != null) ...[
-          const SizedBox(width: 10),
-          Expanded(
-            child: _TxnBtn(
-              label: 'Refund',
-              onTap: onRefund!,
+              label: 'Return / void',
+              onTap: onReturn!,
               color: AppColors.red,
               bgColor: AppColors.lightRed,
               borderColor: AppColors.red,

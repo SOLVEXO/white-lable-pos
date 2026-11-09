@@ -4,6 +4,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/manager_approval_sheet.dart';
 import 'package:solvexo_pos/utils/money.dart';
+import 'package:solvexo_pos/utils/pos_role.dart';
 import 'package:solvexo_pos/utils/refund_instructions.dart';
 import 'package:solvexo_pos/utils/return_math.dart';
 
@@ -24,6 +25,8 @@ class PosReturnController extends GetxController {
   final RxMap<String, bool> restock = <String, bool>{}.obs;
   final RxMap<String, String> restockReason = <String, String>{}.obs;
   final RxBool receiptPresented = true.obs;
+  /// Only a manager may VOID a whole sale (the server enforces it with the signed token; this only decides whether the button shows).
+  final RxBool isManager = false.obs;
 
   /// Set after a successful return: the credit note ({id, number, totalMinor}), the amount and the instructions per tender.
   final Rxn<Map<String, dynamic>> result = Rxn<Map<String, dynamic>>();
@@ -36,6 +39,7 @@ class PosReturnController extends GetxController {
   void onInit() {
     super.onInit();
     saleId = _saleIdOverride ?? (Get.arguments as String? ?? '');
+    PosRole.isCurrentEmployeeManager().then((v) => isManager.value = v).catchError((_) => false);
     load();
   }
 
@@ -150,6 +154,33 @@ class PosReturnController extends GetxController {
       resultAmount = r.refundedAmount ?? 0;
       resultInstructions.assignAll(posRefundInstructions(
         [for (final t in r.tenders) PosRefundSplit(t.method, t.amount)],
+        currency: s.currency,
+        exponent: s.currencyExponent,
+      ));
+      result.value = _repo.lastCreditNote ?? {};
+      return true;
+    } finally {
+      processing.value = false;
+    }
+  }
+
+  /// VOID the whole sale (managers; the same Return flow, so it too ends in a credit note). Same guards as [confirm].
+  Future<bool> voidEntireSale() async {
+    final s = sale.value;
+    if (s == null || processing.value || !s.canVoid) return false;
+    processing.value = true;
+    error.value = null;
+    try {
+      final why = await ReasonPicker.ask(PosReasonKind.voidSale);
+      if (why == null) return false;
+      final ok = await _repo.voidSale(s.id, reason: why.note.isEmpty ? null : why.note, reasonCode: why.code);
+      if (!ok) {
+        error.value = 'Could not void the sale.';
+        return false;
+      }
+      resultAmount = s.total - s.refundedAmount;
+      resultInstructions.assignAll(posRefundInstructions(
+        posAllocateRefund(tenders: [for (final p in s.paymentLines) (method: p.method, amount: p.amount)], alreadyRefunded: s.refundedAmount, amount: resultAmount, exponent: s.currencyExponent),
         currency: s.currency,
         exponent: s.currencyExponent,
       ));

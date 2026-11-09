@@ -980,9 +980,15 @@ class PosRepository {
         if (employeeToken != null) 'x-pos-employee-token': employeeToken,
         if (key != null) 'Idempotency-Key': key,
       };
+      // G2.7: the provisional `OFF-…` number printed on the customer's first receipt goes to the server as a SEPARATE field (a lookup
+      // reference so a return at another till can find the sale). The stored/queued payload and the idempotency fingerprint never contain it.
+      String? provisional;
+      try {
+        if (key != null && Get.isRegistered<PendingSaleSyncService>()) provisional = await Get.find<PendingSaleSyncService>().provisionalNumberFor(key);
+      } catch (_) {}
       final res = await _client.post(
         ApiConstants.posSales,
-        data: payload,
+        data: provisional == null ? payload : {...payload, 'provisionalNumber': provisional},
         requiresAuth: true,
         headers: headers,
       );
@@ -1208,8 +1214,14 @@ class PosRepository {
     lastErrorCode = null;
     lastErrorReasons = const [];
     lastCreditNote = null;
+    // G2.7: the register this till is paired with — so a return of a sale rung up on ANOTHER till is paid out of THIS till's open shift.
+    String? returnRegister;
+    try {
+      returnRegister = await AppPreferences.getPosRegisterId();
+    } catch (_) {}
     final payload = {
       if (items != null && items.isNotEmpty) 'items': items,
+      if (returnRegister != null && returnRegister.isNotEmpty) 'registerId': returnRegister,
       if (receiptPresented == false) 'receiptPresented': false,
       if (reasonCode != null && reasonCode.isNotEmpty) 'reasonCode': reasonCode,
       if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
@@ -1262,6 +1274,7 @@ class PosRepository {
   /// Authorization comes from the current employee's signed token — see
   /// [refundSale]'s doc comment.
   Future<bool> voidSale(String saleId, {String? reason, String? reasonCode}) async {
+    lastCreditNote = null;
     final payload = {
       if (reason != null && reason.isNotEmpty) 'reason': reason,
       if (reasonCode != null && reasonCode.isNotEmpty) 'reasonCode': reasonCode,
@@ -1276,7 +1289,11 @@ class PosRepository {
         headers: await _writeHeaders(await _intents.keyFor(fp)),
       );
       settled = true;
-      if (_ok(res)) return true;
+      if (_ok(res)) {
+        final cn = (res.data['data'] as Map?)?['creditNote'];
+        if (cn is Map) lastCreditNote = cn.cast<String, dynamic>();
+        return true;
+      }
       ToastUtil.showToast(res.data['message'] as String? ?? 'Failed to void sale');
       return false;
     } on DioException catch (e) {
@@ -1416,6 +1433,25 @@ class PosRepository {
   }
 
   // ── Offline review / discard ──────────────────────────────────────────────
+
+  /// G2.7: find a sale of THIS STORE (any till) by the number on the customer's receipt: `OFF-…` (offline receipt), `INV-…`, the sale
+  /// number, a bare number, or a credit note number (`CN-…`). Used by Orders search so a return can be made at a different till.
+  Future<List<PosSaleModel>> lookupSales(String storeId, String ref) async {
+    final q = ref.trim();
+    if (q.isEmpty) return [];
+    try {
+      final res = await _client.get(ApiConstants.posSalesLookup(storeId, q), requiresAuth: true);
+      final data = _data(res);
+      return (data as List<dynamic>? ?? []).map((e) => PosSaleModel.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      _logDioError('lookupSales', e);
+      DioExceptionHandler.handleDioException(e, showToast: false);
+      return [];
+    } catch (e) {
+      debugPrint('❌ lookupSales: $e');
+      return [];
+    }
+  }
 
   Future<List<PosSaleModel>> getSalesNeedingReview(String storeId) async {
     try {

@@ -22,6 +22,11 @@ class FakeSync extends PendingSaleSyncService {
   int scheduled = 0;
   final List<({String key, String realNumber, String? saleId})> synced = [];
 
+  final Map<String, String> provisional = {};
+
+  @override
+  Future<String?> provisionalNumberFor(String key) async => provisional[key];
+
   @override
   Future<void> noteSynced(String key, {required String realNumber, String? saleId}) async => synced.add((key: key, realNumber: realNumber, saleId: saleId));
 
@@ -305,13 +310,28 @@ void main() {
       expect(sync.synced.single, (key: 'queued-key-1', realNumber: 'S-1', saleId: 'sale-1'));
     });
 
-    test('a failed replay records nothing, and the provisional number is never in the request body', () async {
+    test('a failed replay records nothing', () async {
       final sync = FakeSync();
       Get.put<PendingSaleSyncService>(sync);
       scriptPosts([_fail(DioExceptionType.badResponse, status: 400, body: {'message': 'no'})]);
       await repo.submitRawSale(payload);
       expect(sync.synced, isEmpty);
-      expect(sentData.toString(), isNot(contains('OFF-')));
+    });
+
+    test('G2.7: the OFF- receipt number goes to the server as the SEPARATE provisionalNumber field (a lookup reference), the queued payload is untouched', () async {
+      final sync = FakeSync()..provisional['queued-key-1'] = 'OFF-AB12CD-0007';
+      Get.put<PendingSaleSyncService>(sync);
+      scriptPosts([_res({'success': true, 'data': _saleJson()})]);
+      await repo.submitRawSale(payload);
+      expect((sentData.last as Map)['provisionalNumber'], 'OFF-AB12CD-0007');
+      expect(payload.containsKey('provisionalNumber'), isFalse, reason: 'the stored payload is not modified');
+    });
+
+    test('G2.7: a sale with no provisional number sends no such field', () async {
+      Get.put<PendingSaleSyncService>(FakeSync());
+      scriptPosts([_res({'success': true, 'data': _saleJson()})]);
+      await repo.submitRawSale(payload);
+      expect((sentData.last as Map).containsKey('provisionalNumber'), isFalse);
     });
 
     test('replay: IDEMPOTENCY_IN_PROGRESS stays queued; a business 409 is final (marked failed, shown, never retried)', () async {

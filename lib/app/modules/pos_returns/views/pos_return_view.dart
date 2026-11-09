@@ -70,6 +70,11 @@ class PosReturnView extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (s.canVoid && c.isManager.value)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, 0),
+                      child: AppButton(key: const Key('voidSale'), label: 'Void entire sale', variant: AppButtonVariant.secondary, onPressed: c.processing.value ? null : () async { if (await c.voidEntireSale()) Get.off<void>(() => PosReturnCompleteView(c: c)); }),
+                    ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s4),
                     child: Row(

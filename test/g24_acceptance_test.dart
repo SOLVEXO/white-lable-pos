@@ -15,10 +15,9 @@ import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
-import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/product_grid.dart';
-import 'package:solvexo_pos/app/modules/pos_sale_detail/controllers/pos_sale_detail_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_returns/controllers/pos_return_controller.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/utils/money.dart';
 
@@ -148,10 +147,8 @@ void main() {
     });
 
     testWidgets('Refund pressed twice sends ONE refund (the reason picker counts as "in flight")', (t) async {
-      Get.put<ThermalPrinterService>(ThermalPrinterService()); // the controller's constructor asks for one (nothing prints here)
       final repo = MockPosRepository();
-      final c = PosSaleDetailController(posRepository: repo);
-      c.saleId = 'sale-1';
+      final c = PosReturnController(repository: repo, saleId: 'sale-1');
       c.sale.value = PosSaleModel(
         id: 'sale-1',
         saleNumber: 'S-1',
@@ -175,11 +172,11 @@ void main() {
       final picker = Completer<PosReasonChoice?>();
       ReasonPicker.testOverride = (_) => picker.future; // the cashier is still choosing a reason
       final gate = Completer<({bool success, double? refundedAmount, String? newStatus, String? message, List<PosPaymentLine> tenders})>();
-      when(() => repo.refundSale(any(), reasonCode: any(named: 'reasonCode'), reason: any(named: 'reason'))).thenAnswer((_) => gate.future);
+      when(() => repo.refundSale(any(), items: any(named: 'items'), reasonCode: any(named: 'reasonCode'), reason: any(named: 'reason'), receiptPresented: any(named: 'receiptPresented'), approverToken: any(named: 'approverToken'))).thenAnswer((_) => gate.future);
       await t.pumpWidget(ResponsiveSizer(builder: (_, __, ___) => GetMaterialApp(home: const Scaffold(body: SizedBox.shrink()))));
-      final first = c.refundFull();
+      final first = c.confirm(all: true);
       await t.pump();
-      final second = c.refundFull(); // a second tap while the picker is open
+      final second = c.confirm(all: true); // a second tap while the picker is open
       picker.complete(const PosReasonChoice('price_error', ''));
       await t.pump();
       gate.complete((success: false, refundedAmount: null, newStatus: null, message: 'No', tenders: const <PosPaymentLine>[]));
@@ -188,7 +185,7 @@ void main() {
       for (var i = 0; i < 3; i++) {
         await t.pump(const Duration(seconds: 4));
       }
-      verify(() => repo.refundSale('sale-1', reasonCode: 'price_error', reason: '')).called(1);
+      verify(() => repo.refundSale('sale-1', items: null, reasonCode: 'price_error', reason: '', receiptPresented: null, approverToken: null)).called(1);
     });
   });
 

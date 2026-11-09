@@ -170,6 +170,25 @@ void main() {
 
     const ok = (success: true, refundedAmount: 9.9, newStatus: 'partially_refunded', message: null, tenders: <PosPaymentLine>[PosPaymentLine(method: 'cash', amount: 9.9)]);
 
+    test('G2.7 single path: a manager VOIDS the whole sale from the Return flow and gets the credit note; a cashier does not see the action', () async {
+      final c = make();
+      await c.load();
+      when(() => repo.voidSale('sale-1', reason: any(named: 'reason'), reasonCode: any(named: 'reasonCode'))).thenAnswer((_) async => true);
+      expect(await c.voidEntireSale(), isTrue);
+      verify(() => repo.voidSale('sale-1', reason: 'size', reasonCode: 'wrong_item')).called(1);
+      expect(c.result.value?['number'], 'CN-000001');
+      expect(c.resultAmount, closeTo(29.7, 0.001));
+    });
+
+    test('G2.7: a void the server refuses leaves no result and shows the problem', () async {
+      final c = make();
+      await c.load();
+      when(() => repo.voidSale(any(), reason: any(named: 'reason'), reasonCode: any(named: 'reasonCode'))).thenAnswer((_) async => false);
+      expect(await c.voidEntireSale(), isFalse);
+      expect(c.result.value, isNull);
+      expect(c.error.value, isNotNull);
+    });
+
     test('picking a quantity shows the credit the server will give (its own net + tax proration) and how it is paid back', () async {
       final c = make();
       await c.load();

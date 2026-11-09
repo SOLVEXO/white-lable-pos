@@ -1,6 +1,4 @@
-import 'package:solvexo_pos/utils/refund_instructions.dart';
 import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/controllers/pos_orders_controller.dart';
@@ -70,12 +68,8 @@ class PosTransactionCard extends StatelessWidget {
                   )
                 : PosTransactionButtons(
                     onReceipt: () => Get.toNamed(Routes.posSaleDetail, arguments: sale.id),
-                    // Refund/void offered to managers only — matches the
-                    // backend's real, signed-token-verified enforcement,
-                    // see PosRole's doc comment. A cashier can still open
-                    // the sale detail screen, which explains why.
-                    onRefund: (sale.canRefund && controller.isManager.value) ? () => _confirmRefund(context) : null,
-                    onVoid: (sale.canVoid && controller.isManager.value) ? () => _confirmVoid(context) : null,
+                    // ONE refund/void path: the Return flow (credit note, approval rules; the server decides who may do what).
+                    onReturn: (sale.canRefund || sale.canVoid) ? () => Get.toNamed(Routes.posReturn, arguments: sale.id) : null,
                   ),
           ],
         ),
@@ -168,29 +162,6 @@ class PosTransactionCard extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-
-  void _confirmRefund(BuildContext context) {
-    CustomConfirmDialog.show(
-      context,
-      title: 'Confirm Refund',
-      message: 'Refund ${Money.format(sale.total - sale.refundedAmount, currency: sale.currency, exponent: sale.currencyExponent)} for this sale?\n\n'
-          '${posRefundInstructions(posAllocateRefund(tenders: [for (final p in sale.paymentLines) (method: p.method, amount: p.amount)], alreadyRefunded: sale.refundedAmount, amount: sale.total - sale.refundedAmount, exponent: sale.currencyExponent), currency: sale.currency, exponent: sale.currencyExponent).map((l) => '• $l').join('\n')}',
-      confirmLabel: 'Refund',
-      confirmColor: AppColors.red,
-      onConfirm: () => controller.refundSale(sale),
-    );
-  }
-
-  void _confirmVoid(BuildContext context) {
-    CustomConfirmDialog.show(
-      context,
-      title: 'Void Sale',
-      message: 'This reverses the sale entirely and restores stock. It cannot be undone.',
-      confirmLabel: 'Void Sale',
-      confirmColor: AppColors.iosGrey,
-      onConfirm: () => controller.voidSale(sale),
     );
   }
 }

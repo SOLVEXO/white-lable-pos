@@ -25,6 +25,16 @@ class PosOrdersView extends StatelessWidget {
       body: Column(
         children: [
           const PosAppBar(title: 'Transactions'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppDimen.allPadding, 8, AppDimen.allPadding, 4),
+            child: TextField(
+              key: const Key('ordersSearch'),
+              textInputAction: TextInputAction.search,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Find by receipt no. (OFF-…, INV-…, CN-…)', isDense: true),
+              onSubmitted: controller.searchByReceipt,
+            ),
+          ),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {

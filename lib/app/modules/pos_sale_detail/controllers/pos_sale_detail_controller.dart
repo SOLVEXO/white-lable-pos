@@ -1,7 +1,4 @@
 import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
-import 'package:solvexo_pos/app/components/refund_done_dialog.dart';
-import 'package:solvexo_pos/utils/refund_instructions.dart';
-import 'package:solvexo_pos/utils/pos_totals.dart';
 import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'dart:typed_data';
@@ -41,7 +38,6 @@ class PosSaleDetailController extends GetxController {
   final RxnString offlineRef = RxnString();
 
   /// saleItemId -> qty selected for partial refund
-  final RxMap<String, int> refundSelection = <String, int>{}.obs;
 
   late final String saleId;
 
@@ -80,110 +76,6 @@ class PosSaleDetailController extends GetxController {
       offlineRef.value = rec?.provisionalNumber;
     } catch (_) {
       offlineRef.value = null; // purely informational
-    }
-  }
-
-  void setRefundQty(String saleItemId, int qty) {
-    if (qty <= 0) {
-      refundSelection.remove(saleItemId);
-    } else {
-      refundSelection[saleItemId] = qty;
-    }
-  }
-
-  /// What the server will refund for the selected units: their share of what was paid (discount and tax
-  /// pro-rated), not the sticker price. Display only — the server computes the real amount.
-  double get selectedRefundAmount {
-    final s = sale.value;
-    if (s == null) return 0;
-    final lines = <({double price, int qty})>[];
-    var completes = true;
-    for (final item in s.items) {
-      final qty = refundSelection[item.saleItemId] ?? 0;
-      if (qty > 0) lines.add((price: item.price, qty: qty));
-      if (item.refundedQty + qty < item.qty) completes = false;
-    }
-    if (lines.isEmpty) return 0;
-    return posPartialRefundAmount(
-      subtotal: s.subtotal,
-      total: s.total,
-      alreadyRefunded: s.refundedAmount,
-      lines: lines,
-      completesSale: completes,
-      exponent: s.currencyExponent,
-    );
-  }
-
-  /// What the cashier will have to do for a refund of [amount] on this sale, per tender (card machine / cash).
-  List<String> refundPlan(double amount) {
-    final s = sale.value;
-    if (s == null) return const [];
-    final splits = posAllocateRefund(
-      tenders: [for (final p in s.paymentLines) (method: p.method, amount: p.amount)],
-      alreadyRefunded: s.refundedAmount,
-      amount: amount,
-      exponent: s.currencyExponent,
-    );
-    return posRefundInstructions(splits, currency: s.currency, exponent: s.currencyExponent);
-  }
-
-  Future<void> refundFull() async {
-    final s = sale.value;
-    if (s == null || isProcessing.value) return; // double-submit protection: one refund in flight (the picker counts)
-    isProcessing.value = true;
-    try {
-      final why = await ReasonPicker.ask(PosReasonKind.refund);
-      if (why == null) return;
-      final result = await _posRepo.refundSale(s.id, reasonCode: why.code, reason: why.note);
-      if (!result.success) {
-        CustomAppSnackbar.error(result.message ?? 'Could not process refund.');
-        return;
-      }
-      CustomAppSnackbar.success(result.message ?? 'Sale fully refunded.');
-      await showRefundDoneDialog(s, result.tenders, result.refundedAmount);
-      await _load();
-    } finally {
-      isProcessing.value = false;
-    }
-  }
-
-  Future<void> refundPartial() async {
-    final s = sale.value;
-    if (s == null || refundSelection.isEmpty || isProcessing.value) return;
-    isProcessing.value = true;
-    try {
-      final why = await ReasonPicker.ask(PosReasonKind.refund);
-      if (why == null) return;
-      final items = refundSelection.entries
-          .map((e) => {'saleItemId': e.key, 'qty': e.value})
-          .toList();
-      final result = await _posRepo.refundSale(s.id, items: items, reasonCode: why.code, reason: why.note);
-      if (!result.success) {
-        CustomAppSnackbar.error(result.message ?? 'Could not process refund.');
-        return;
-      }
-      CustomAppSnackbar.success(result.message ?? 'Partial refund processed.');
-      refundSelection.clear();
-      await showRefundDoneDialog(s, result.tenders, result.refundedAmount);
-      await _load();
-    } finally {
-      isProcessing.value = false;
-    }
-  }
-
-  Future<void> voidSale({String? reason}) async {
-    final s = sale.value;
-    if (s == null || isProcessing.value) return;
-    isProcessing.value = true;
-    try {
-      final why = await ReasonPicker.ask(PosReasonKind.voidSale);
-      if (why == null) return;
-      final ok = await _posRepo.voidSale(s.id, reason: why.note.isNotEmpty ? why.note : reason, reasonCode: why.code);
-      if (!ok) return;
-      CustomAppSnackbar.success('Sale voided and stock restored.');
-      await _load();
-    } finally {
-      isProcessing.value = false;
     }
   }
 

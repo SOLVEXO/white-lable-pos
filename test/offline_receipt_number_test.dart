@@ -115,7 +115,7 @@ void main() {
       expect(await store.enqueue('k2', _payload('A'), deviceShort: 'AAAAAA'), 'OFF-AAAAAA-0002');
     });
 
-    test('NOTHING of it leaks into what is sent to the server: the stored payload has no OFF- number', () async {
+    test('the STORED payload has no OFF- number (it is sent only as the separate provisionalNumber field at submit time)', () async {
       await store.enqueue('k1', _payload('A'), deviceShort: 'AAAAAA');
       final r = (await store.getById('k1'))!;
       expect(jsonEncode(r.payload), isNot(contains('OFF-')));

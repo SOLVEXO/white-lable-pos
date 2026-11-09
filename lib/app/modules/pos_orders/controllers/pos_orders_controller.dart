@@ -1,7 +1,4 @@
-import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
-import 'package:solvexo_pos/app/components/refund_done_dialog.dart';
 import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
@@ -27,6 +24,8 @@ class PosOrdersController extends GetxController {
   final RxString paymentFilter = 'All'.obs;
   final RxString statusFilter  = 'All'.obs;
   final RxString processingId  = ''.obs;
+  /// The receipt number typed in the search box (OFF-…, INV-…, sale number, CN-…). Non-empty = the list shows that lookup across the WHOLE store.
+  final RxString searchQuery = ''.obs;
   final RxString currencySymbol = Money.symbol().obs;
   /// See PosRole.isCurrentEmployeeManager's doc comment — gates the
   /// quick refund/void actions to match the backend's actual (if weak) check.
@@ -83,10 +82,21 @@ class PosOrdersController extends GetxController {
   String? get _paymentParam => paymentFilter.value == 'All' ? null : paymentFilter.value;
   String? get _statusParam => statusFilter.value == 'All' ? null : statusFilter.value;
 
+  Future<void> searchByReceipt(String raw) async {
+    searchQuery.value = raw.trim();
+    await loadSales();
+  }
+
   Future<void> loadSales() async {
     isLoading.value = true;
     _page = 1;
     try {
+      if (searchQuery.value.isNotEmpty) {
+        // a receipt-number lookup is store-wide (the return may be at a different till than the sale), not limited to this shift
+        sales.assignAll(await _posRepo.lookupSales(_storeId, searchQuery.value));
+        _hasMore = false;
+        return;
+      }
       final result = await _posRepo.getSales(
         storeId: _storeId,
         sessionId: _sessionId.isEmpty ? null : _sessionId,
@@ -147,66 +157,4 @@ class PosOrdersController extends GetxController {
   }
 
   void openSaleDetail(PosSaleModel sale) => Get.toNamed(Routes.posSaleDetail, arguments: sale.id);
-
-  // ── Full refund (from the list quick-action) ─────────────────────────────
-  Future<void> refundSale(PosSaleModel sale) async {
-    if (processingId.value.isNotEmpty) return; // double-submit protection: one refund in flight (the picker counts)
-    processingId.value = sale.id;
-    try {
-      final why = await ReasonPicker.ask(PosReasonKind.refund);
-      if (why == null) return;
-      final result = await _posRepo.refundSale(sale.id, reasonCode: why.code, reason: why.note);
-      if (!result.success) {
-        CustomAppSnackbar.error(result.message ?? 'Could not process refund.');
-        return;
-      }
-      final idx = sales.indexWhere((s) => s.id == sale.id);
-      if (idx >= 0) {
-        sales[idx] = _withStatus(sales[idx], result.newStatus ?? 'refunded', refundedAmount: sale.total);
-      }
-      CustomAppSnackbar.success(result.message ?? 'Refund processed.');
-      await showRefundDoneDialog(sale, result.tenders, result.refundedAmount);
-    } finally {
-      processingId.value = '';
-    }
-  }
-
-  Future<void> voidSale(PosSaleModel sale) async {
-    if (processingId.value.isNotEmpty) return;
-    processingId.value = sale.id;
-    try {
-      final why = await ReasonPicker.ask(PosReasonKind.voidSale);
-      if (why == null) return;
-      final ok = await _posRepo.voidSale(sale.id, reason: why.note.isEmpty ? null : why.note, reasonCode: why.code);
-      if (!ok) return;
-      final idx = sales.indexWhere((s) => s.id == sale.id);
-      if (idx >= 0) sales[idx] = _withStatus(sales[idx], 'voided');
-      CustomAppSnackbar.success('Sale voided and stock restored.');
-    } finally {
-      processingId.value = '';
-    }
-  }
-
-  PosSaleModel _withStatus(PosSaleModel sale, String status, {double? refundedAmount}) => PosSaleModel(
-        id: sale.id,
-        saleNumber: sale.saleNumber,
-        storeId: sale.storeId,
-        sessionId: sale.sessionId,
-        registerId: sale.registerId,
-        employeeId: sale.employeeId,
-        items: sale.items,
-        discount: sale.discount,
-        tax: sale.tax,
-        subtotal: sale.subtotal,
-        total: sale.total,
-        paymentMethod: sale.paymentMethod,
-        customerName: sale.customerName,
-        customerId: sale.customerId,
-        notes: sale.notes,
-        heldAt: sale.heldAt,
-        status: status,
-        voidedAt: status == 'voided' ? DateTime.now() : sale.voidedAt,
-        refundedAmount: refundedAmount ?? sale.refundedAmount,
-        createdAt: sale.createdAt,
-      );
 }

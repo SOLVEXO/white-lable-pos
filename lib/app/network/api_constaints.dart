@@ -269,6 +269,7 @@ class ApiConstants {
   // Offline-sync support: price a cart without selling it; manager review of flagged sales; audit of a discarded queued sale
   static String get posSalesQuote => "$apiPrefix/pos/sales/quote";
   static String posSaleReceiptLink(String saleId) => "$apiPrefix/pos/sales/$saleId/receipt-link";
+  static String posSalesLookup(String storeId, String ref) => "$apiPrefix/pos/sales/lookup/$storeId?ref=${Uri.encodeQueryComponent(ref)}";
   static String posSalesNeedsReview(String storeId) => "$apiPrefix/pos/sales/needs-review?storeId=$storeId";
   static String posSaleResolveReview(String saleId) => "$apiPrefix/pos/sales/$saleId/resolve-review";
   static String get posOfflineDiscards => "$apiPrefix/pos/offline-discards";
