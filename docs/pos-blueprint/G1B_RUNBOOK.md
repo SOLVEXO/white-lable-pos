@@ -121,6 +121,13 @@ What the script guarantees (tested, see `pos-credit-note-backfill.spec.ts`): **m
 6. **Rollback:** `... pos-credit-note-backfill.ts down --production --i-have-a-backup` (restoring the step-1 snapshot is the last resort).
 7. Decision for you before step 5: whether production has any real (non-test) refund/void from before G2.5. If the dry run says 0 candidates there is nothing to do.
 
+## 7. Store-credit ledger switch (G3.3, option B) — prepared, **not run**
+Order matters; the application code ships first with `STORE_CREDIT_LEDGER` unset (= `legacy`, behaviour unchanged). Details and the proof of "no dual spend at any step" are in `G3_STORE_CREDIT_LEDGER_PLAN.md` §5. Run `preflight.js` first (its `g3` section prints counts only: legacy rows, customers with spendable credit per currency, lots with a future expiry, off-grid lots).
+1. Backup/snapshot. Deploy the backend (mode `legacy`). Smoke: the storefront's store-credit balance / checkout use / refund-to-credit work as before.
+2. On a **restored copy**: `store-credit-migrate.ts up --dry-run --production --i-have-a-backup`, then `up`, check the self-check line, then `down` and compare the database hash before / after (`db.runCommand({dbHash:1}).md5`).
+3. Production window: set `STORE_CREDIT_LEDGER=migrating` and restart the API (credit reads 0, nothing can be spent or changed). Run `up --dry-run`, `up` (self-check must print OK; any mismatch exits non-zero → stay in `migrating`, investigate or `down`). Set `STORE_CREDIT_LEDGER=new`, restart. The till's store-credit tender and refund-to-credit are available from this moment (and not before).
+4. Rollback: set `migrating`, `down` (refuses if the new ledger has activity of its own — decide consciously, `--force-lose-activity` does not delete those rows but the legacy ledger will not know about them), set `legacy`.
+
 ## Who does what
 | Step | You | Me |
 |---|---|---|

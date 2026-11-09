@@ -20,6 +20,8 @@
  * What it reports: documents per collection · stores by base currency · sales and shifts by (currency, exponent snapshot) including rows
  * with NO snapshot (written before Phase 5B) · PKR sales by exponent · variants whose price / compare-at / cost are NOT a whole number of
  * minor units of their store's currency (ISO exponent) · sales / shifts with a money value genuinely off the minor-unit grid (> 1e-6 of a minor unit; float noise is not counted).
+ * G3 section (`g3`, counts only): purchase orders / supplier returns / lots / loyalty members / stock adjustments, variants with a cost set (and how many still lack the minor twin),
+ * store-credit documents, customers with a spendable balance PER CURRENCY (a count, never an amount or an id), lots with a future expiry, lots off the minor-unit grid.
  */
 const path = require('path');
 let mongodb;
@@ -131,6 +133,35 @@ async function main() {
         { $sort: { _id: 1 } },
       ];
       out.variantsByStoreCurrency_offGridPrices = Object.fromEntries((await db.collection('productvariants').aggregate(pipeline, { allowDiskUse: true }).toArray()).map((r) => [r._id, { variants: r.variants, priceOffGrid: r.priceOffGrid, compareAtPriceOffGrid: r.compareAtPriceOffGrid, costPriceOffGrid: r.costPriceOffGrid }]));
+    }
+
+    // ── G3 (counts only): what the supply side and the store-credit ledger hold today ──────────────────────────────────
+    out.g3 = {};
+    for (const c of ['purchaseorders', 'supplierreturns', 'stocklots', 'storecredittransactions', 'loyaltymembers', 'stockadjustments']) {
+      if (has(c)) out.g3[`${c}_documents`] = await db.collection(c).estimatedDocumentCount();
+    }
+    if (has('productvariants')) {
+      out.g3.variantsWithCostSet = await db.collection('productvariants').countDocuments({ costPrice: { $type: 'number' } });
+      out.g3.variantsWithCostSet_missingMinorTwin = await db.collection('productvariants').countDocuments({ costPrice: { $type: 'number' }, costPriceMinor: { $in: [null] } });
+    }
+    if (has('purchaseorders')) out.g3.purchaseOrdersByCurrency = Object.fromEntries((await db.collection('purchaseorders').aggregate([{ $group: { _id: { $ifNull: ['$currency', 'NO_CURRENCY'] }, n: { $sum: 1 } } }, { $sort: { _id: 1 } }]).toArray()).map((r) => [r._id, r.n]));
+    if (has('stocklots')) {
+      out.g3.stockLotsWithUnitsRemaining = await db.collection('stocklots').countDocuments({ quantityRemaining: { $gt: 0 } });
+      out.g3.stockLotsWithExpiry = await db.collection('stocklots').countDocuments({ expiryDate: { $type: 'date' } });
+    }
+    if (has('storecredittransactions')) {
+      const t = db.collection('storecredittransactions');
+      // customers holding a spendable balance, per currency — COUNTS ONLY (no amounts, no customer ids)
+      out.g3.storeCreditCustomersWithSpendableBalanceByCurrency = Object.fromEntries((await t.aggregate([
+        { $match: { remaining: { $gt: 0 }, $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] } },
+        { $group: { _id: { s: '$storeId', c: '$customerId', cur: '$currency' } } },
+        { $group: { _id: '$_id.cur', customers: { $sum: 1 } } }, { $sort: { _id: 1 } },
+      ]).toArray()).map((r) => [r._id, r.customers]));
+      out.g3.storeCreditLotsWithSpendableRemaining = await t.countDocuments({ remaining: { $gt: 0 }, $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] });
+      out.g3.storeCreditLotsSpendableWithFutureExpiry = await t.countDocuments({ remaining: { $gt: 0 }, expiresAt: { $gt: new Date() } });
+      // lots whose remaining amount is NOT a whole number of minor units (the migration would have to round them down)
+      out.g3.storeCreditLotsOffGrid = (await t.aggregate([{ $match: { remaining: { $gt: 0 } } }, { $addFields: { exp: expOfCurrency('$currency') } }, { $match: { $expr: offGrid('$remaining', '$exp') } }, { $count: 'n' }]).toArray())[0]?.n ?? 0;
+      out.g3.storeCreditTransactionsByType = Object.fromEntries((await t.aggregate([{ $group: { _id: '$type', n: { $sum: 1 } } }, { $sort: { _id: 1 } }]).toArray()).map((r) => [r._id, r.n]));
     }
 
     console.log(JSON.stringify(out, null, 2));

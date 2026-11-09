@@ -23,3 +23,6 @@ Create a read-only user (MongoDB shell, as an admin):
 ```js
 db.getSiblingDB('<database>').createUser({ user: 'preflight_ro', pwd: '<strong password>', roles: [{ role: 'read', db: '<database>' }] })
 ```
+
+## G3 section (counts only)
+Since G3 the report has a `g3` block: documents in `purchaseorders`, `supplierreturns`, `stocklots`, `storecredittransactions`, `loyaltymembers`, `stockadjustments`; variants with a cost set (and how many still lack the minor twin); purchase orders by currency; lots with units remaining / with an expiry; and for store credit **only counts**: customers with a spendable balance per currency, lots with spendable remaining, lots with a future expiry, lots whose remaining amount is off the currency's minor-unit grid, and rows by type. No amounts per customer, no customer ids, no names.
