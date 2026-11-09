@@ -47,6 +47,9 @@ class PosCreditNote {
   final String? sellerNtn;
   final String? sellerStrn;
   final String? sellerAddress;
+  /// Set only on a note made by the one-off backfill of pre-G2.5 refunds / voids (series `CN-B…`): when it was backfilled and which refund / void it stands for.
+  final DateTime? backfilledAt;
+  final String? backfilledFrom;
 
   const PosCreditNote({
     required this.id,
@@ -70,6 +73,8 @@ class PosCreditNote {
     this.sellerNtn,
     this.sellerStrn,
     this.sellerAddress,
+    this.backfilledAt,
+    this.backfilledFrom,
   });
 
   factory PosCreditNote.fromJson(Map<String, dynamic> j) {
@@ -96,6 +101,8 @@ class PosCreditNote {
       sellerNtn: seller['ntn'] as String?,
       sellerStrn: seller['strn'] as String?,
       sellerAddress: seller['address'] as String?,
+      backfilledAt: (j['backfill'] is Map && (j['backfill'] as Map)['backfilledAt'] != null) ? DateTime.tryParse((j['backfill'] as Map)['backfilledAt'].toString()) : null,
+      backfilledFrom: (j['backfill'] is Map) ? '${(j['backfill'] as Map)['originalType']} ${(j['backfill'] as Map)['originalId']}' : null,
     );
   }
 }

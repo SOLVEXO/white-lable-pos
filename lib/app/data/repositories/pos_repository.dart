@@ -1275,9 +1275,15 @@ class PosRepository {
   /// [refundSale]'s doc comment.
   Future<bool> voidSale(String saleId, {String? reason, String? reasonCode}) async {
     lastCreditNote = null;
+    // G3.0: a void pays back at THIS till, so the register this till is paired with is named (its open shift takes the refund)
+    String? voidRegister;
+    try {
+      voidRegister = await AppPreferences.getPosRegisterId();
+    } catch (_) {}
     final payload = {
       if (reason != null && reason.isNotEmpty) 'reason': reason,
       if (reasonCode != null && reasonCode.isNotEmpty) 'reasonCode': reasonCode,
+      if (voidRegister != null && voidRegister.isNotEmpty) 'registerId': voidRegister,
     };
     final fp = IdempotencyIntentStore.fingerprint('voidSale:$saleId', payload);
     var settled = false;

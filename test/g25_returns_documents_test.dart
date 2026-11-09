@@ -478,6 +478,23 @@ void main() {
       expect(find.byKey(const Key('noteApproved')), findsOneWidget);
     });
 
+    testWidgets('G3.0: a backfilled credit note (CN-B series) says it was backfilled; a live one does not', (t) async {
+      final backfilled = PosCreditNote.fromJson({
+        ...{'_id': 'cn9', 'number': 'CN-B000001', 'invoiceNumber': null, 'kind': 'return', 'scope': 'full', 'currency': 'USD', 'currencyExponent': 2, 'totalMinor': 550, 'netMinor': 500, 'taxMinor': 50, 'lines': [], 'tenders': []},
+        'backfill': {'backfilledAt': '2026-11-09T12:00:00.000Z', 'originalType': 'refund', 'originalId': 'r1', 'batchId': 'b'},
+      });
+      expect([backfilled.backfilledAt, backfilled.backfilledFrom], [DateTime.parse('2026-11-09T12:00:00.000Z'), 'refund r1']);
+      final c = make(notes: [backfilled]);
+      await c.load();
+      await pump(t, CreditNoteView(controller: c, number: 'CN-B000001'));
+      expect(find.byKey(const Key('noteBackfilled')), findsOneWidget);
+      Get.reset();
+      final live = make(notes: [note()]);
+      await live.load();
+      await pump(t, CreditNoteView(controller: live, number: 'CN-000001'));
+      expect(find.byKey(const Key('noteBackfilled')), findsNothing);
+    });
+
     testWidgets('a credit note that was NOT restocked says why', (t) async {
       final c = make(notes: [note(restock: false)]);
       await c.load();

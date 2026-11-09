@@ -104,6 +104,23 @@ Goal: ≥ 14 consecutive clean days and every payment path exercised, then ask f
 3. **Decision gate:** `READY` after ≥ 14 clean days with every path ✔. Send me the report and ask for approval of step f. If it says NOT READY, the report names the cause; fix and restart the 14-day clock only if a storage mismatch occurred.
 4. **Rollback:** nothing to roll back; reads still use the decimals until step f. If a storage mismatch appears, stop, send me the audit event (`money_minor_mismatch`, includes both values) and we fix the write path before continuing.
 
+## 6. Credit-note backfill (pre-G2.5 refunds and voids) — separate series `CN-B`
+Prepared, **not run** (on hold with the rest of this runbook). Run it **after** the production deploy of the G2.5+ backend and **only if** the dry run shows candidates: refunds and voids made before credit notes existed have no document; this gives each one a note in a **separate series `CN-B000001…`** so the live gap-free `CN-000001…` series is never disturbed.
+
+What the script guarantees (tested, see `pos-credit-note-backfill.spec.ts`): **marked** (every note carries `backfill { backfilledAt, originalType refund|void, originalId, batchId }`, a `CN-B` number, a negative `seq`, `createdAt` = the original refund/void time, and the app shows "Backfilled …"); **idempotent** (re-run writes 0); **resumable** (numbers are chronological per store, `--max-docs N` slices a run); **reversible** (`down` removes exactly the notes and audit events it wrote; the database hash is identical before `up` and after `down`); **nothing else changes** (no stock, no shift counters, no sales/refunds, no live counters); **refuses non-dev databases** unless BOTH `--production` and `--i-have-a-backup` are given; **never guesses** (a refund of a missing sale, an unknown line or more units than were sold is listed and skipped). It does not read `.env`: `MONGO_URI` is passed explicitly. `down` deletes from an append-only collection, so it needs a maintenance user that may delete there (not the app's insert-only role).
+
+1. **Backup/snapshot** first (note its id). Do not run with `--i-have-a-backup` without one.
+2. **Dry run on a restored copy** (same copy as step 2 above):
+   ```bash
+   MONGO_URI='<rehearsal cluster uri>/<database>' npx ts-node -r tsconfig-paths/register src/scripts/pos-credit-note-backfill.ts up --dry-run --production --i-have-a-backup
+   ```
+   Output per store: refunds, voids, "would write N (CN-B000001 … CN-B00000N)", `legacy-decimal-amounts` (refunds written before the minor twins — converted with the sale's own exponent), `differs-from-proration` (a refund priced by the old rule: the difference is put on the last line and listed), `SKIPPED` (listed with a reason).
+3. **Real run on the copy**, then run `up` again → `candidates 0, written 0`. **Checks:** every note's lines add up to its total; every refund note's total equals the refund's amount (a query in `G3_0_SUMMARY.md` does both); the real counter `creditNoteCounter` is unchanged.
+4. **Rehearse the rollback on the copy:** `... pos-credit-note-backfill.ts down --dry-run …`, then `down …`; in the Atlas shell `db.runCommand({dbHash:1}).md5` must equal the value taken before `up`.
+5. **Production:** repeat 2–3 on production in a quiet period (the run is safe under live traffic: it only inserts, and live returns use the other series). Send me the dry-run and the second-run output.
+6. **Rollback:** `... pos-credit-note-backfill.ts down --production --i-have-a-backup` (restoring the step-1 snapshot is the last resort).
+7. Decision for you before step 5: whether production has any real (non-test) refund/void from before G2.5. If the dry run says 0 candidates there is nothing to do.
+
 ## Who does what
 | Step | You | Me |
 |---|---|---|
@@ -113,3 +130,4 @@ Goal: ≥ 14 consecutive clean days and every payment path exercised, then ask f
 | 3 | measure and pick the window | compute the window |
 | 4 | backup, deploy, run backfill | on call to read output |
 | 5 | run the report daily | analyse, request step f approval |
+| 6 | backup, dry run + run on the copy, then production (only if candidates) | review dry-run output, confirm checks |

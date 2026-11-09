@@ -45,6 +45,7 @@ class CreditNoteView extends StatelessWidget {
                         const SizedBox(height: Space.s2),
                         Text('Against invoice ${n.invoiceNumber ?? '—'}', key: const Key('noteInvoice'), style: t.body.copyWith(color: p.textSecondary)),
                         if ((n.reason ?? '').isNotEmpty) Text('Reason: ${n.reason}', style: t.caption.copyWith(color: p.textMuted)),
+                        if (n.backfilledAt != null) Text('Backfilled ${n.backfilledAt!.toLocal().toString().substring(0, 10)} for an earlier ${n.backfilledFrom ?? 'refund'} — issued after the fact', key: const Key('noteBackfilled'), style: t.caption.copyWith(color: p.warningFg)),
                         if (n.approvedBy != null) Text('Approved by a manager', key: const Key('noteApproved'), style: t.caption.copyWith(color: p.textMuted)),
                       ],
                     ),
