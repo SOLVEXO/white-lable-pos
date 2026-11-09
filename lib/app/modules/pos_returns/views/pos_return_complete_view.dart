@@ -33,6 +33,19 @@ class PosReturnCompleteView extends StatelessWidget {
                   Semantics(header: true, liveRegion: true, child: Text('Return recorded', key: const Key('returnDoneTitle'), style: t.headline.copyWith(color: p.textPrimary))),
                   const SizedBox(height: Space.s2),
                   AmountText(Money.format(c.resultAmount, currency: s?.currency, exponent: s?.currencyExponent), key: const Key('returnDoneAmount'), style: t.amountLg),
+                  Obx(
+                    () => c.resultCreditText.value == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsets.only(top: Space.s2),
+                            child: Column(
+                              children: [
+                                Text('Refunded to store credit ${c.resultCreditText.value}', key: const Key('returnDoneCredit'), textAlign: TextAlign.center, style: t.subtitle.copyWith(color: p.successFg)),
+                                if (c.resultBalanceText.value != null) Text('New balance ${c.resultBalanceText.value}', key: const Key('returnDoneBalance'), style: t.body.copyWith(color: p.textSecondary)),
+                              ],
+                            ),
+                          ),
+                  ),
                   if (number != null) ...[const SizedBox(height: Space.s2), StatusBadge('Credit note $number', key: const Key('returnDoneNote'), tone: StatusTone.accent, icon: Icons.assignment_return_outlined)],
                   const SizedBox(height: Space.s5),
                   Expanded(

@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/components/reason_picker_sheet.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
+import 'package:solvexo_pos/app/modules/pos_customers/controllers/customer_common.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/manager_approval_sheet.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/utils/pos_role.dart';
@@ -12,8 +17,12 @@ import 'package:solvexo_pos/utils/return_math.dart';
 /// has the original receipt, see what it will credit and how it will be paid back (the sale's own tenders), then confirm. The SERVER prices it,
 /// decides whether a manager must approve (amount / days / no receipt) and answers with the credit note.
 class PosReturnController extends GetxController {
-  PosReturnController({PosRepository? repository, String? saleId}) : _repo = repository ?? PosRepository(), _saleIdOverride = saleId;
+  PosReturnController({PosRepository? repository, String? saleId, Future<String?> Function({required String reason, PosRepository? repository})? approval})
+    : _repo = repository ?? PosRepository(),
+      _saleIdOverride = saleId,
+      _approval = approval ?? ManagerApproval.request;
   final PosRepository _repo;
+  final Future<String?> Function({required String reason, PosRepository? repository}) _approval;
   final String? _saleIdOverride;
 
   final Rx<PosSaleModel?> sale = Rx(null);
@@ -35,6 +44,31 @@ class PosReturnController extends GetxController {
   /// Outcome of printing the return receipt (thermal) from the done screen.
   final RxnString printNotice = RxnString();
 
+  /// G3.3: where the money goes — `original` (the sale's own tenders) or `store_credit` (the cash / card / other part becomes store credit
+  /// for the sale's customer). The choice exists only when the sale has a customer and the store's credit ledger is on.
+  final RxString refundTo = 'original'.obs;
+  final RxBool creditLedgerOn = false.obs;
+  InvCur? _creditCur;
+
+  /// After a return: how much went to store credit (formatted in the sale's currency) and the customer's balance now (in the currency
+  /// the server stated for it) — null when none / not known.
+  final RxnString resultCreditText = RxnString();
+  final RxnString resultBalanceText = RxnString();
+
+  /// A sale paid entirely with store credit always returns to store credit: there is nothing to choose.
+  bool get paidAllWithCredit {
+    final s = sale.value;
+    return s != null && s.paymentLines.isNotEmpty && s.paymentLines.every((p) => p.method == 'store_credit');
+  }
+
+  /// The "Refund to" choice is shown.
+  bool get canChooseRefundTo => creditLedgerOn.value && (sale.value?.customerId ?? '').isNotEmpty && !paidAllWithCredit;
+
+  void setRefundTo(String v) {
+    if (processing.value || !canChooseRefundTo) return;
+    refundTo.value = v;
+  }
+
   late final String saleId;
 
   @override
@@ -51,6 +85,21 @@ class PosReturnController extends GetxController {
     sale.value = saleId.isEmpty ? null : await _repo.getSaleById(saleId);
     if (sale.value == null) error.value = 'Could not load the sale.';
     loading.value = false;
+    unawaited(_loadCreditLedger());
+  }
+
+  /// Does the sale's customer have a store-credit balance (= the ledger is on)? Only then is "Refund to store credit" offered.
+  Future<void> _loadCreditLedger() async {
+    final s = sale.value;
+    creditLedgerOn.value = false;
+    if (s == null || (s.customerId ?? '').isEmpty || !customersOnline()) return;
+    try {
+      final p = await _repo.getCustomerProfile(s.storeId, s.customerId!);
+      _creditCur = p?.cur;
+      creditLedgerOn.value = p?.creditBalanceMinor != null;
+    } catch (_) {
+      creditLedgerOn.value = false; // an extra: the return itself never waits for it
+    }
   }
 
   PosSaleItemModel? _item(String id) => sale.value?.items.firstWhereOrNull((i) => i.saleItemId == id);
@@ -107,7 +156,11 @@ class PosReturnController extends GetxController {
     if (s == null || minor == null) return const [];
     final exp = s.currencyExponent;
     final amount = minor / _p10(exp);
-    final splits = posAllocateRefund(tenders: [for (final p in s.paymentLines) (method: p.method, amount: p.amount)], alreadyRefunded: s.refundedAmount, amount: amount, exponent: exp);
+    var splits = posAllocateRefund(tenders: [for (final p in s.paymentLines) (method: p.method, amount: p.amount)], alreadyRefunded: s.refundedAmount, amount: amount, exponent: exp);
+    if (refundTo.value == 'store_credit' && canChooseRefundTo) {
+      // everything goes to the customer's store credit: one line
+      splits = [PosRefundSplit('store_credit', amount)];
+    }
     return posRefundInstructions(splits, currency: s.currency, exponent: exp);
   }
 
@@ -137,11 +190,12 @@ class PosReturnController extends GetxController {
       final why = await ReasonPicker.ask(PosReasonKind.refund);
       if (why == null) return false;
       final items = all ? null : _items();
-      var r = await _repo.refundSale(s.id, items: items, reasonCode: why.code, reason: why.note, receiptPresented: receiptPresented.value ? null : false);
+      final toCredit = refundTo.value == 'store_credit' && canChooseRefundTo ? 'store_credit' : null;
+      var r = await _repo.refundSale(s.id, items: items, reasonCode: why.code, reason: why.note, receiptPresented: receiptPresented.value ? null : false, refundTo: toCredit);
       if (!r.success && _repo.lastErrorCode == 'RETURN_NEEDS_MANAGER') {
-        final token = await ManagerApproval.request(reason: _approvalText(_repo.lastErrorReasons), repository: _repo);
+        final token = await _approval(reason: approvalText(_repo.lastErrorReasons), repository: _repo);
         if (token == null) return false;
-        r = await _repo.refundSale(s.id, items: items, reasonCode: why.code, reason: why.note, receiptPresented: receiptPresented.value ? null : false, approverToken: token);
+        r = await _repo.refundSale(s.id, items: items, reasonCode: why.code, reason: why.note, receiptPresented: receiptPresented.value ? null : false, approverToken: token, refundTo: toCredit);
       }
       if (!r.success) {
         final code = _repo.lastErrorCode;
@@ -149,6 +203,7 @@ class PosReturnController extends GetxController {
           'OPEN_SHIFT_REQUIRED' => 'Open a shift on this register before paying a cash refund.',
           'RESTOCK_REASON_REQUIRED' => 'Say why the items that are not going back on the shelf are not restocked.',
           'RETURN_NEEDS_MANAGER' => 'A manager must approve this return.',
+          'CUSTOMER_REQUIRED_FOR_CREDIT' || 'STORE_CREDIT_NOT_ENABLED' => customerErrorMessage(code),
           _ => r.message ?? 'Could not process the return.',
         };
         return false;
@@ -160,10 +215,26 @@ class PosReturnController extends GetxController {
         exponent: s.currencyExponent,
       ));
       result.value = _repo.lastCreditNote ?? {};
+      await _noteCreditResult(s, r.tenders);
       return true;
     } finally {
       processing.value = false;
     }
+  }
+
+  /// "Refunded to store credit $x" and the customer's new balance, when the server's tenders say some went to credit.
+  Future<void> _noteCreditResult(PosSaleModel s, List<PosPaymentLine> tenders) async {
+    resultCreditText.value = null;
+    resultBalanceText.value = null;
+    final credit = tenders.where((t) => t.method == 'store_credit').fold(0.0, (a, t) => a + t.amount);
+    if (credit <= 0) return;
+    resultCreditText.value = Money.format(credit, currency: s.currency, exponent: s.currencyExponent);
+    if ((s.customerId ?? '').isEmpty || !customersOnline()) return;
+    try {
+      final p = await _repo.getCustomerProfile(s.storeId, s.customerId!);
+      final cur = p?.cur ?? _creditCur;
+      if (p?.creditBalanceMinor != null && cur != null) resultBalanceText.value = invMoney(p!.creditBalanceMinor!, cur);
+    } catch (_) {/* the new balance is a courtesy: the return is already recorded */}
   }
 
   /// VOID the whole sale (managers; the same Return flow, so it too ends in a credit note). Same guards as [confirm].
@@ -193,13 +264,14 @@ class PosReturnController extends GetxController {
     }
   }
 
-  static String _approvalText(List<String> reasons) {
+  static String approvalText(List<String> reasons) {
     final parts = <String>[
       for (final r in reasons)
         switch (r) {
           'amount_above_limit' => 'the amount is above the limit',
           'too_many_days_since_sale' => 'it is later than the allowed days after the sale',
           'no_original_receipt' => 'the customer has no original receipt',
+          'store_credit_refund_above_limit' => 'the amount going to store credit is above the limit',
           _ => '',
         },
     ].where((e) => e.isNotEmpty).toList();

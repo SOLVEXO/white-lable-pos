@@ -7,7 +7,8 @@ import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/utils/money.dart';
 
 /// Return items: pick the lines and quantities, say whether they go back on the shelf, whether the customer has the original receipt,
-/// see what it credits and how it is paid back, then confirm. Refund method = the sale's own tenders (no store credit).
+/// see what it credits and how it is paid back, then confirm. The money goes back to the sale's own tenders, or — when the sale has a customer and
+/// the store's credit ledger is on — to the customer's store credit ("Refund to").
 class PosReturnView extends StatelessWidget {
   PosReturnView({super.key, PosReturnController? controller}) : c = controller ?? Get.put(PosReturnController());
   final PosReturnController c;
@@ -50,6 +51,30 @@ class PosReturnView extends StatelessWidget {
                           ),
                         ),
                         if (!c.receiptPresented.value) Padding(padding: const EdgeInsets.only(top: Space.s1), child: Text('Without the receipt a manager must approve the return.', key: const Key('noReceiptNote'), style: t.caption.copyWith(color: p.warningFg))),
+                        if (c.canChooseRefundTo)
+                          Padding(
+                            padding: const EdgeInsets.only(top: Space.s3),
+                            child: AppCard(
+                              key: const Key('refundToCard'),
+                              radius: Radii.rMd,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Refund to', style: t.subtitle.copyWith(color: p.textPrimary)),
+                                  const SizedBox(height: Space.s2),
+                                  Wrap(
+                                    spacing: Space.s2,
+                                    runSpacing: Space.s1,
+                                    children: [
+                                      ChoiceChip(key: const Key('refundToOriginal'), label: const Text('Original payment method'), selected: c.refundTo.value == 'original', onSelected: (_) => c.setRefundTo('original')),
+                                      ChoiceChip(key: const Key('refundToCredit'), label: const Text('Store credit'), selected: c.refundTo.value == 'store_credit', onSelected: (_) => c.setRefundTo('store_credit')),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (c.paidAllWithCredit) Padding(padding: const EdgeInsets.only(top: Space.s2), child: Text('This sale was paid with store credit, so the money goes back to store credit.', key: const Key('paidWithCreditNote'), style: t.caption.copyWith(color: p.textSecondary))),
                         const SizedBox(height: Space.s3),
                         if (est != null)
                           AppCard(
