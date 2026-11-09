@@ -63,8 +63,14 @@ class CartLotInfo extends StatelessWidget {
             if (approved)
               Row(
                 children: [
-                  const Flexible(
-                    child: StatusBadge('Expired stock approved', tone: StatusTone.danger, icon: Icons.verified_user_outlined),
+                  Icon(Icons.verified_user_outlined, size: 16, color: p.dangerFg),
+                  const SizedBox(width: Space.s1),
+                  Expanded(
+                    child: Text(
+                      'Expired stock approved by a manager',
+                      key: Key('expiredApproved_${item.cartKey}'),
+                      style: t.caption.copyWith(color: p.dangerFg),
+                    ),
                   ),
                   TextButton(
                     key: Key('withdrawExpired_${item.cartKey}'),

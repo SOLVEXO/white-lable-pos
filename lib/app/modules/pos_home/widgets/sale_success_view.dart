@@ -354,16 +354,32 @@ class _CustomerRecap extends StatelessWidget {
     String m(num v) => Money.format(v, currency: sale.currency, exponent: sale.currencyExponent);
     final loyalty = sale.loyalty;
     final credit = sale.payments.where((p) => p.method == 'store_credit').fold(0.0, (a, p) => a + p.amount);
-    final chips = <Widget>[
-      if (credit > 0) StatusBadge('Store credit used ${m(credit)}', key: const Key('recapCredit'), tone: StatusTone.info, icon: Icons.account_balance_wallet_outlined),
-      if (loyalty != null && loyalty.redeemedPoints > 0)
-        StatusBadge('Redeemed ${loyalty.redeemedPoints} points (−${Money.format(loyalty.redeemValueMinor / _pow10(sale.currencyExponent), currency: sale.currency, exponent: sale.currencyExponent)})', key: const Key('recapRedeemed'), tone: StatusTone.accent, icon: Icons.stars_rounded),
-      if (loyalty != null && loyalty.earnedPoints > 0) StatusBadge('Earned ${loyalty.earnedPoints} points', key: const Key('recapEarned'), tone: StatusTone.success, icon: Icons.add_circle_outline_rounded),
+    final lines = <(Key, IconData, String)>[
+      if (credit > 0) (const Key('recapCredit'), Icons.account_balance_wallet_outlined, 'Store credit used ${m(credit)}'),
+      if (loyalty != null && loyalty.redeemedPoints > 0) (const Key('recapRedeemed'), Icons.stars_rounded, 'Redeemed ${loyalty.redeemedPoints} points (−${m(loyalty.redeemValueMinor / _pow10(sale.currencyExponent))})'),
+      if (loyalty != null && loyalty.earnedPoints > 0) (const Key('recapEarned'), Icons.add_circle_outline_rounded, 'Earned ${loyalty.earnedPoints} points'),
     ];
-    if (chips.isEmpty) return const SizedBox.shrink();
+    if (lines.isEmpty) return const SizedBox.shrink();
+    final p = context.palette;
     return Padding(
       padding: const EdgeInsets.only(top: Space.s3),
-      child: Wrap(alignment: WrapAlignment.center, spacing: Space.s2, runSpacing: Space.s1, children: chips),
+      child: Column(
+        children: [
+          for (final (key, icon, text) in lines)
+            Padding(
+              key: key,
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 18, color: p.successFg),
+                  const SizedBox(width: Space.s2),
+                  Flexible(child: Text(text, textAlign: TextAlign.center, style: context.type.body.copyWith(color: p.textSecondary))),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 

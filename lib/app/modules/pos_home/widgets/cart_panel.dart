@@ -126,47 +126,53 @@ class CartLine extends StatelessWidget {
         child: Obx(() {
           final qty = item.quantity.value;
           final variantLabel = item.product.hasMultipleVariants ? item.variant?.label : null;
-          return Row(
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: context.type.subtitle.copyWith(color: p.textPrimary)),
-                    if (variantLabel != null && variantLabel.isNotEmpty) Text(variantLabel, style: context.type.caption.copyWith(color: p.textMuted)),
-                    if (item.isCustom)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text('Custom item${item.taxCategory == 'exempt' ? ' · tax exempt' : ''}', key: const Key('customLineTag'), style: context.type.caption.copyWith(color: p.accentFg)),
-                      ),
-                    const SizedBox(height: 2),
-                    Text('${Money.format(item.unitPrice)} each', style: context.type.amountMd.copyWith(fontSize: 12, color: p.textMuted)),
-                    CartLotInfo(c: c, item: item),
-                  ],
-                ),
-              ),
-              const SizedBox(width: Space.s2),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Row(
                 children: [
-                  Text(Money.format(item.lineTotal), style: context.type.amountMd.copyWith(color: p.textPrimary, fontWeight: FontWeight.w600)),
-                  QuantityStepper(
-                    key: ValueKey('stepper-${item.cartKey}'),
-                    value: qty,
-                    min: 0,
-                    compact: true,
-                    onChanged: (v) {
-                      if (v > qty) {
-                        c.increment(item);
-                      } else if (qty <= 1) {
-                        undo.remove(item); // the last unit: same as removing the line, with Undo
-                      } else {
-                        c.decrement(item);
-                      }
-                    },
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: context.type.subtitle.copyWith(color: p.textPrimary)),
+                        if (variantLabel != null && variantLabel.isNotEmpty) Text(variantLabel, style: context.type.caption.copyWith(color: p.textMuted)),
+                        if (item.isCustom)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text('Custom item${item.taxCategory == 'exempt' ? ' · tax exempt' : ''}', key: const Key('customLineTag'), style: context.type.caption.copyWith(color: p.accentFg)),
+                          ),
+                        const SizedBox(height: 2),
+                        Text('${Money.format(item.unitPrice)} each', style: context.type.amountMd.copyWith(fontSize: 12, color: p.textMuted)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: Space.s2),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(Money.format(item.lineTotal), style: context.type.amountMd.copyWith(color: p.textPrimary, fontWeight: FontWeight.w600)),
+                      QuantityStepper(
+                        key: ValueKey('stepper-${item.cartKey}'),
+                        value: qty,
+                        min: 0,
+                        compact: true,
+                        onChanged: (v) {
+                          if (v > qty) {
+                            c.increment(item);
+                          } else if (qty <= 1) {
+                            undo.remove(item); // the last unit: same as removing the line, with Undo
+                          } else {
+                            c.decrement(item);
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
+              // G3.2: the lot this line is taken from, at the full width of the line (it has sentences, not just a number)
+              CartLotInfo(c: c, item: item),
             ],
           );
         }),

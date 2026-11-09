@@ -22,6 +22,22 @@ class CustomerMoneyPanel extends StatelessWidget {
       // points cannot be combined with a coupon or a manual discount (the server refuses it): the row is not offered then
       final noDiscount = c.appliedCoupon.value == null && !c.isManualDiscountEntered;
       final showPoints = sc.attached && sc.pointsEnabled && noDiscount;
+      // chosen while offline, so the store's rules were never fetched: say plainly why nothing is offered
+      if (sc.attached && !c.tillOnline && sc.config.value == null && (sc.creditBalanceMinor > 0 || sc.points > 0)) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: Space.s3),
+          child: Row(
+            key: const Key('customerMoneyOffline'),
+            children: [
+              Icon(Icons.cloud_off_rounded, size: 18, color: p.warningFg),
+              const SizedBox(width: Space.s2),
+              Expanded(
+                child: Text('Store credit and points need an internet connection.', style: context.type.caption.copyWith(color: p.warningFg)),
+              ),
+            ],
+          ),
+        );
+      }
       if ((!showCredit && !showPoints) || cur == null) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.only(bottom: Space.s3),
