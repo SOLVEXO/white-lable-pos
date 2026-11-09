@@ -259,8 +259,8 @@ class _TotalsCard extends StatelessWidget {
           if (sale.changeGiven > 0) _row('Change given', sale.changeGiven),
         ],
         // G3.3: points spent / earned on this sale (the discount above already includes the redemption)
-        if ((sale.loyalty?.redeemedPoints ?? 0) > 0) _note('Includes ${sale.loyalty!.redeemedPoints} points redeemed'),
-        if ((sale.loyalty?.earnedPoints ?? 0) > 0) _note('Earned ${sale.loyalty!.earnedPoints} points'),
+        if ((sale.loyalty?.redeemedPoints ?? 0) > 0) _note('Includes ${sale.loyalty!.redeemedPoints} ${sale.loyalty!.redeemedPoints == 1 ? 'point' : 'points'} redeemed'),
+        if ((sale.loyalty?.earnedPoints ?? 0) > 0) _note('Earned ${sale.loyalty!.earnedPoints} ${sale.loyalty!.earnedPoints == 1 ? 'point' : 'points'}'),
         if (sale.refunds.isNotEmpty || sale.refundedAmount > 0) ...[
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.lightGrey2)),
           for (final r in sale.refunds)

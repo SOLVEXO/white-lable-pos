@@ -21,6 +21,7 @@ import 'package:solvexo_pos/app/modules/pos_customers/views/customer_picker_shee
 import 'package:solvexo_pos/app/modules/pos_customers/views/customer_profile_view.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/cart_panel.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/manager_approval_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/payment_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/sale_success_view.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/controllers/inv_stock_list_controller.dart';
@@ -127,7 +128,7 @@ void main() {
         ),
       );
       await shot(t, 'g32_02_cart_sell_expired_action', tn);
-      c.approveSellExpired(c.cartItems.first); // opens the manager PIN sheet
+      AppBottomSheet.showGet<String>(ManagerApprovalSheet(reason: 'Selling expired stock needs a manager\'s approval.', repository: repo), title: 'Manager approval'); // what the action opens
       await t.pump(const Duration(milliseconds: 800));
       await shot(t, 'g32_03_expired_manager_approval_sheet', tn);
 
@@ -143,11 +144,11 @@ void main() {
       ).thenAnswer(
         (_) async => rowsPage([
           InvRow.fromJson({
-            ...rowJson(id: 'y', name: 'Dev Yogurt (lots)', stock: 12, trackLots: true),
+            ...rowJson(id: 'y', name: 'Dev Yogurt (lots)', sku: 'DEV-YOGURT', stock: 12, trackLots: true),
             'expiredUnits': 4,
             'nextExpiryAt': DateTime.now().add(const Duration(days: 3)).toIso8601String(),
           }),
-          InvRow.fromJson({...rowJson(id: 'm', name: 'Fresh milk 1L', stock: 9, trackLots: true), 'expiredUnits': 0, 'nextExpiryAt': DateTime.now().add(const Duration(days: 20)).toIso8601String()}),
+          InvRow.fromJson({...rowJson(id: 'm', name: 'Fresh milk 1L', sku: 'DEV-MILK', stock: 9, trackLots: true), 'expiredUnits': 0, 'nextExpiryAt': DateTime.now().add(const Duration(days: 20)).toIso8601String()}),
         ]),
       );
       await show(
@@ -226,7 +227,8 @@ void main() {
       repo = fresh();
       when(() => repo.searchPosCustomers('st1', '')).thenAnswer((_) async => customerPage([customer(), customer(id: 'c2', name: 'Amina Khan', phone: '03004445555', credit: 0, points: 120)]));
       await show(t, const Scaffold(body: SizedBox.shrink()));
-      CustomerPickerSheet.open();
+      final picker = CustomerListController(repository: repo, cache: testCustomerCache(), storeId: 'st1')..onInit();
+      Get.bottomSheet(CustomerPickerSheet(controller: picker), isScrollControlled: true, backgroundColor: Colors.transparent);
       await t.pump(const Duration(milliseconds: 900));
       await shot(t, 'g33_05_picker_with_add_customer', tn);
     });

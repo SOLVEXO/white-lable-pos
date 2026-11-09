@@ -356,8 +356,8 @@ class _CustomerRecap extends StatelessWidget {
     final credit = sale.payments.where((p) => p.method == 'store_credit').fold(0.0, (a, p) => a + p.amount);
     final lines = <(Key, IconData, String)>[
       if (credit > 0) (const Key('recapCredit'), Icons.account_balance_wallet_outlined, 'Store credit used ${m(credit)}'),
-      if (loyalty != null && loyalty.redeemedPoints > 0) (const Key('recapRedeemed'), Icons.stars_rounded, 'Redeemed ${loyalty.redeemedPoints} points (−${m(loyalty.redeemValueMinor / _pow10(sale.currencyExponent))})'),
-      if (loyalty != null && loyalty.earnedPoints > 0) (const Key('recapEarned'), Icons.add_circle_outline_rounded, 'Earned ${loyalty.earnedPoints} points'),
+      if (loyalty != null && loyalty.redeemedPoints > 0) (const Key('recapRedeemed'), Icons.stars_rounded, 'Redeemed ${loyalty.redeemedPoints} ${loyalty.redeemedPoints == 1 ? 'point' : 'points'} (−${m(loyalty.redeemValueMinor / _pow10(sale.currencyExponent))})'),
+      if (loyalty != null && loyalty.earnedPoints > 0) (const Key('recapEarned'), Icons.add_circle_outline_rounded, 'Earned ${loyalty.earnedPoints} ${loyalty.earnedPoints == 1 ? 'point' : 'points'}'),
     ];
     if (lines.isEmpty) return const SizedBox.shrink();
     final p = context.palette;

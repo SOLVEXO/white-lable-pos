@@ -584,7 +584,7 @@ void main() {
         await pump(t, SaleSuccessView(c: c, repository: repo), env);
         expect(find.text('Store credit used \$8.00'), findsOneWidget);
         expect(find.text('Redeemed 10 points (−\$5.00)'), findsOneWidget);
-        expect(find.text('Earned 1 points'), findsOneWidget);
+        expect(find.text('Earned 1 point'), findsOneWidget);
         expect(t.takeException(), isNull);
       });
     });
