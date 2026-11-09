@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_audit_log_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -1713,6 +1714,181 @@ class PosRepository {
       debugPrint('❌ getAuditLogs: $e');
       return _emptyPage();
     }
+  }
+
+  // ── G3.1 inventory (device + PIN session; the server decides who may see / do what) ─────────────────────────────────────────────
+  // Reads return null on failure and leave the server's `code` in [lastErrorCode]; writes return a record with `success`, `message`, `code`.
+
+  String _inv(String storeId, String path) => '${ApiConstants.apiPrefix}/pos/inventory/$path/$storeId';
+
+  Future<T?> _invGet<T>(String tag, String url, T Function(Map<String, dynamic> data) parse, {Map<String, dynamic>? query, bool dataIsList = false}) async {
+    lastErrorCode = null;
+    lastErrorReasons = const [];
+    try {
+      final res = await _client.get(url, queryParameters: query, requiresAuth: true, headers: await _employeeAuthHeaders());
+      if (!_ok(res)) return null;
+      final data = res.data['data'];
+      if (dataIsList) return parse({'list': data});
+      return data is Map ? parse(data.cast<String, dynamic>()) : null;
+    } on DioException catch (e) {
+      _logDioError(tag, e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      return null;
+    } catch (e) {
+      debugPrint('❌ $tag: $e');
+      return null;
+    }
+  }
+
+  InvPage<InvRow> _invRows(Map<String, dynamic> d) => InvPage(
+        items: [for (final e in (d['items'] as List? ?? const [])) if (e is Map) InvRow.fromJson(e.cast<String, dynamic>())],
+        total: (d['total'] as num?)?.toInt() ?? 0,
+        page: (d['page'] as num?)?.toInt() ?? 1,
+        hasMore: d['hasMore'] == true,
+      );
+
+  Future<InvOverview?> getInventoryOverview(String storeId) => _invGet('inventoryOverview', _inv(storeId, 'overview'), InvOverview.fromJson);
+
+  /// [filter]: all | low | out.
+  Future<InvPage<InvRow>?> getInventoryStock(String storeId, {String search = '', String filter = 'all', int page = 1, int limit = 30}) =>
+      _invGet('inventoryStock', _inv(storeId, 'stock'), _invRows, query: {if (search.trim().isNotEmpty) 'search': search.trim(), 'filter': filter, 'page': page, 'limit': limit});
+
+  Future<InvPage<InvRow>?> getInventoryLowStock(String storeId) => _invGet('inventoryLowStock', _inv(storeId, 'low-stock'), _invRows);
+
+  Future<List<InvRow>?> lookupInventory(String storeId, String code) async {
+    final r = await _invGet<List<InvRow>>('inventoryLookup', _inv(storeId, 'lookup'), (d) => [for (final e in (d['list'] as List? ?? const [])) if (e is Map) InvRow.fromJson(e.cast<String, dynamic>())], query: {'code': code.trim()}, dataIsList: true);
+    return r;
+  }
+
+  Future<InvDetail?> getInventoryVariant(String storeId, String variantId) => _invGet('inventoryVariant', '${_inv(storeId, 'variant')}/$variantId', InvDetail.fromJson);
+
+  /// Managers / owners only (a cashier gets `POS_ACTION_FORBIDDEN` in [lastErrorCode]).
+  Future<InvPage<InvMovement>?> getInventoryMovements(String storeId, {String? variantId, String? type, DateTime? from, DateTime? to, int page = 1, int limit = 30}) =>
+      _invGet(
+        'inventoryMovements',
+        _inv(storeId, 'movements'),
+        (d) => InvPage(
+          items: [for (final e in (d['items'] as List? ?? const [])) if (e is Map) InvMovement.fromJson(e.cast<String, dynamic>())],
+          total: (d['total'] as num?)?.toInt() ?? 0,
+          page: (d['page'] as num?)?.toInt() ?? 1,
+          hasMore: d['hasMore'] == true,
+        ),
+        query: {
+          if (variantId != null) 'variantId': variantId,
+          if (type != null && type.isNotEmpty) 'type': type,
+          if (from != null) 'from': from.toUtc().toIso8601String(),
+          if (to != null) 'to': to.toUtc().toIso8601String(),
+          'page': page,
+          'limit': limit,
+        },
+      );
+
+  Future<({int exponent, List<InvLimit> limits})?> getInventoryLimits(String storeId) => _invGet(
+        'inventoryLimits',
+        _inv(storeId, 'limits'),
+        (d) => (exponent: (d['currencyExponent'] as num?)?.toInt() ?? 2, limits: [for (final e in (d['limits'] as List? ?? const [])) if (e is Map) InvLimit.fromJson(e.cast<String, dynamic>())]),
+      );
+
+  /// Manual stock change. [reason]: restocked | damaged | correction | other (note required for other). When the server answers
+  /// `POS_APPROVAL_REQUIRED`, ask a manager and call again with [approverToken] (sent as `x-pos-approver-token`).
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> adjustInventory(String storeId, String variantId, {required int delta, required String reason, String? note, String? locationId, String? approverToken}) async {
+    lastErrorCode = null;
+    lastErrorReasons = const [];
+    final payload = {'delta': delta, 'reason': reason, if (note != null && note.trim().isNotEmpty) 'note': note.trim(), if (locationId != null) 'locationId': locationId};
+    final fp = IdempotencyIntentStore.fingerprint('invAdjust:$variantId${approverToken != null ? ':approved' : ''}', payload);
+    var settled = false;
+    try {
+      final res = await _client.post(
+        '${_inv(storeId, 'adjust')}/$variantId',
+        data: payload,
+        requiresAuth: true,
+        headers: {...await _writeHeaders(await _intents.keyFor(fp)), if (approverToken != null) 'x-pos-approver-token': approverToken},
+      );
+      settled = true;
+      final data = _data(res);
+      return (success: _ok(res), message: res.data is Map ? res.data['message'] as String? : null, code: null, data: data is Map ? data.cast<String, dynamic>() : null);
+    } on DioException catch (e) {
+      settled = _isFinalFailure(e);
+      _logDioError('adjustInventory', e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      final body = e.response?.data;
+      if (body is Map && body['reasons'] is List) lastErrorReasons = [for (final r in body['reasons'] as List) r.toString()];
+      return (success: false, message: _dioMessage(e), code: lastErrorCode, data: null);
+    } catch (e) {
+      debugPrint('❌ adjustInventory: $e');
+      return (success: false, message: 'Could not change the stock.', code: null, data: null);
+    } finally {
+      if (settled) await _intents.release(fp);
+    }
+  }
+
+  // — stock counts —
+
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> _invCountPost(String tag, String url, Map<String, dynamic> payload, {String intent = ''}) async {
+    lastErrorCode = null;
+    final fp = IdempotencyIntentStore.fingerprint('$tag:$url:$intent', payload);
+    var settled = false;
+    try {
+      final res = await _client.post(url, data: payload, requiresAuth: true, headers: await _writeHeaders(await _intents.keyFor(fp)));
+      settled = true;
+      final data = _data(res);
+      return (success: _ok(res), message: res.data is Map ? res.data['message'] as String? : null, code: null, data: data is Map ? data.cast<String, dynamic>() : null);
+    } on DioException catch (e) {
+      settled = _isFinalFailure(e);
+      _logDioError(tag, e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      return (success: false, message: _dioMessage(e), code: lastErrorCode, data: null);
+    } catch (e) {
+      debugPrint('❌ $tag: $e');
+      return (success: false, message: 'Could not reach the server.', code: null, data: null);
+    } finally {
+      if (settled) await _intents.release(fp);
+    }
+  }
+
+  Future<List<InvCount>?> listInventoryCounts(String storeId) async {
+    final r = await _invGet<List<InvCount>>('inventoryCounts', _inv(storeId, 'counts'), (d) => [for (final e in (d['list'] as List? ?? const [])) if (e is Map) InvCount.fromJson(e.cast<String, dynamic>())], dataIsList: true);
+    return r;
+  }
+
+  Future<InvCount?> getInventoryCount(String storeId, String countId) => _invGet('inventoryCount', '${_inv(storeId, 'counts')}/$countId', InvCount.fromJson);
+
+  /// Count line for a scanned / typed barcode or SKU: `(found: false)` means "not on this count"; null = the request failed.
+  Future<({bool found, InvCountItem? item})?> findInventoryCountItem(String storeId, String countId, String code) => _invGet(
+        'inventoryCountFind',
+        '${_inv(storeId, 'counts')}/$countId/find',
+        (d) => (found: d['found'] == true, item: d['item'] is Map ? InvCountItem.fromJson((d['item'] as Map).cast<String, dynamic>()) : null),
+        query: {'code': code.trim()},
+      );
+
+  Future<({bool success, String? message, String? code, InvCount? count})> startInventoryCount(String storeId, {String? locationId}) async {
+    final r = await _invCountPost('inventoryCountStart', _inv(storeId, 'counts'), {if (locationId != null) 'locationId': locationId});
+    return (success: r.success, message: r.message, code: r.code, count: r.data == null ? null : InvCount.fromJson(r.data!));
+  }
+
+  Future<({bool success, String? message, String? code, InvCount? count})> enterInventoryCount(String storeId, String countId, String itemId, int countedQty) async {
+    final r = await _invCountPost('inventoryCountEnter', '${_inv(storeId, 'counts')}/$countId/items/$itemId', {'countedQty': countedQty}, intent: '$countedQty');
+    return (success: r.success, message: r.message, code: r.code, count: r.data == null ? null : InvCount.fromJson(r.data!));
+  }
+
+  /// Posts the variances as stock changes (idempotent on the server). `data` = `{count, applied, skipped}`.
+  Future<({bool success, String? message, String? code, InvCountResult? result})> finishInventoryCount(String storeId, String countId) async {
+    final r = await _invCountPost('inventoryCountFinish', '${_inv(storeId, 'counts')}/$countId/finish', const {});
+    final d = r.data;
+    return (
+      success: r.success,
+      message: r.message,
+      code: r.code,
+      result: d == null ? null : InvCountResult(applied: (d['applied'] as num?)?.toInt() ?? 0, skipped: [for (final s in (d['skipped'] as List? ?? const [])) '$s']),
+    );
+  }
+
+  Future<({bool success, String? message, String? code})> cancelInventoryCount(String storeId, String countId) async {
+    final r = await _invCountPost('inventoryCountCancel', '${_inv(storeId, 'counts')}/$countId/cancel', const {});
+    return (success: r.success, message: r.message, code: r.code);
   }
 }
 
