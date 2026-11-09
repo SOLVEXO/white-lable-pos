@@ -77,8 +77,9 @@ class _InvCountViewState extends State<InvCountView> {
       body: Obx(() {
         final loading = c.loading.value; // always read an observable first (an Obx that reads none throws)
         final offline = widget.offline ?? OfflineGate.isOffline;
-        if (offline)
+        if (offline) {
           return const EmptyState(key: Key('invCountOffline'), icon: Icons.wifi_off_rounded, title: 'Needs internet', message: 'Counting checks every scan with the server. Reconnect to count.');
+        }
         if (loading && c.count.value == null && c.result.value == null) return const Center(child: CircularProgressIndicator(key: Key('invLoading')));
         if (c.error.value != null && c.count.value == null && c.history.isEmpty && c.result.value == null) return InvErrorState(message: c.error.value!, onRetry: c.load);
         final count = c.count.value;

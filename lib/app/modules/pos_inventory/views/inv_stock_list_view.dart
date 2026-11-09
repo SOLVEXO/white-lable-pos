@@ -48,12 +48,13 @@ class InvStockListView extends StatelessWidget {
             child: Obx(() {
               if (c.loading.value && c.items.isEmpty) return const Center(child: CircularProgressIndicator(key: Key('invLoading')));
               if (c.error.value != null && c.items.isEmpty) return InvErrorState(message: c.error.value!, onRetry: c.reload);
-              if (c.items.isEmpty)
+              if (c.items.isEmpty) {
                 return EmptyState(
                   icon: Icons.inventory_2_outlined,
                   title: c.lowOnly ? 'Nothing is low' : 'No items found',
                   message: c.lowOnly ? 'Every item is above its reorder point.' : 'Try another name, SKU or filter.',
                 );
+              }
               return NotificationListener<ScrollNotification>(
                 onNotification: (n) {
                   if (n.metrics.extentAfter < 400) c.loadMore();
@@ -64,7 +65,7 @@ class InvStockListView extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s6),
                   itemCount: c.items.length + (c.hasMore.value ? 1 : 0),
                   itemBuilder: (context, i) {
-                    if (i >= c.items.length)
+                    if (i >= c.items.length) {
                       return Padding(
                         padding: const EdgeInsets.all(Space.s4),
                         child: Center(
@@ -75,6 +76,7 @@ class InvStockListView extends StatelessWidget {
                           ),
                         ),
                       );
+                    }
                     return InvStockRowTile(row: c.items[i], role: role);
                   },
                 ),

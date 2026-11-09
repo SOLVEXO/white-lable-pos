@@ -53,13 +53,14 @@ class InvMovementsView extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s6),
                   itemCount: c.items.length + (c.hasMore.value ? 1 : 0),
                   itemBuilder: (context, i) {
-                    if (i >= c.items.length)
+                    if (i >= c.items.length) {
                       return Padding(
                         padding: const EdgeInsets.all(Space.s4),
                         child: Center(
                           child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: p.accentFg)),
                         ),
                       );
+                    }
                     return InvMovementTile(c.items[i]);
                   },
                 ),
