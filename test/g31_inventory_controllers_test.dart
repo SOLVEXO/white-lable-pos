@@ -33,7 +33,15 @@ void main() {
   });
 
   void stubStock(Future<InvPage<InvRow>?> Function(Invocation) f) {
-    when(() => repo.getInventoryStock(any(), search: any(named: 'search'), filter: any(named: 'filter'), page: any(named: 'page'), limit: any(named: 'limit'))).thenAnswer(f);
+    when(
+      () => repo.getInventoryStock(
+        any(),
+        search: any(named: 'search'),
+        filter: any(named: 'filter'),
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer(f);
   }
 
   group('overview', () {
@@ -82,7 +90,15 @@ void main() {
       expect(c.items.map((e) => e.variantId), ['a', 'b', 'c']);
       expect(c.hasMore.value, isFalse);
       await c.loadMore(); // nothing more: no extra request
-      verify(() => repo.getInventoryStock('s1', search: '', filter: 'all', page: any(named: 'page'), limit: 2)).called(2);
+      verify(
+        () => repo.getInventoryStock(
+          's1',
+          search: '',
+          filter: 'all',
+          page: any(named: 'page'),
+          limit: 2,
+        ),
+      ).called(2);
     });
 
     test('search is debounced to one request and the filter restarts at page 1', () async {
@@ -94,7 +110,15 @@ void main() {
       c.onQueryChanged('latte');
       await Future<void>.delayed(const Duration(milliseconds: 80));
       verify(() => repo.getInventoryStock('s1', search: 'latte', filter: 'all', page: 1, limit: 30)).called(1);
-      verifyNever(() => repo.getInventoryStock('s1', search: 'la', filter: any(named: 'filter'), page: any(named: 'page'), limit: any(named: 'limit')));
+      verifyNever(
+        () => repo.getInventoryStock(
+          's1',
+          search: 'la',
+          filter: any(named: 'filter'),
+          page: any(named: 'page'),
+          limit: any(named: 'limit'),
+        ),
+      );
       c.setFilter('out');
       await Future<void>.delayed(const Duration(milliseconds: 10));
       verify(() => repo.getInventoryStock('s1', search: 'latte', filter: 'out', page: 1, limit: 30)).called(1);
@@ -167,7 +191,17 @@ void main() {
   group('adjust', () {
     InvAdjustController make({InvApprovalRequester? approval}) => InvAdjustController(variantId: 'v1', currentStock: 20, repository: repo, storeId: 's1', approval: approval);
     void stubAdjust(Future<_Adjust> Function(Invocation) f) {
-      when(() => repo.adjustInventory(any(), any(), delta: any(named: 'delta'), reason: any(named: 'reason'), note: any(named: 'note'), locationId: any(named: 'locationId'), approverToken: any(named: 'approverToken'))).thenAnswer(f);
+      when(
+        () => repo.adjustInventory(
+          any(),
+          any(),
+          delta: any(named: 'delta'),
+          reason: any(named: 'reason'),
+          note: any(named: 'note'),
+          locationId: any(named: 'locationId'),
+          approverToken: any(named: 'approverToken'),
+        ),
+      ).thenAnswer(f);
     }
 
     const ok = (success: true, message: 'ok', code: null, data: <String, dynamic>{});
@@ -196,10 +230,12 @@ void main() {
     test('POS_APPROVAL_REQUIRED asks a manager and sends the SAME change again with the approver token', () async {
       var asked = 0;
       stubAdjust((i) async => i.namedArguments[#approverToken] == null ? (success: false, message: 'x', code: 'POS_APPROVAL_REQUIRED', data: null) : ok);
-      final c = make(approval: ({required reason, repository}) async {
-        asked++;
-        return 'tok-mgr';
-      });
+      final c = make(
+        approval: ({required reason, repository}) async {
+          asked++;
+          return 'tok-mgr';
+        },
+      );
       c.setDelta(-9);
       c.pickReason('correction');
       expect(await c.submit(), isTrue);
@@ -215,7 +251,17 @@ void main() {
       c.pickReason('correction');
       expect(await c.submit(), isFalse);
       expect(c.error.value, 'A manager must approve this change.');
-      verify(() => repo.adjustInventory(any(), any(), delta: any(named: 'delta'), reason: any(named: 'reason'), note: any(named: 'note'), locationId: any(named: 'locationId'), approverToken: any(named: 'approverToken'))).called(1);
+      verify(
+        () => repo.adjustInventory(
+          any(),
+          any(),
+          delta: any(named: 'delta'),
+          reason: any(named: 'reason'),
+          note: any(named: 'note'),
+          locationId: any(named: 'locationId'),
+          approverToken: any(named: 'approverToken'),
+        ),
+      ).called(1);
     });
 
     test('server error codes are mapped to plain English', () async {
@@ -254,7 +300,17 @@ void main() {
       expect(await c.submit(), isFalse);
       gate.complete(ok);
       expect(await first, isTrue);
-      verify(() => repo.adjustInventory(any(), any(), delta: any(named: 'delta'), reason: any(named: 'reason'), note: any(named: 'note'), locationId: any(named: 'locationId'), approverToken: any(named: 'approverToken'))).called(1);
+      verify(
+        () => repo.adjustInventory(
+          any(),
+          any(),
+          delta: any(named: 'delta'),
+          reason: any(named: 'reason'),
+          note: any(named: 'note'),
+          locationId: any(named: 'locationId'),
+          approverToken: any(named: 'approverToken'),
+        ),
+      ).called(1);
     });
 
     test('double submit also covers the manager approval sheet being open', () async {
@@ -273,9 +329,22 @@ void main() {
 
   group('movements', () {
     test('type filter restarts the list; paging appends', () async {
-      when(() => repo.getInventoryMovements('s1', variantId: any(named: 'variantId'), type: any(named: 'type'), page: any(named: 'page'), limit: any(named: 'limit'))).thenAnswer((i) async {
+      when(
+        () => repo.getInventoryMovements(
+          's1',
+          variantId: any(named: 'variantId'),
+          type: any(named: 'type'),
+          page: any(named: 'page'),
+          limit: any(named: 'limit'),
+        ),
+      ).thenAnswer((i) async {
         final page = i.namedArguments[#page] as int;
-        return InvPage(items: [movement(id: 'p$page-${i.namedArguments[#type]}')], total: 2, page: page, hasMore: page == 1);
+        return InvPage(
+          items: [movement(id: 'p$page-${i.namedArguments[#type]}')],
+          total: 2,
+          page: page,
+          hasMore: page == 1,
+        );
       });
       final c = InvMovementsController(repository: repo, storeId: 's1');
       await c.reload();
@@ -288,7 +357,15 @@ void main() {
     });
 
     test('a cashier gets the forbidden state (403 POS_ACTION_FORBIDDEN)', () async {
-      when(() => repo.getInventoryMovements(any(), variantId: any(named: 'variantId'), type: any(named: 'type'), page: any(named: 'page'), limit: any(named: 'limit'))).thenAnswer((_) async => null);
+      when(
+        () => repo.getInventoryMovements(
+          any(),
+          variantId: any(named: 'variantId'),
+          type: any(named: 'type'),
+          page: any(named: 'page'),
+          limit: any(named: 'limit'),
+        ),
+      ).thenAnswer((_) async => null);
       when(() => repo.lastErrorCode).thenReturn('POS_ACTION_FORBIDDEN');
       final c = InvMovementsController(repository: repo, storeId: 's1');
       await c.reload();
@@ -299,7 +376,15 @@ void main() {
 
   group('limits', () {
     test('reads the limits; money limits format from minor units, quantities as numbers', () async {
-      when(() => repo.getInventoryLimits('s1')).thenAnswer((_) async => (exponent: 2, limits: [const InvLimit(key: 'q', label: 'Units', kind: 'qty', value: 5, defaultValue: 5), const InvLimit(key: 'm', label: 'Value', kind: 'minor', value: 2000, defaultValue: 2000)]));
+      when(() => repo.getInventoryLimits('s1')).thenAnswer(
+        (_) async => (
+          exponent: 2,
+          limits: [
+            const InvLimit(key: 'q', label: 'Units', kind: 'qty', value: 5, defaultValue: 5),
+            const InvLimit(key: 'm', label: 'Value', kind: 'minor', value: 2000, defaultValue: 2000),
+          ],
+        ),
+      );
       final c = InvLimitsController(repository: repo, storeId: 's1');
       await c.load();
       expect(c.limits.length, 2);

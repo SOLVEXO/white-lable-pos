@@ -6,10 +6,7 @@ import 'package:solvexo_pos/app/modules/pos_inventory/controllers/inv_common.dar
 /// Stock count by scan. A manager starts and finishes / cancels it; any signed-in person may enter counts. The server owns every rule
 /// (one open count per store, who may finish, how variances are posted) — this only drives the screens.
 class InvCountController extends GetxController {
-  InvCountController({PosRepository? repository, String? storeId, String? role})
-      : _repo = repository ?? PosRepository(),
-        _storeIdOverride = storeId,
-        _roleOverride = role {
+  InvCountController({PosRepository? repository, String? storeId, String? role}) : _repo = repository ?? PosRepository(), _storeIdOverride = storeId, _roleOverride = role {
     if (role != null) this.role.value = role;
   }
   final PosRepository _repo;
