@@ -111,6 +111,8 @@ class InvRow {
     this.low = false,
     this.costMinor,
     this.valueMinor,
+    this.expiredUnits = 0,
+    this.nextExpiryAt,
     this.cur,
   });
 
@@ -120,6 +122,9 @@ class InvRow {
   final int stock, committed, damaged;
   final bool unlimited, trackLots, out, low;
   final int? reorderPoint, costMinor, valueMinor;
+  /// G3.2: units of lots already past their expiry date, and the nearest expiry among the lots still in stock
+  final int expiredUnits;
+  final DateTime? nextExpiryAt;
   /// set when the row itself states its currency (the barcode lookup); list rows use the page's
   final InvCur? cur;
 
@@ -147,6 +152,8 @@ class InvRow {
     low: j['low'] == true,
     costMinor: _int(j['costMinor']),
     valueMinor: _int(j['valueMinor']),
+    expiredUnits: _int(j['expiredUnits']) ?? 0,
+    nextExpiryAt: DateTime.tryParse('${j['nextExpiryAt'] ?? ''}')?.toLocal(),
     cur: InvCur.fromJson(j),
   );
 }
@@ -336,7 +343,7 @@ class InvLimit {
   bool get isMoney => kind == 'minor';
 
   /// money limits need the response's currency; without it a money limit is not shown (never formatted with a guessed one)
-  String? format(int v, InvCur? cur) => isMoney ? (cur == null ? null : cur.format(v)) : '$v';
+  String? format(int v, InvCur? cur) => isMoney ? cur?.format(v) : '$v';
 
   factory InvLimit.fromJson(Map<String, dynamic> j) =>
       InvLimit(key: '${j['key'] ?? ''}', label: j['label'] as String? ?? '${j['key']}', kind: j['kind'] as String? ?? 'qty', value: _int(j['value']) ?? 0, defaultValue: _int(j['defaultValue']) ?? 0);

@@ -19,6 +19,9 @@ class PosDashboard {
   final int digitalAttention;
   final bool showsAttention;
 
+  /// G3.2: lots expired / expiring soon — managers and owners only (null for a cashier).
+  final ({int expiredLots, int expiringIn7Days, int expiringIn30Days})? expiring;
+
   const PosDashboard({
     required this.role,
     required this.isShiftScope,
@@ -38,6 +41,7 @@ class PosDashboard {
     this.salesNeedingReview = 0,
     this.digitalAttention = 0,
     this.showsAttention = false,
+    this.expiring,
   });
 
   int get attentionTotal => salesNeedingReview + digitalAttention;
@@ -48,6 +52,7 @@ class PosDashboard {
     final pay = (j['byPaymentMethod'] as Map?)?.cast<String, dynamic>() ?? const {};
     final low = (j['lowStock'] as Map?)?.cast<String, dynamic>();
     final att = (j['needsAttention'] as Map?)?.cast<String, dynamic>();
+    final exp = (j['expiring'] as Map?)?.cast<String, dynamic>();
     return PosDashboard(
       role: j['role'] as String? ?? 'owner',
       isShiftScope: j['scope'] == 'shift',
@@ -73,6 +78,7 @@ class PosDashboard {
       salesNeedingReview: (att?['salesNeedingReview'] as num?)?.toInt() ?? 0,
       digitalAttention: (att?['digitalPayments'] as num?)?.toInt() ?? 0,
       showsAttention: att != null,
+      expiring: exp == null ? null : (expiredLots: (exp['expiredLots'] as num?)?.toInt() ?? 0, expiringIn7Days: (exp['expiringIn7Days'] as num?)?.toInt() ?? 0, expiringIn30Days: (exp['expiringIn30Days'] as num?)?.toInt() ?? 0),
     );
   }
 }

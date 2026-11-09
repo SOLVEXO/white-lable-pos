@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_audit_log_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -877,6 +879,8 @@ class PosRepository {
     String? idempotencyKey,
     String? couponCode, // G2.4: a POS coupon code — the server validates it and counts its use inside the sale (online only, never queued)
     String? approverToken, // G2.4: a manager's PIN-login token approving custom items on this sale (replaces the cashier's token for this call)
+    String? expiredApproverToken, // G3.2: a manager's token approving the sale of EXPIRED lot units (`items[].sellExpired`), sent as `x-pos-approver-token`
+    int? redeemPoints, // G3.3: loyalty points spent on this sale (online only; the SERVER prices them)
   }) async {
     lastErrorCode = null;
     final payload = <String, dynamic>{
@@ -897,6 +901,7 @@ class PosRepository {
       if (paymentReference != null && paymentReference.isNotEmpty) 'paymentReference': paymentReference,
       'customerName': customerName,
       if (customerId != null) 'customerId': customerId,
+      if (redeemPoints != null && redeemPoints > 0) 'redeemPoints': redeemPoints,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       'status': status,
     };
@@ -916,7 +921,7 @@ class PosRepository {
         ApiConstants.posSales,
         data: minorPayload,
         requiresAuth: true,
-        headers: {...await _writeHeaders(key), if (approverToken != null) 'x-pos-employee-token': approverToken},
+        headers: {...await _writeHeaders(key), if (approverToken != null) 'x-pos-employee-token': approverToken, if (expiredApproverToken != null) 'x-pos-approver-token': expiredApproverToken},
       );
       settled = true;
       final data = _data(res) as Map<String, dynamic>?;
@@ -933,7 +938,9 @@ class PosRepository {
       final hasDigital = (payload['payments'] as List<dynamic>? ?? const []).any((p) => p is Map && p['method'] == 'raast_qr');
       // G2.4: a coupon needs a live check — never queued either (the server refuses it on an offline sale)
       final hasCoupon = payload.containsKey('couponCode') && status != 'held'; // a HELD sale only remembers the code — that may be queued
-      if (!_isFinalFailure(e) && !hasDigital && !hasCoupon && Get.isRegistered<PendingSaleSyncService>()) {
+      // G3.3: store credit and points need a live balance check — never queued either
+      final hasCustomerMoney = status != 'held' && (payload.containsKey('redeemPoints') || (payload['payments'] as List<dynamic>? ?? const []).any((p) => p is Map && p['method'] == 'store_credit'));
+      if (!_isFinalFailure(e) && !hasDigital && !hasCoupon && !hasCustomerMoney && Get.isRegistered<PendingSaleSyncService>()) {
         // The outcome is unknown (no route to the server, a timeout after the
         // request was sent, a 5xx, or "already in progress"): the sale may
         // already exist server-side. Persist it locally under the SAME key
@@ -944,7 +951,12 @@ class PosRepository {
         // `offline: true` tells the server this is a replay: it keeps `clientCreatedAt` as the sale's time, checks the
         // plan at THAT time, applies the offline stock rule and validates the offline window. The employee's token is
         // kept only when a discount needs a manager's authority — the server checks it was valid when the sale was made.
-        final queued = {...minorPayload, 'offline': true};
+        // G3.2: `sellExpired` is never sent for an offline sale (the server allocates the lots at sync and flags what it finds)
+        final queued = {
+          ...minorPayload,
+          'items': [for (final i in (minorPayload['items'] as List<dynamic>)) i is Map ? ({...i}..remove('sellExpired')) : i],
+          'offline': true,
+        };
         // G2.4: a custom item above the store's limit is approved by a manager — keep the approver's token for the replay too
         final hasCustom = items.any((i) => i['isCustom'] == true);
         final needsToken = (payload['discountValue'] as num? ?? 0) > 0 || hasCustom;
@@ -1211,6 +1223,7 @@ class PosRepository {
     String? reason, // optional free-text note
     bool? receiptPresented, // G2.5: false = the customer has no original receipt (a manager must approve)
     String? approverToken, // G2.5: a manager's PIN-login token approving this return (replaces the cashier's for this call)
+    String? refundTo, // G3.3: 'store_credit' = the cash / card / other part of this refund becomes store credit for the sale's customer
   }) async {
     lastErrorCode = null;
     lastErrorReasons = const [];
@@ -1224,6 +1237,7 @@ class PosRepository {
       if (items != null && items.isNotEmpty) 'items': items,
       if (returnRegister != null && returnRegister.isNotEmpty) 'registerId': returnRegister,
       if (receiptPresented == false) 'receiptPresented': false,
+      if (refundTo != null) 'refundTo': refundTo,
       if (reasonCode != null && reasonCode.isNotEmpty) 'reasonCode': reasonCode,
       if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
     };
@@ -1890,6 +1904,97 @@ class PosRepository {
 
   Future<({bool success, String? message, String? code})> cancelInventoryCount(String storeId, String countId) async {
     final r = await _invCountPost('inventoryCountCancel', '${_inv(storeId, 'counts')}/$countId/cancel', const {});
+    return (success: r.success, message: r.message, code: r.code);
+  }
+
+  // ── G3.2 lots ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /// First-expiry-first-out preview for [qty] units of a lot-tracked item: the lots a sale would take from. Null on failure (the code is in [lastErrorCode]).
+  Future<LotPreview?> getLotPreview(String storeId, String variantId, int qty) => _invGet(
+    'lotPreview',
+    '${ApiConstants.apiPrefix}/pos/inventory/lots/$storeId/$variantId',
+    (d) => LotPreview.fromJson(d, asOf: DateTime.now()),
+    query: {'qty': qty},
+  );
+
+  // ── G3.3 customers, store credit, loyalty ──────────────────────────────────────────────────────────────────────────────────────
+
+  String _cust(String storeId, String path) => '${ApiConstants.apiPrefix}/pos/customers/$path$storeId';
+
+  Future<CustomerConfig?> getCustomerConfig(String storeId) => _invGet('customerConfig', _cust(storeId, 'config/'), CustomerConfig.fromJson);
+
+  /// Search by name, phone or e-mail; an empty [q] lists the most recent customers.
+  Future<PosCustomerPage?> searchPosCustomers(String storeId, String q) => _invGet(
+    'customerSearch',
+    _cust(storeId, 'search/'),
+    (d) => PosCustomerPage(items: [for (final e in (d['items'] as List? ?? const [])) if (e is Map) PosCustomer.fromJson(e.cast<String, dynamic>())], cur: InvCur.fromJson(d)),
+    query: {'q': q.trim()},
+  );
+
+  Future<CustomerProfile?> getCustomerProfile(String storeId, String customerId) => _invGet('customerProfile', '${_cust(storeId, 'profile/')}/$customerId', CustomerProfile.fromJson);
+
+  /// Managers / owners only.
+  Future<CreditLedgerPage?> getCustomerCredit(String storeId, String customerId, {int page = 1}) => _invGet(
+    'customerCredit',
+    '${_cust(storeId, 'credit/')}/$customerId',
+    (d) => CreditLedgerPage(
+      enabled: d['enabled'] == true,
+      cur: InvCur.fromJson(d),
+      items: [for (final e in (d['items'] as List? ?? const [])) if (e is Map) CreditEntry.fromJson(e.cast<String, dynamic>())],
+      hasMore: d['hasMore'] == true,
+    ),
+    query: {'page': page},
+  );
+
+  /// One idempotent write of the customer endpoints. The key belongs to this intent (same payload = same key until the server answers).
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> _customerWrite(String tag, String method, String url, Map<String, dynamic> payload) async {
+    lastErrorCode = null;
+    final fp = IdempotencyIntentStore.fingerprint('$tag:$url', payload);
+    var settled = false;
+    try {
+      final headers = await _writeHeaders(await _intents.keyFor(fp));
+      final res = method == 'PATCH' ? await _client.patch(url, data: payload, requiresAuth: true, headers: headers) : await _client.post(url, data: payload, requiresAuth: true, headers: headers);
+      settled = true;
+      final data = _data(res);
+      return (success: _ok(res), message: res.data is Map ? res.data['message'] as String? : null, code: null, data: data is Map ? data.cast<String, dynamic>() : null);
+    } on DioException catch (e) {
+      settled = _isFinalFailure(e);
+      _logDioError(tag, e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      return (success: false, message: _dioMessage(e), code: lastErrorCode, data: null);
+    } catch (e) {
+      debugPrint('❌ $tag: $e');
+      return (success: false, message: 'Could not reach the server.', code: null, data: null);
+    } finally {
+      if (settled) await _intents.release(fp);
+    }
+  }
+
+  static Map<String, dynamic> _customerFields(Map<String, dynamic> fields) => {
+    for (final e in fields.entries)
+      if (e.value != null) e.key: e.value is String ? (e.value as String).trim() : e.value,
+  };
+
+  /// Same phone number = the same customer: the result has `existing: true` and nothing new is made. All fields except [fields]`['name']` are optional.
+  Future<({bool success, String? message, String? code, PosCustomer? customer})> createPosCustomer(String storeId, Map<String, dynamic> fields) async {
+    final r = await _customerWrite('customerCreate', 'POST', _cust(storeId, ''), _customerFields(fields));
+    return (success: r.success, message: r.message, code: r.code, customer: r.data == null ? null : PosCustomer.fromJson(r.data!));
+  }
+
+  /// Managers / owners only (a cashier gets `POS_ACTION_FORBIDDEN`; another customer's phone gives `PHONE_IN_USE`).
+  Future<({bool success, String? message, String? code, PosCustomer? customer})> updatePosCustomer(String storeId, String customerId, Map<String, dynamic> fields) async {
+    final r = await _customerWrite('customerUpdate', 'PATCH', '${_cust(storeId, '')}/$customerId', _customerFields(fields));
+    return (success: r.success, message: r.message, code: r.code, customer: r.data == null ? null : PosCustomer.fromJson(r.data!));
+  }
+
+  /// Managers / owners only. [amountMinor] is signed (never 0); above the manager's limit the server answers `POS_OWNER_REQUIRED`.
+  Future<({bool success, String? message, String? code})> adjustCustomerCredit(String storeId, String customerId, {required int amountMinor, required String note, DateTime? expiresAt}) async {
+    final r = await _customerWrite('customerCreditAdjust', 'POST', '${_cust(storeId, 'credit/')}/$customerId/adjust', {
+      'amountMinor': amountMinor,
+      'note': note.trim(),
+      if (expiresAt != null) 'expiresAt': expiresAt.toUtc().toIso8601String(),
+    });
     return (success: r.success, message: r.message, code: r.code);
   }
 }

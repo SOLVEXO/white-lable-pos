@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/utils/money_json.dart';
 class PosSaleItemModel {
   /// Sale-item subdocument id — required to target a specific line for a
@@ -19,6 +20,10 @@ class PosSaleItemModel {
   final String? hsCode;
   final bool isCustom;
 
+  /// G3.2: the lots this line was taken from (empty for an item that is not lot-tracked) and whether any of it came from an EXPIRED lot.
+  final List<SaleLot> lots;
+  final bool soldExpired;
+
   const PosSaleItemModel({
     this.saleItemId,
     required this.productId,
@@ -34,6 +39,8 @@ class PosSaleItemModel {
     this.taxMinor,
     this.hsCode,
     this.isCustom = false,
+    this.lots = const [],
+    this.soldExpired = false,
   });
 
   int get refundableQty => qty - refundedQty;
@@ -57,6 +64,8 @@ class PosSaleItemModel {
         taxMinor: (json['taxMinor'] as num?)?.toInt(),
         hsCode: json['hsCode'] as String?,
         isCustom: json['isCustom'] as bool? ?? false,
+        lots: [for (final l in (json['lots'] as List? ?? const [])) if (l is Map) SaleLot.fromJson(l.cast<String, dynamic>())],
+        soldExpired: json['soldExpired'] == true,
       );
 }
 
@@ -96,6 +105,10 @@ class PosSaleFlag {
         return 'The price changed while the till was offline: charged ${detail['deviceTotal']}, current price total is ${detail['serverTotal']}.';
       case 'payment_shortfall':
         return 'The customer paid ${detail['shortBy']} less than the current price total (${detail['serverTotal']}).';
+      case 'expired_lot_sold_offline':
+        return 'Sold from an expired lot while offline. Check the stock and the expiry dates.';
+      case 'lots_short':
+        return 'Not enough lot stock recorded for this sale. Check the lots of the items sold.';
       default:
         return type.replaceAll('_', ' ');
     }
@@ -168,6 +181,9 @@ class PosSaleModel {
   final PosInvoiceInfo? invoice;
   final String? heldCouponCode;
 
+  /// G3.3: points earned / redeemed on this sale (null when the sale had no customer or the store has no loyalty).
+  final SaleLoyalty? loyalty;
+
   const PosSaleModel({
     required this.id,
     required this.saleNumber,
@@ -204,6 +220,7 @@ class PosSaleModel {
     this.isOffline = false,
     this.invoice,
     this.heldCouponCode,
+    this.loyalty,
   });
 
   /// The tender lines to show: the stored ones, or — for a sale made before split tender — one synthetic line.
@@ -273,6 +290,7 @@ class PosSaleModel {
         isOffline: json['isOffline'] as bool? ?? false,
         invoice: json['invoice'] is Map ? PosInvoiceInfo.fromJson((json['invoice'] as Map).cast<String, dynamic>()) : null,
         heldCouponCode: json['heldCouponCode'] as String?,
+        loyalty: json['loyalty'] is Map ? SaleLoyalty.fromJson((json['loyalty'] as Map).cast<String, dynamic>()) : null,
     );
   }
 }
@@ -301,4 +319,16 @@ class PosInvoiceInfo {
       sellerStrn: s['strn'] as String?,
     );
   }
+}
+
+/// What the sale did to the customer's points (the sale's discount and total already include any redemption).
+class SaleLoyalty {
+  const SaleLoyalty({this.earnedPoints = 0, this.redeemedPoints = 0, this.redeemValueMinor = 0});
+  final int earnedPoints, redeemedPoints, redeemValueMinor;
+
+  factory SaleLoyalty.fromJson(Map<String, dynamic> j) => SaleLoyalty(
+    earnedPoints: (j['earnedPoints'] as num?)?.toInt() ?? 0,
+    redeemedPoints: (j['redeemedPoints'] as num?)?.toInt() ?? 0,
+    redeemValueMinor: (j['redeemValueMinor'] as num?)?.toInt() ?? 0,
+  );
 }
