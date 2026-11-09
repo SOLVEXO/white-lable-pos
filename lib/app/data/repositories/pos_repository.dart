@@ -1973,7 +1973,8 @@ class PosRepository {
 
   static Map<String, dynamic> _customerFields(Map<String, dynamic> fields) => {
     for (final e in fields.entries)
-      if (e.value != null) e.key: e.value is String ? (e.value as String).trim() : e.value,
+      // `registrationType: null` is meaningful on an edit (it CLEARS the type); every other empty field is simply not sent
+      if (e.value != null || e.key == 'registrationType') e.key: e.value is String ? (e.value as String).trim() : e.value,
   };
 
   /// Same phone number = the same customer: the result has `existing: true` and nothing new is made. All fields except [fields]`['name']` are optional.

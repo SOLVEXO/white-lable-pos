@@ -280,6 +280,19 @@ void main() {
       expect(sent, {'name': 'Renamed', 'email': ''});
     });
 
+    test('edit can CLEAR the registration type: the explicit null is sent (the server treats null as "no type")', () async {
+      final c = make(existing: customer(registrationType: 'registered'));
+      c.setRegistrationType('registered'); // tapping the selected chip again clears it
+      expect(c.registrationType.value, isNull);
+      Map<String, dynamic>? sent;
+      when(() => repo.updatePosCustomer('st1', 'c1', any())).thenAnswer((i) async {
+        sent = i.positionalArguments[2] as Map<String, dynamic>;
+        return (success: true, message: null, code: null, customer: customer());
+      });
+      await c.submit();
+      expect(sent, {'registrationType': null});
+    });
+
     test('edit by a cashier: POS_ACTION_FORBIDDEN is said plainly; a taken phone is PHONE_IN_USE on the phone field', () async {
       stubUpdate(() => (success: false, message: 'x', code: 'POS_ACTION_FORBIDDEN', customer: null));
       var c = make(existing: customer())..name.value = 'Other';

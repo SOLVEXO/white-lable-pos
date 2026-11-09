@@ -38,6 +38,13 @@ class PosPaymentBadge extends StatelessWidget {
           bg: AppColors.white,
           border: AppColors.lightGrey2,
         );
+      case 'store_credit':
+        return _BadgeStyle(
+          label: 'Store credit',
+          fg: AppColors.primaryColor,
+          bg: AppColors.languageBg,
+          border: AppColors.primaryColor,
+        );
       case 'cash':
         return const _BadgeStyle(
           label: 'Cash',

@@ -252,12 +252,11 @@ class PosReturnController extends GetxController {
         return false;
       }
       resultAmount = s.total - s.refundedAmount;
-      resultInstructions.assignAll(posRefundInstructions(
-        posAllocateRefund(tenders: [for (final p in s.paymentLines) (method: p.method, amount: p.amount)], alreadyRefunded: s.refundedAmount, amount: resultAmount, exponent: s.currencyExponent),
-        currency: s.currency,
-        exponent: s.currencyExponent,
-      ));
+      final splits = posAllocateRefund(tenders: [for (final p in s.paymentLines) (method: p.method, amount: p.amount)], alreadyRefunded: s.refundedAmount, amount: resultAmount, exponent: s.currencyExponent);
+      resultInstructions.assignAll(posRefundInstructions(splits, currency: s.currency, exponent: s.currencyExponent));
       result.value = _repo.lastCreditNote ?? {};
+      // a void of a sale paid with store credit gives that credit back: say so (and the new balance), exactly like a return does
+      await _noteCreditResult(s, [for (final x in splits) PosPaymentLine(method: x.method, amount: x.amount)]);
       return true;
     } finally {
       processing.value = false;

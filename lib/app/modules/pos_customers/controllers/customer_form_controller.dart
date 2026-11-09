@@ -87,7 +87,7 @@ class CustomerFormController extends GetxController {
     };
     return {
       for (final f in all.entries)
-        if (f.value != before[f.key] && !(f.key == 'registrationType' && f.value == null)) f.key: f.value,
+        if (f.value != before[f.key]) f.key: f.value,
     };
   }
 

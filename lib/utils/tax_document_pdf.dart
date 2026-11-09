@@ -76,7 +76,7 @@ class TaxDocumentPdf {
           ),
         pw.Divider(),
         _row('Subtotal', m(sale.subtotal)),
-        if (sale.discount > 0) _row('Discount', '-${m(sale.discount)}'),
+        if (sale.discount > 0) _row((sale.loyalty?.redeemedPoints ?? 0) > 0 ? 'Points redeemed (${sale.loyalty!.redeemedPoints})' : 'Discount', '-${m(sale.discount)}'),
         _row('Sales tax', m(sale.tax)),
         _row('Total', m(sale.total), bold: true, size: 12),
         pw.SizedBox(height: 6),

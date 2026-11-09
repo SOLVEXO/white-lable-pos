@@ -212,7 +212,7 @@ class ReceiptData {
 
     final taxPct = sale.taxRate != null ? '${(sale.taxRate! * 100).toStringAsFixed((sale.taxRate! * 100) % 1 == 0 ? 0 : 2)}%' : null;
     final discLabel = sale.discount > 0
-        ? (sale.discountType == 'percent' && sale.discountValue != null ? 'Discount (${sale.discountValue!.toStringAsFixed(sale.discountValue! % 1 == 0 ? 0 : 1)}%)' : 'Discount')
+        ? ((sale.loyalty?.redeemedPoints ?? 0) > 0 ? 'Points redeemed (${sale.loyalty!.redeemedPoints})' : sale.discountType == 'percent' && sale.discountValue != null ? 'Discount (${sale.discountValue!.toStringAsFixed(sale.discountValue! % 1 == 0 ? 0 : 1)}%)' : 'Discount')
         : null;
 
     final payments = <ReceiptPaymentRow>[];

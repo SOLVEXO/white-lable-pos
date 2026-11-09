@@ -86,7 +86,7 @@ class TaxDocumentEscPos {
       ],
       const DocLine.rule(),
       ..._two('Subtotal', m(minorOf(sale.subtotal)), cols),
-      if (sale.discount > 0) ..._two('Discount', '-${m(minorOf(sale.discount))}', cols),
+      if (sale.discount > 0) ..._two((sale.loyalty?.redeemedPoints ?? 0) > 0 ? 'Points (${sale.loyalty!.redeemedPoints})' : 'Discount', '-${m(minorOf(sale.discount))}', cols),
       ..._two('Sales tax', m(minorOf(sale.tax)), cols),
       const DocLine.blank(),
       ..._two('TOTAL', m(minorOf(sale.total)), cols, bold: true),

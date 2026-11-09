@@ -91,7 +91,7 @@ class TaxInvoiceView extends StatelessWidget {
                           ),
                         const Divider(),
                         ReceiptRow('Subtotal', m(s.subtotal)),
-                        if (s.discount > 0) ReceiptRow('Discount', '-${m(s.discount)}', valueColor: p.successFg),
+                        if (s.discount > 0) ReceiptRow((s.loyalty?.redeemedPoints ?? 0) > 0 ? 'Points redeemed (${s.loyalty!.redeemedPoints})' : 'Discount', '-${m(s.discount)}', valueColor: p.successFg),
                         ReceiptRow('Sales tax', m(s.tax)),
                         const SizedBox(height: Space.s1),
                         Row(children: [Expanded(child: Text('Total', style: t.subtitle.copyWith(color: p.textPrimary))), AmountText(m(s.total), key: const Key('invoiceTotal'), style: t.amountLg)]),

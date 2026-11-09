@@ -21,7 +21,8 @@ PosCustomer customer({
   int points = 40,
   String? tier = 'silver',
   bool existing = false,
-}) => PosCustomer(id: id, kind: 'pos', name: name, phone: phone, email: email, creditBalanceMinor: credit, loyaltyPoints: points, loyaltyTier: tier, existing: existing);
+  String? registrationType,
+}) => PosCustomer(id: id, kind: 'pos', name: name, phone: phone, email: email, registrationType: registrationType, creditBalanceMinor: credit, loyaltyPoints: points, loyaltyTier: tier, existing: existing);
 
 PosCustomerPage customerPage(List<PosCustomer> items, {InvCur? cur = usd}) => PosCustomerPage(items: items, cur: cur);
 

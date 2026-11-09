@@ -180,6 +180,14 @@ void main() {
       expect(c.resultAmount, closeTo(29.7, 0.001));
     });
 
+    test('G3.4 fix: voiding a sale PAID with store credit says "Refunded to store credit" (the credit goes back to the customer)', () async {
+      final c = make(sale: invoiceSale(payments: const [PosPaymentLine(method: 'store_credit', amount: 29.7)]));
+      await c.load();
+      when(() => repo.voidSale('sale-1', reason: any(named: 'reason'), reasonCode: any(named: 'reasonCode'))).thenAnswer((_) async => true);
+      expect(await c.voidEntireSale(), isTrue);
+      expect(c.resultCreditText.value, contains('29.70'));
+    });
+
     test('G2.7: a void the server refuses leaves no result and shows the problem', () async {
       final c = make();
       await c.load();
