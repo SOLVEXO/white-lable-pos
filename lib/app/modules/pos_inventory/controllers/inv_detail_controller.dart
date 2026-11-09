@@ -5,7 +5,12 @@ import 'package:solvexo_pos/app/modules/pos_inventory/controllers/inv_common.dar
 
 /// One item: stock, committed / damaged, locations, lots with expiry, the last movements (managers) and the Adjust action.
 class InvDetailController extends GetxController {
-  InvDetailController({required this.variantId, PosRepository? repository, String? storeId, String? role}) : _repo = repository ?? PosRepository(), _storeIdOverride = storeId, _roleOverride = role;
+  InvDetailController({required this.variantId, PosRepository? repository, String? storeId, String? role})
+      : _repo = repository ?? PosRepository(),
+        _storeIdOverride = storeId,
+        _roleOverride = role {
+    if (role != null) this.role.value = role;
+  }
   final String variantId;
   final PosRepository _repo;
   final String? _storeIdOverride, _roleOverride;
@@ -22,11 +27,7 @@ class InvDetailController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    if (_roleOverride != null) {
-      role.value = _roleOverride;
-    } else {
-      invGuessRole().then((r) => role.value = r);
-    }
+    if (_roleOverride == null) invGuessRole().then((r) => role.value = r);
     load();
   }
 
