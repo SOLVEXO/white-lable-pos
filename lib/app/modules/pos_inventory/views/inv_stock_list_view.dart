@@ -5,7 +5,6 @@ import 'package:solvexo_pos/app/modules/pos_inventory/controllers/inv_stock_list
 import 'package:solvexo_pos/app/modules/pos_inventory/views/inv_widgets.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/core/design/design.dart';
-import 'package:solvexo_pos/utils/money.dart';
 
 /// Stock list (and, with [lowOnly], the Low stock screen): debounced search, All / Low / Out chips, infinite scroll.
 class InvStockListView extends StatelessWidget {
@@ -77,7 +76,7 @@ class InvStockListView extends StatelessWidget {
                         ),
                       );
                     }
-                    return InvStockRowTile(row: c.items[i], role: role);
+                    return InvStockRowTile(row: c.items[i], role: role, cur: c.cur.value);
                   },
                 ),
               );
@@ -90,16 +89,17 @@ class InvStockListView extends StatelessWidget {
 }
 
 class InvStockRowTile extends StatelessWidget {
-  const InvStockRowTile({super.key, required this.row, this.role, this.exponent});
+  const InvStockRowTile({super.key, required this.row, this.role, this.cur});
   final InvRow row;
   final String? role;
-  final int? exponent;
+  /// the page's currency (a row may state its own, e.g. the barcode lookup); null = not stated → no money is shown
+  final InvCur? cur;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final t = context.type;
-    final exp = exponent ?? Money.exponent;
+    final money = row.cur ?? cur;
     final sub = [if (row.optionsLabel.isNotEmpty) row.optionsLabel, if (row.sku.isNotEmpty) row.sku].join(' · ');
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.s2),
@@ -126,9 +126,9 @@ class InvStockRowTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: t.caption.copyWith(color: p.textMuted),
                     ),
-                  if (row.costMinor != null || row.valueMinor != null)
+                  if (money != null && (row.costMinor != null || row.valueMinor != null))
                     Text(
-                      [if (row.costMinor != null) 'Cost ${invMoney(row.costMinor!, exp)}', if (row.valueMinor != null) 'Value ${invMoney(row.valueMinor!, exp)}'].join(' · '),
+                      [if (row.costMinor != null) 'Cost ${invMoney(row.costMinor!, money)}', if (row.valueMinor != null) 'Value ${invMoney(row.valueMinor!, money)}'].join(' · '),
                       key: Key('invRowCost_${row.variantId}'),
                       style: t.caption.copyWith(color: p.textSecondary),
                     ),

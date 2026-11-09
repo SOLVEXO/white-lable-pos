@@ -82,7 +82,7 @@ class InvOverviewView extends StatelessWidget {
                 tile(const Key('invTileExpired'), 'Expired lots', '${o.expiredLots}', tone: o.expiredLots > 0 ? StatusTone.danger : null, icon: Icons.event_busy_outlined),
                 tile(const Key('invTileExp7'), 'Expiring in 7 days', '${o.expiringIn7Days}', tone: o.expiringIn7Days > 0 ? StatusTone.warning : null, icon: Icons.hourglass_bottom_rounded),
                 tile(const Key('invTileExp30'), 'Expiring in 30 days', '${o.expiringIn30Days}', icon: Icons.event_outlined),
-                if (o.stockValueMinor != null) tile(const Key('invTileValue'), 'Stock value', invMoney(o.stockValueMinor!, o.currencyExponent), icon: Icons.account_balance_wallet_outlined),
+                if (o.stockValueMinor != null && o.cur != null) tile(const Key('invTileValue'), 'Stock value', invMoney(o.stockValueMinor!, o.cur!), icon: Icons.account_balance_wallet_outlined),
               ],
             );
           },

@@ -37,9 +37,9 @@ Map<String, dynamic> rowJson({
 InvRow row({String id = 'v1', String name = 'Dev Latte', int stock = 20, bool low = false, bool out = false, bool manager = true, bool unlimited = false}) =>
     InvRow.fromJson(rowJson(id: id, name: name, stock: stock, low: low, out: out, manager: manager, unlimited: unlimited));
 
-Map<String, dynamic> pageJson(List<InvRow> rows, {int total = 0, int page = 1, bool hasMore = false}) => {'items': rows, 'total': total == 0 ? rows.length : total, 'page': page, 'hasMore': hasMore};
+Map<String, dynamic> pageJson(List<InvRow> rows, {int total = 0, int page = 1, bool hasMore = false}) => {'currency': 'USD', 'currencyExponent': 2, 'items': rows, 'total': total == 0 ? rows.length : total, 'page': page, 'hasMore': hasMore};
 
-InvPage<InvRow> rowsPage(List<InvRow> rows, {int? total, int page = 1, bool hasMore = false}) => InvPage(items: rows, total: total ?? rows.length, page: page, hasMore: hasMore);
+InvPage<InvRow> rowsPage(List<InvRow> rows, {int? total, int page = 1, bool hasMore = false}) => InvPage(items: rows, total: total ?? rows.length, page: page, hasMore: hasMore, cur: const InvCur('USD', 2));
 
 InvOverview overview({String role = 'manager', bool openCount = false, int low = 3, int out = 1}) => InvOverview.fromJson({
   'role': role,
@@ -52,7 +52,8 @@ InvOverview overview({String role = 'manager', bool openCount = false, int low =
   'openStockCount': openCount ? {'id': 'c1', 'startedAt': '2026-11-08T09:30:00.000Z'} : null,
   if (role != 'cashier') 'stockValueMinor': 1234500,
   if (role != 'cashier') 'variantsWithoutCost': 2,
-  if (role != 'cashier') 'currencyExponent': 2,
+  'currency': 'USD',
+  'currencyExponent': 2,
 });
 
 InvMovement movement({String id = 'm1', String type = 'sale', int qty = -2, int damaged = 0, String? reason, String? note, bool manager = true}) => InvMovement.fromJson({
@@ -99,6 +100,7 @@ InvDetail detail({bool manager = true, bool withLots = true, bool withMoves = tr
         ]
       : [],
   'ledgerStartsAt': noLedger ? null : (ledger ?? DateTime.utc(2026, 11, 1)).toIso8601String(),
+  'currency': 'USD',
   'currencyExponent': 2,
 });
 

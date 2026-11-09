@@ -47,7 +47,11 @@ void main() {
     Future<void> show(WidgetTester t, Widget w) async {
       await t.pumpWidget(
         ResponsiveSizer(
-          builder: (_, __, ___) => GetMaterialApp(debugShowCheckedModeBanner: false, theme: theme, home: w),
+          builder: (_, __, ___) => GetMaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: theme,
+            home: w,
+          ),
         ),
       );
       await t.pump(const Duration(milliseconds: 600));
@@ -63,21 +67,29 @@ void main() {
 
     testWidgets('overview + list + limits ($tn)', (t) async {
       var repo = fresh();
-      when(() => repo.getInventoryOverview(any())).thenAnswer((_) async => overview(openCount: true));
+      when(
+        () => repo.getInventoryOverview(any()),
+      ).thenAnswer((_) async => overview(openCount: true));
       await show(
         t,
         InvOverviewView(
-          controller: Get.put(InvOverviewController(repository: repo, storeId: 's1')),
+          controller: Get.put(
+            InvOverviewController(repository: repo, storeId: 's1'),
+          ),
         ),
       );
       await shot(t, 'g31_01_overview_manager', tn);
 
       repo = fresh();
-      when(() => repo.getInventoryOverview(any())).thenAnswer((_) async => overview(role: 'cashier', openCount: true));
+      when(
+        () => repo.getInventoryOverview(any()),
+      ).thenAnswer((_) async => overview(role: 'cashier', openCount: true));
       await show(
         t,
         InvOverviewView(
-          controller: Get.put(InvOverviewController(repository: repo, storeId: 's1')),
+          controller: Get.put(
+            InvOverviewController(repository: repo, storeId: 's1'),
+          ),
         ),
       );
       await shot(t, 'g31_02_overview_cashier', tn);
@@ -114,18 +126,38 @@ void main() {
       repo = fresh();
       when(() => repo.getInventoryLimits(any())).thenAnswer(
         (_) async => (
-          exponent: 2,
+          cur: const InvCur('USD', 2),
           limits: [
-            const InvLimit(key: 'stockAdjustQty', label: 'Stock change a cashier may make (units)', kind: 'qty', value: 5, defaultValue: 5),
-            const InvLimit(key: 'stockAdjustValueMinor', label: 'Stock change a cashier may make (value)', kind: 'minor', value: 2000, defaultValue: 2000),
-            const InvLimit(key: 'cashOutMinor', label: 'Cash out above', kind: 'minor', value: 10000, defaultValue: 10000),
+            const InvLimit(
+              key: 'stockAdjustQty',
+              label: 'Stock change a cashier may make (units)',
+              kind: 'qty',
+              value: 5,
+              defaultValue: 5,
+            ),
+            const InvLimit(
+              key: 'stockAdjustValueMinor',
+              label: 'Stock change a cashier may make (value)',
+              kind: 'minor',
+              value: 2000,
+              defaultValue: 2000,
+            ),
+            const InvLimit(
+              key: 'cashOutMinor',
+              label: 'Cash out above',
+              kind: 'minor',
+              value: 10000,
+              defaultValue: 10000,
+            ),
           ],
         ),
       );
       await show(
         t,
         InvLimitsView(
-          controller: Get.put(InvLimitsController(repository: repo, storeId: 's1')),
+          controller: Get.put(
+            InvLimitsController(repository: repo, storeId: 's1'),
+          ),
         ),
       );
       await shot(t, 'g31_10_approval_limits', tn);
@@ -133,23 +165,54 @@ void main() {
 
     testWidgets('detail + adjust + approval ($tn)', (t) async {
       final repo = fresh();
-      when(() => repo.getInventoryVariant(any(), any())).thenAnswer((_) async => detail(ledger: DateTime.utc(2026, 11, 1)));
+      when(
+        () => repo.getInventoryVariant(any(), any()),
+      ).thenAnswer((_) async => detail(ledger: DateTime.utc(2026, 11, 1)));
       final dc = Get.put(
-        InvDetailController(variantId: 'v1', repository: repo, storeId: 's1', role: 'manager'),
+        InvDetailController(
+          variantId: 'v1',
+          repository: repo,
+          storeId: 's1',
+          role: 'manager',
+        ),
         tag: 'v1',
       );
-      await show(t, InvDetailView(variantId: 'v1', controller: dc, now: DateTime(2026, 11, 9)));
+      await show(
+        t,
+        InvDetailView(
+          variantId: 'v1',
+          controller: dc,
+          now: DateTime(2026, 11, 9),
+        ),
+      );
       await shot(t, 'g31_04_item_detail', tn);
-      await t.drag(find.byKey(const Key('invDetailList')), const Offset(0, -700));
+      await t.drag(
+        find.byKey(const Key('invDetailList')),
+        const Offset(0, -700),
+      );
       await shot(t, 'g31_05_item_lots_movements', tn);
-      await t.drag(find.byKey(const Key('invDetailList')), const Offset(0, 1400));
+      await t.drag(
+        find.byKey(const Key('invDetailList')),
+        const Offset(0, 1400),
+      );
       await t.pump(const Duration(milliseconds: 300));
 
-      final adj = InvAdjustController(variantId: 'v1', currentStock: 20, repository: repo, storeId: 's1', approval: ({required reason, repository}) async => null);
+      final adj = InvAdjustController(
+        variantId: 'v1',
+        currentStock: 20,
+        repository: repo,
+        storeId: 's1',
+        approval: ({required reason, repository}) async => null,
+      );
       adj.setDelta(-3);
       adj.pickReason('correction');
       AppBottomSheet.showGet<bool>(
-        InvAdjustSheet(variantId: 'v1', currentStock: 20, productName: 'Dev Latte', controller: adj),
+        InvAdjustSheet(
+          variantId: 'v1',
+          currentStock: 20,
+          productName: 'Dev Latte',
+          controller: adj,
+        ),
         title: 'Adjust stock',
       );
       await t.pump(const Duration(milliseconds: 700));
@@ -166,7 +229,14 @@ void main() {
           locationId: any(named: 'locationId'),
           approverToken: any(named: 'approverToken'),
         ),
-      ).thenAnswer((_) async => (success: false, message: null, code: 'POS_APPROVAL_REQUIRED', data: null));
+      ).thenAnswer(
+        (_) async => (
+          success: false,
+          message: null,
+          code: 'POS_APPROVAL_REQUIRED',
+          data: null,
+        ),
+      );
       adj.setDelta(-9);
       await t.pump(const Duration(milliseconds: 300));
       await t.tap(find.byKey(const Key('invAdjustConfirm')));
@@ -176,24 +246,39 @@ void main() {
       await t.pump(const Duration(milliseconds: 500));
 
       // …and the real approval sheet that the till raises for it
-      ManagerApproval.request(reason: 'This stock change needs a manager\'s approval.', repository: repo);
+      ManagerApproval.request(
+        reason: 'This stock change needs a manager\'s approval.',
+        repository: repo,
+      );
       await t.pump(const Duration(milliseconds: 700));
       await shot(t, 'g31_08_manager_approval_sheet', tn);
     });
 
     testWidgets('count + variance + movements ($tn)', (t) async {
       var repo = fresh();
-      when(() => repo.listInventoryCounts(any())).thenAnswer((_) async => [count(item2Counted: true)]);
-      when(() => repo.getInventoryCount(any(), any())).thenAnswer((_) async => count(item2Counted: true));
-      when(() => repo.findInventoryCountItem(any(), any(), any())).thenAnswer((_) async => (found: true, item: count(item2Counted: true).items[2]));
-      final cc = Get.put(InvCountController(repository: repo, storeId: 's1', role: 'manager'));
+      when(
+        () => repo.listInventoryCounts(any()),
+      ).thenAnswer((_) async => [count(item2Counted: true)]);
+      when(
+        () => repo.getInventoryCount(any(), any()),
+      ).thenAnswer((_) async => count(item2Counted: true));
+      when(() => repo.findInventoryCountItem(any(), any(), any())).thenAnswer(
+        (_) async => (found: true, item: count(item2Counted: true).items[2]),
+      );
+      final cc = Get.put(
+        InvCountController(repository: repo, storeId: 's1', role: 'manager'),
+      );
       await show(t, InvCountView(controller: cc));
       await shot(t, 'g31_09_count_progress', tn);
       await cc.find('1000000000035');
       cc.setQty(1);
       await shot(t, 'g31_09b_count_entry', tn);
       cc.clearCurrent();
-      AppBottomSheet.showGet<bool>(InvVarianceReview(count: count(item2Counted: true)), title: 'Review before finishing', scrollable: false);
+      AppBottomSheet.showGet<bool>(
+        InvVarianceReview(count: count(item2Counted: true)),
+        title: 'Review before finishing',
+        scrollable: false,
+      );
       await t.pump(const Duration(milliseconds: 700));
       await shot(t, 'g31_09c_variance_review', tn);
 
@@ -208,11 +293,25 @@ void main() {
         ),
       ).thenAnswer(
         (_) async => InvPage(
+          cur: const InvCur('USD', 2),
           items: [
             movement(id: 'm1'),
-            movement(id: 'm2', type: 'adjustment', qty: 0, damaged: 1, reason: 'damaged', note: 'dropped a tray'),
+            movement(
+              id: 'm2',
+              type: 'adjustment',
+              qty: 0,
+              damaged: 1,
+              reason: 'damaged',
+              note: 'dropped a tray',
+            ),
             movement(id: 'm3', type: 'return', qty: 1),
-            movement(id: 'm4', type: 'adjustment', qty: -4, reason: 'correction', note: 'Stock count #A1B2C3'),
+            movement(
+              id: 'm4',
+              type: 'adjustment',
+              qty: -4,
+              reason: 'correction',
+              note: 'Stock count #A1B2C3',
+            ),
             movement(id: 'm5', type: 'receive', qty: 24),
           ],
           total: 5,
@@ -223,7 +322,9 @@ void main() {
       await show(
         t,
         InvMovementsView(
-          controller: Get.put(InvMovementsController(repository: repo, storeId: 's1')),
+          controller: Get.put(
+            InvMovementsController(repository: repo, storeId: 's1'),
+          ),
         ),
       );
       await shot(t, 'g31_11_movement_history', tn);

@@ -23,6 +23,7 @@ class InvMovementsController extends GetxController {
   ];
 
   final RxList<InvMovement> items = <InvMovement>[].obs;
+  final Rxn<InvCur> cur = Rxn<InvCur>();
   final RxBool loading = true.obs;
   final RxBool loadingMore = false.obs;
   final RxnString error = RxnString();
@@ -62,6 +63,7 @@ class InvMovementsController extends GetxController {
       error.value = invErrorMessage(code, fallback: 'Could not load the history. Check the connection and try again.');
     } else {
       items.assignAll(r.items);
+      cur.value = r.cur;
       hasMore.value = r.hasMore;
     }
     loading.value = false;
@@ -76,6 +78,7 @@ class InvMovementsController extends GetxController {
       if (ticket != _ticket || r == null) return;
       _page = r.page;
       items.addAll(r.items);
+      cur.value = r.cur ?? cur.value;
       hasMore.value = r.hasMore;
     } finally {
       loadingMore.value = false;

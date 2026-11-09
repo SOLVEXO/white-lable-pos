@@ -10,7 +10,7 @@ class InvLimitsController extends GetxController {
   final String? _storeIdOverride;
 
   final RxList<InvLimit> limits = <InvLimit>[].obs;
-  final RxInt exponent = 2.obs;
+  final Rxn<InvCur> cur = Rxn<InvCur>();
   final RxBool loading = true.obs;
   final RxnString error = RxnString();
 
@@ -28,7 +28,7 @@ class InvLimitsController extends GetxController {
       if (r == null) {
         error.value = invErrorMessage(_repo.lastErrorCode, fallback: 'Could not load the limits. Check the connection and try again.');
       } else {
-        exponent.value = r.exponent;
+        cur.value = r.cur;
         limits.assignAll(r.limits);
       }
     } finally {

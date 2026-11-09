@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/core/design/design.dart';
-import 'package:solvexo_pos/utils/money.dart';
 
 /// "+3" / "−2" (a real minus sign, never a hyphen that wraps away from its digit).
 String invSigned(int v) => v > 0 ? '+$v' : (v < 0 ? '−${v.abs()}' : '0');
@@ -74,9 +73,9 @@ class InvSectionTitle extends StatelessWidget {
 
 /// One movement line: type, signed quantity, product, time, reason / note, and cost only when the server sent it.
 class InvMovementTile extends StatelessWidget {
-  const InvMovementTile(this.m, {super.key, this.exponent, this.showProduct = true});
+  const InvMovementTile(this.m, {super.key, this.cur, this.showProduct = true});
   final InvMovement m;
-  final int? exponent;
+  final InvCur? cur;
   final bool showProduct;
 
   @override
@@ -114,7 +113,7 @@ class InvMovementTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: t.bodySmall.copyWith(color: p.textSecondary),
                     ),
-                  if (m.unitCostMinor != null) Text('Unit cost ${invMoney(m.unitCostMinor!, exponent ?? Money.exponent)}', style: t.caption.copyWith(color: p.textMuted)),
+                  if (m.unitCostMinor != null && cur != null) Text('Unit cost ${invMoney(m.unitCostMinor!, cur!)}', style: t.caption.copyWith(color: p.textMuted)),
                 ],
               ),
             ),

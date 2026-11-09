@@ -1746,6 +1746,7 @@ class PosRepository {
         total: (d['total'] as num?)?.toInt() ?? 0,
         page: (d['page'] as num?)?.toInt() ?? 1,
         hasMore: d['hasMore'] == true,
+        cur: InvCur.fromJson(d),
       );
 
   Future<InvOverview?> getInventoryOverview(String storeId) => _invGet('inventoryOverview', _inv(storeId, 'overview'), InvOverview.fromJson);
@@ -1773,6 +1774,7 @@ class PosRepository {
           total: (d['total'] as num?)?.toInt() ?? 0,
           page: (d['page'] as num?)?.toInt() ?? 1,
           hasMore: d['hasMore'] == true,
+          cur: InvCur.fromJson(d),
         ),
         query: {
           if (variantId != null) 'variantId': variantId,
@@ -1784,10 +1786,10 @@ class PosRepository {
         },
       );
 
-  Future<({int exponent, List<InvLimit> limits})?> getInventoryLimits(String storeId) => _invGet(
+  Future<({InvCur? cur, List<InvLimit> limits})?> getInventoryLimits(String storeId) => _invGet(
         'inventoryLimits',
         _inv(storeId, 'limits'),
-        (d) => (exponent: (d['currencyExponent'] as num?)?.toInt() ?? 2, limits: [for (final e in (d['limits'] as List? ?? const [])) if (e is Map) InvLimit.fromJson(e.cast<String, dynamic>())]),
+        (d) => (cur: InvCur.fromJson(d), limits: [for (final e in (d['limits'] as List? ?? const [])) if (e is Map) InvLimit.fromJson(e.cast<String, dynamic>())]),
       );
 
   /// Manual stock change. [reason]: restocked | damaged | correction | other (note required for other). When the server answers

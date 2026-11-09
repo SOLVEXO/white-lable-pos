@@ -38,13 +38,13 @@ class InvLimitsView extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(l.label, style: t.subtitle.copyWith(color: p.textPrimary)),
-                            Text('Default ${l.format(l.defaultValue, c.exponent.value)}', style: t.caption.copyWith(color: p.textMuted)),
+                            Text('Default ${l.format(l.defaultValue, c.cur.value) ?? '—'}', style: t.caption.copyWith(color: p.textMuted)),
                           ],
                         ),
                       ),
                       const SizedBox(width: Space.s3),
                       Text(
-                        l.format(l.value, c.exponent.value),
+                        l.format(l.value, c.cur.value) ?? '—',
                         key: Key('invLimitValue_${l.key}'),
                         style: t.amountMd.copyWith(color: p.textPrimary),
                       ),

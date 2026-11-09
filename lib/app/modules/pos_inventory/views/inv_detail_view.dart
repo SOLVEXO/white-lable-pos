@@ -81,8 +81,8 @@ class InvDetailView extends StatelessWidget {
               _kv(context, 'Committed (held for orders)', '${r.committed}', key: const Key('invDetailCommitted')),
               _kv(context, 'Damaged', '${r.damaged}', key: const Key('invDetailDamaged')),
               if (r.reorderPoint != null) _kv(context, 'Reorder point', '${r.reorderPoint}'),
-              if (r.costMinor != null) _kv(context, 'Cost (average)', invMoney(r.costMinor!, d.currencyExponent), key: const Key('invDetailCost')),
-              if (r.valueMinor != null) _kv(context, 'Stock value', invMoney(r.valueMinor!, d.currencyExponent), key: const Key('invDetailValue')),
+              if (r.costMinor != null && d.cur != null) _kv(context, 'Cost (average)', invMoney(r.costMinor!, d.cur!), key: const Key('invDetailCost')),
+              if (r.valueMinor != null && d.cur != null) _kv(context, 'Stock value', invMoney(r.valueMinor!, d.cur!), key: const Key('invDetailValue')),
               const SizedBox(height: Space.s3),
               if (r.unlimited)
                 Text('This item has unlimited stock, so there is nothing to adjust.', style: t.bodySmall.copyWith(color: p.textSecondary))
@@ -110,7 +110,7 @@ class InvDetailView extends StatelessWidget {
               ),
             ),
         ],
-        if (d.lots.isNotEmpty) ...[const InvSectionTitle('Lots and expiry'), for (final l in d.lots) _LotTile(lot: l, now: now, exponent: d.currencyExponent)],
+        if (d.lots.isNotEmpty) ...[const InvSectionTitle('Lots and expiry'), for (final l in d.lots) _LotTile(lot: l, now: now, cur: d.cur)],
         if (showMoves) ...[
           const InvSectionTitle('Recent movements'),
           if (d.recentMovements.isEmpty && d.ledgerStartsAt == null)
@@ -119,7 +119,7 @@ class InvDetailView extends StatelessWidget {
               key: const Key('invNoMovements'),
               style: t.body.copyWith(color: p.textSecondary),
             ),
-          for (final m in d.recentMovements) InvMovementTile(m, exponent: d.currencyExponent, showProduct: false),
+          for (final m in d.recentMovements) InvMovementTile(m, cur: d.cur, showProduct: false),
           if (d.ledgerStartsAt != null)
             Padding(
               padding: const EdgeInsets.only(top: Space.s1),
@@ -163,10 +163,10 @@ class InvDetailView extends StatelessWidget {
 }
 
 class _LotTile extends StatelessWidget {
-  const _LotTile({required this.lot, required this.now, required this.exponent});
+  const _LotTile({required this.lot, required this.now, required this.cur});
   final InvLot lot;
   final DateTime now;
-  final int exponent;
+  final InvCur? cur;
 
   @override
   Widget build(BuildContext context) {
@@ -195,7 +195,7 @@ class _LotTile extends StatelessWidget {
                 children: [
                   Text('Lot ${lot.lotNumber}', style: t.subtitle.copyWith(color: p.textPrimary)),
                   Text(
-                    [if (lot.expiryDate != null) 'Expires ${invDate(lot.expiryDate)}' else 'No expiry date', if (lot.costMinor != null) 'Cost ${invMoney(lot.costMinor!, exponent)}'].join(' · '),
+                    [if (lot.expiryDate != null) 'Expires ${invDate(lot.expiryDate)}' else 'No expiry date', if (lot.costMinor != null && cur != null) 'Cost ${invMoney(lot.costMinor!, cur!)}'].join(' · '),
                     style: t.caption.copyWith(color: p.textMuted),
                   ),
                   if (badge != null)

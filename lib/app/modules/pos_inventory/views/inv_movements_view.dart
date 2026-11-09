@@ -61,7 +61,7 @@ class InvMovementsView extends StatelessWidget {
                         ),
                       );
                     }
-                    return InvMovementTile(c.items[i]);
+                    return InvMovementTile(c.items[i], cur: c.cur.value);
                   },
                 ),
               );

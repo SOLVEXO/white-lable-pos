@@ -17,6 +17,8 @@ class InvStockListController extends GetxController {
   final Duration debounce;
 
   final RxList<InvRow> items = <InvRow>[].obs;
+  /// the currency of the last page, as the server stated it (null = it did not: money is then not shown)
+  final Rxn<InvCur> cur = Rxn<InvCur>();
   final RxBool loading = true.obs;
   final RxBool loadingMore = false.obs;
   final RxnString error = RxnString();
@@ -70,6 +72,7 @@ class InvStockListController extends GetxController {
       error.value = invErrorMessage(_repo.lastErrorCode, fallback: 'Could not load the stock. Check the connection and try again.');
     } else {
       items.assignAll(r.items);
+      cur.value = r.cur;
       total.value = r.total;
       hasMore.value = r.hasMore;
     }
@@ -85,6 +88,7 @@ class InvStockListController extends GetxController {
       if (ticket != _ticket || r == null) return;
       _page = r.page;
       items.addAll(r.items);
+      cur.value = r.cur ?? cur.value;
       total.value = r.total;
       hasMore.value = r.hasMore;
     } finally {

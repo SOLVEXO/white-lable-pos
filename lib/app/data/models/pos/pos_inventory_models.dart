@@ -2,12 +2,33 @@ import 'package:solvexo_pos/utils/money.dart';
 
 /// G3.1 inventory read models. The server sends money as integer MINOR units (`...Minor`) plus `currencyExponent`; [invMoney] turns
 /// that into text through the shared [Money] helper (the only place a minor amount is converted).
-String invMoney(int minor, int exponent) {
-  var p = 1;
-  for (var i = 0; i < exponent; i++) {
-    p *= 10;
+String invMoney(int minor, InvCur cur) => cur.format(minor);
+
+/// The currency of a server response: its code AND exponent, exactly as the server states them. There is NO fallback to the app's configured
+/// currency — when a response does not state both, money in it is not shown at all (the server contract guarantees both on every money response).
+class InvCur {
+  const InvCur(this.code, this.exponent);
+  final String code;
+  final int exponent;
+
+  String format(int minor) {
+    var p = 1;
+    for (var i = 0; i < exponent; i++) {
+      p *= 10;
+    }
+    return Money.format(minor / p, currency: code, exponent: exponent);
   }
-  return Money.format(minor / p, exponent: exponent);
+
+  static InvCur? fromJson(Map<String, dynamic> j) {
+    final c = j['currency'];
+    final e = j['currencyExponent'];
+    return c is String && c.length == 3 && e is num ? InvCur(c.toUpperCase(), e.toInt()) : null;
+  }
+
+  @override
+  bool operator ==(Object other) => other is InvCur && other.code == code && other.exponent == exponent;
+  @override
+  int get hashCode => Object.hash(code, exponent);
 }
 
 int? _int(dynamic v) => v is num ? v.toInt() : null;
@@ -39,7 +60,7 @@ class InvOverview {
     this.openCountStartedAt,
     this.stockValueMinor,
     this.variantsWithoutCost,
-    this.currencyExponent = 2,
+    this.cur,
   });
 
   final String role;
@@ -47,7 +68,7 @@ class InvOverview {
   final String? openCountId;
   final DateTime? openCountStartedAt;
   final int? stockValueMinor, variantsWithoutCost;
-  final int currencyExponent;
+  final InvCur? cur;
 
   bool get canManage => InvRole.canManage(role);
   bool get hasOpenCount => openCountId != null;
@@ -66,7 +87,7 @@ class InvOverview {
       openCountStartedAt: DateTime.tryParse('${open?['startedAt'] ?? ''}')?.toLocal(),
       stockValueMinor: _int(j['stockValueMinor']),
       variantsWithoutCost: _int(j['variantsWithoutCost']),
-      currencyExponent: _int(j['currencyExponent']) ?? 2,
+      cur: InvCur.fromJson(j),
     );
   }
 }
@@ -90,6 +111,7 @@ class InvRow {
     this.low = false,
     this.costMinor,
     this.valueMinor,
+    this.cur,
   });
 
   final String variantId, productId, productName, sku;
@@ -98,6 +120,8 @@ class InvRow {
   final int stock, committed, damaged;
   final bool unlimited, trackLots, out, low;
   final int? reorderPoint, costMinor, valueMinor;
+  /// set when the row itself states its currency (the barcode lookup); list rows use the page's
+  final InvCur? cur;
 
   /// "Large · Red" — empty when the item has no options.
   String get optionsLabel => options.join(' · ');
@@ -123,11 +147,13 @@ class InvRow {
     low: j['low'] == true,
     costMinor: _int(j['costMinor']),
     valueMinor: _int(j['valueMinor']),
+    cur: InvCur.fromJson(j),
   );
 }
 
 class InvPage<T> {
-  const InvPage({required this.items, required this.total, required this.page, required this.hasMore});
+  const InvPage({required this.items, required this.total, required this.page, required this.hasMore, this.cur});
+  final InvCur? cur;
   final List<T> items;
   final int total, page;
   final bool hasMore;
@@ -234,13 +260,13 @@ String invReasonLabel(String? reason) => switch (reason) {
 };
 
 class InvDetail {
-  const InvDetail({required this.row, this.locations = const [], this.lots = const [], this.recentMovements = const [], this.ledgerStartsAt, this.currencyExponent = 2});
+  const InvDetail({required this.row, this.locations = const [], this.lots = const [], this.recentMovements = const [], this.ledgerStartsAt, this.cur});
   final InvRow row;
   final List<InvLocationStock> locations;
   final List<InvLot> lots;
   final List<InvMovement> recentMovements;
   final DateTime? ledgerStartsAt;
-  final int currencyExponent;
+  final InvCur? cur;
 
   factory InvDetail.fromJson(Map<String, dynamic> j) => InvDetail(
     row: InvRow.fromJson(j),
@@ -248,7 +274,7 @@ class InvDetail {
     lots: [for (final l in _maps(j['lots'])) InvLot.fromJson(l)],
     recentMovements: [for (final m in _maps(j['recentMovements'])) InvMovement.fromJson(m)],
     ledgerStartsAt: DateTime.tryParse('${j['ledgerStartsAt'] ?? ''}')?.toLocal(),
-    currencyExponent: _int(j['currencyExponent']) ?? 2,
+    cur: InvCur.fromJson(j),
   );
 }
 
@@ -309,7 +335,8 @@ class InvLimit {
   final int value, defaultValue;
   bool get isMoney => kind == 'minor';
 
-  String format(int v, int exponent) => isMoney ? invMoney(v, exponent) : '$v';
+  /// money limits need the response's currency; without it a money limit is not shown (never formatted with a guessed one)
+  String? format(int v, InvCur? cur) => isMoney ? (cur == null ? null : cur.format(v)) : '$v';
 
   factory InvLimit.fromJson(Map<String, dynamic> j) =>
       InvLimit(key: '${j['key'] ?? ''}', label: j['label'] as String? ?? '${j['key']}', kind: j['kind'] as String? ?? 'qty', value: _int(j['value']) ?? 0, defaultValue: _int(j['defaultValue']) ?? 0);
