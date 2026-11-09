@@ -149,6 +149,21 @@ void main() {
       expect(sync.scheduled, 1);
     });
 
+    test('G3.4: an OFFLINE sale with a customer attached is queued WITH the customer id (the server earns the loyalty points when it syncs, once); redeemed points / store credit are never queued', () async {
+      final sync = FakeSync();
+      Get.put<PendingSaleSyncService>(sync);
+      scriptPosts([_fail(DioExceptionType.receiveTimeout), _fail(DioExceptionType.receiveTimeout), _fail(DioExceptionType.receiveTimeout)]);
+      final queued = await repo.createSale(storeId: 'st', sessionId: 'se', registerId: 'r', employeeId: 'e', items: const [{'productId': 'p', 'variantId': 'v', 'qty': 1}], paymentMethod: 'cash', status: 'completed', customerId: 'cust-1');
+      expect(queued.queued, isTrue);
+      expect((sync.enqueued.single.value)['customerId'], 'cust-1');
+      expect((sync.enqueued.single.value).containsKey('redeemPoints'), isFalse);
+      final points = await repo.createSale(storeId: 'st', sessionId: 'se', registerId: 'r', employeeId: 'e', items: const [{'productId': 'p', 'variantId': 'v', 'qty': 1}], paymentMethod: 'cash', status: 'completed', customerId: 'cust-1', redeemPoints: 5);
+      expect(points.queued, isFalse, reason: 'points need a live balance check');
+      final credit = await repo.createSale(storeId: 'st', sessionId: 'se', registerId: 'r', employeeId: 'e', items: const [{'productId': 'p', 'variantId': 'v', 'qty': 1}], paymentMethod: 'split', status: 'completed', customerId: 'cust-1', payments: const [{'method': 'store_credit', 'amount': 5.0}, {'method': 'cash', 'amount': 5.0}]);
+      expect(credit.queued, isFalse, reason: 'store credit needs a live balance check');
+      expect(sync.enqueued, hasLength(1));
+    });
+
     test('a sale with a Raast QR payment is NEVER queued for later: an ambiguous failure is just a failure (retry reuses the key and the paid payment)', () async {
       final sync = FakeSync();
       Get.put<PendingSaleSyncService>(sync);
