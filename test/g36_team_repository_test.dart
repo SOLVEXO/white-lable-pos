@@ -129,7 +129,7 @@ void main() {
       expect(sent[1].url, '$base/roster/st1');
       expect(sent[1].query, {'from': '2026-11-08T19:00:00.000Z', 'to': '2026-11-09T19:00:00.000Z'});
       expect(sent[2].url, '$base/report/st1');
-      expect(sent[2].query, {'from': '2026-11-08T19:00:00.000Z', 'to': '2026-11-09T19:00:00.000Z', 'employeeId': 'e2', 'tzOffsetMinutes': -300});
+      expect(sent[2].query, {'from': '2026-11-08T19:00:00.000Z', 'to': '2026-11-09T19:00:00.000Z', 'employeeId': 'e2'}, reason: 'G4.0: the server counts store days; the device offset is no longer sent');
       expect(sent[3].url, '$base/anomalies/st1');
     });
 

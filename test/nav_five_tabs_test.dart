@@ -226,7 +226,7 @@ void main() {
   group('More tab', () {
     testWidgets('cashier: shift, held sales, sync, customers, settings — nothing managerial, no placeholders', (t) async {
       await mountHub(t, const PosMoreHubView(access: PosAccess.cashier, unresolvedOverride: 0));
-      for (final s in ['Shift summary', 'Held sales', 'Sync & needs attention', 'Customers', 'Clock in', 'My attendance', 'Roster', 'My hours report', 'Cash & expenses', 'Settings']) {
+      for (final s in ['Shift summary', 'Held sales', 'Sync & needs attention', 'Customers', 'Clock in', 'My attendance', 'Roster', 'My hours report', 'My sales', 'Cash & expenses', 'Settings']) {
         await t.scrollUntilVisible(find.text(s), 200, scrollable: find.byType(Scrollable).first); // the list is lazy
         expect(find.text(s), findsOneWidget, reason: s);
       }
@@ -237,7 +237,7 @@ void main() {
     for (final a in [PosAccess.manager, PosAccess.owner]) {
       testWidgets('${a.name}: business, team & security rows (locked where a gate applies) + coming-soon placeholders', (t) async {
         await mountHub(t, PosMoreHubView(access: a, unresolvedOverride: 0));
-        for (final s in ['Customers', 'Clock in', 'Attendance', 'Roster', 'Attendance report', 'Cash & expenses', 'Past buyers', 'Daily report', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders']) {
+        for (final s in ['Customers', 'Clock in', 'Attendance', 'Roster', 'Attendance report', 'Business pulse', 'Reports', 'Cash & expenses', 'Past buyers', 'Daily report', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders']) {
           await t.scrollUntilVisible(find.text(s), 200, scrollable: find.byType(Scrollable).first); // the list is lazy
           expect(find.text(s), findsOneWidget, reason: '${a.name} $s');
         }

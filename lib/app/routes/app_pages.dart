@@ -1,3 +1,8 @@
+import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart';
+import 'package:solvexo_pos/app/modules/pos_reports/views/pulse_view.dart';
+import 'package:solvexo_pos/app/modules/pos_reports/views/report_view.dart';
+import 'package:solvexo_pos/app/modules/pos_reports/views/reports_hub_view.dart';
+import 'package:solvexo_pos/app/modules/pos_reports/views/time_zone_view.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/config/debug_launch_params.dart';
@@ -323,6 +328,17 @@ class AppPages {
     GetPage(name: Routes.posTeamRecord, page: () => AttendanceRecordView(record: (Get.arguments as Map)['record'] as AttendanceRecord), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posTeamRoster, page: () => RosterView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posTeamReport, page: () => TeamReportView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posPulse, page: () => const PulseView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posReports, page: () => const ReportsHubView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(
+      name: Routes.posReport,
+      page: () => ReportView(
+        kind: ReportKind.byPath(Get.arguments is Map ? (Get.arguments as Map)['kind'] as String? : null) ?? ReportKind.cashiers,
+        employeeId: Get.arguments is Map ? (Get.arguments as Map)['employeeId'] as String? : null,
+      ),
+      middlewares: [PosAccessMiddleware()],
+    ),
+    GetPage(name: Routes.posStoreTimeZone, page: () => const TimeZoneView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanInactive, page: () => const PosPlanInactiveView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanStatus, page: () => const PosPlanStatusView(), middlewares: [PosAccessMiddleware(), OwnerAccessMiddleware()]),
   ];

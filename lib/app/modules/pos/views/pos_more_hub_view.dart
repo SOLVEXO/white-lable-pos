@@ -55,6 +55,11 @@ class PosMoreHubView extends StatelessWidget {
           HubRow(icon: Icons.insights_outlined, title: a.canManage ? 'Attendance report' : 'My hours report', subtitle: 'Hours, late arrivals, missing clock-outs', onTap: () => Get.toNamed(Routes.posTeamReport)),
         ]),
         // G3.5: cash in / out, expenses and the daybook (a cashier gets their own expenses and shifts only: the server filters)
+        HubSection('Insights', [
+          if (a.canManage) HubRow(icon: Icons.monitor_heart_outlined, title: 'Business pulse', subtitle: 'Today so far vs the same day last week', onTap: () => Get.toNamed(Routes.posPulse)),
+          if (a.canManage) HubRow(icon: Icons.insights_rounded, title: 'Reports', subtitle: 'Sales, profit, products, tax, payments, cashiers, hours', onTap: () => Get.toNamed(Routes.posReports)),
+          if (!a.canManage) HubRow(icon: Icons.insights_rounded, title: 'My sales', subtitle: 'Your sales, returns and hours', onTap: () => Get.toNamed(Routes.posReport, arguments: {'kind': 'cashiers'})),
+        ]),
         HubSection('Cash', [
           HubRow(icon: Icons.account_balance_wallet_outlined, title: 'Cash & expenses', subtitle: a.canManage ? 'Cash in / out, expenses and the daybook' : 'Cash in / out, your expenses and your shifts', onTap: () => Get.toNamed(Routes.posCash)),
         ]),

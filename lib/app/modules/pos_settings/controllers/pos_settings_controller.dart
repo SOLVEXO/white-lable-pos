@@ -21,6 +21,7 @@ import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_printer_picker_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_printer_settings_sheet.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
+import 'package:solvexo_pos/app/modules/pos_reports/controllers/reports_common.dart' show StoreDay;
 import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_icons.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
@@ -291,6 +292,12 @@ class PosSettingsController extends GetxController {
     PosSettingsSection(
       header: 'PREFERENCES',
       tiles: [
+        PosSettingsTile(
+          emoji: AppIcons.settingIcon,
+          title: 'Store time zone',
+          trailing: StoreDay.cached?.timeZone,
+          onTap: () => Get.toNamed(Routes.posStoreTimeZone),
+        ),
         PosSettingsTile(
           emoji: AppIcons.notificationIcon,
           title: 'Sound Effects',

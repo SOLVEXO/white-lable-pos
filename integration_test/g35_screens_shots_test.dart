@@ -288,11 +288,7 @@ void main() {
       DaybookController book(_Repo repo) => Get.put(DaybookController(repository: repo, storeId: 'st1', clock: () => DateTime(2026, 11, 9, 15), storeName: () async => 'Dev Store'));
       var repo = fresh();
       when(
-        () => repo.getDaybook(
-          'st1',
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay('st1', date: any(named: 'date')),
       ).thenAnswer((_) async => daybook());
       await show(t, DaybookView(controller: book(repo)));
       await shot(t, 'g35_12_daybook_reconciled', tn);
@@ -301,11 +297,7 @@ void main() {
 
       repo = fresh();
       when(
-        () => repo.getDaybook(
-          'st1',
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay('st1', date: any(named: 'date')),
       ).thenAnswer(
         (_) async => daybook(
           shifts: [
@@ -319,33 +311,21 @@ void main() {
 
       repo = fresh();
       when(
-        () => repo.getDaybook(
-          'st1',
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay('st1', date: any(named: 'date')),
       ).thenAnswer((_) async => daybook(own: true));
       await show(t, DaybookView(controller: book(repo)));
       await shot(t, 'g35_14_daybook_cashier_own_shifts', tn);
 
       repo = fresh();
       when(
-        () => repo.getDaybook(
-          'st1',
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay('st1', date: any(named: 'date')),
       ).thenAnswer((_) async => daybook(shifts: const []));
       await show(t, DaybookView(controller: book(repo)));
       await shot(t, 'g35_15_daybook_empty_day', tn);
 
       repo = fresh();
       when(
-        () => repo.getDaybook(
-          'st1',
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay('st1', date: any(named: 'date')),
       ).thenAnswer((_) async => null);
       await show(t, _Offline(child: DaybookView(controller: book(repo))));
       await shot(t, 'g35_16_daybook_offline_needs_internet', tn);

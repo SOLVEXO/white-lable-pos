@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/modules/pos_reports/controllers/pulse_controller.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:solvexo_pos/app/components/network_status_banner.dart';
@@ -99,6 +100,8 @@ Future<void> _bootstrap() async {
   // G3.6: the offline queue of clock events and the clock controller shared by the clock screen, the Home card and the hub badge.
   await Get.put(PendingTeamSyncService(hasCredentials: () => (AppPreferences.cachedToken ?? '').isNotEmpty), permanent: true).init();
   Get.put(TeamClockController(), permanent: true);
+  // G4.0: the business pulse shared by the pulse screen and the manager's Home card (it asks nothing until a manager opens Home).
+  Get.put(BusinessPulseController(), permanent: true);
   Get.put(PosEntitlementService(), permanent: true);
   Get.put(
     PosDeviceService(

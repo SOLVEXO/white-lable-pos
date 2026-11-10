@@ -91,6 +91,12 @@ abstract class Routes {
   static const posTeamRoster = '/pos/team/roster';
   static const posTeamReport = '/pos/team/report';
 
+  // G4.0 / G4.1 business pulse, reports, store time zone
+  static const posPulse = '/pos/pulse';
+  static const posReports = '/pos/reports';
+  static const posReport = '/pos/reports/view';
+  static const posStoreTimeZone = '/pos/store/time-zone';
+
   // 5D — shared-device security
   static const posDeviceSetup = '/pos/device-setup';
   static const posOwnerGate = '/pos/owner-gate';

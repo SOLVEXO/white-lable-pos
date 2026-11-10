@@ -713,28 +713,24 @@ void main() {
 
     test('asks for the local day [midnight, next midnight) and moves day by day, never past today', () async {
       when(
-        () => repo.getDaybook(
-          'st1',
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay('st1', date: any(named: 'date')),
       ).thenAnswer((_) async => daybook());
       final c = book()..onInit();
       await pause();
-      verify(() => repo.getDaybook('st1', from: DateTime(2026, 11, 9), to: DateTime(2026, 11, 10))).called(1);
+      verify(() => repo.getDaybookDay('st1', date: '2026-11-09')).called(1);
       expect(c.isToday, isTrue);
       c.nextDay();
       expect(c.day.value.day, 9, reason: 'cannot go past today');
       c.previousDay();
       await pause();
-      verify(() => repo.getDaybook('st1', from: DateTime(2026, 11, 8), to: DateTime(2026, 11, 9))).called(1);
+      verify(() => repo.getDaybookDay('st1', date: '2026-11-08')).called(1);
       c.onClose();
     });
 
     test('a slow answer for an older day never overwrites a newer day', () async {
       final slow = Future<Daybook?>.delayed(const Duration(milliseconds: 60), () => daybook(shifts: const []));
-      when(() => repo.getDaybook('st1', from: DateTime(2026, 11, 9), to: DateTime(2026, 11, 10))).thenAnswer((_) => slow);
-      when(() => repo.getDaybook('st1', from: DateTime(2026, 11, 8), to: DateTime(2026, 11, 9))).thenAnswer((_) async => daybook());
+      when(() => repo.getDaybookDay('st1', date: '2026-11-09')).thenAnswer((_) => slow);
+      when(() => repo.getDaybookDay('st1', date: '2026-11-08')).thenAnswer((_) async => daybook());
       final c = book()..onInit();
       await pause(5);
       c.previousDay();
@@ -745,11 +741,7 @@ void main() {
 
     test('error in words, and offline makes no request', () async {
       when(
-        () => repo.getDaybook(
-          'st1',
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay('st1', date: any(named: 'date')),
       ).thenAnswer((_) async => null);
       when(() => repo.lastErrorCode).thenReturn('RANGE_TOO_LONG');
       final c = book()..onInit();
@@ -762,22 +754,14 @@ void main() {
       final d = book()..onInit();
       await pause();
       verifyNever(
-        () => repo.getDaybook(
-          any(),
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay(any(), date: any(named: 'date')),
       );
       d.onClose();
     });
 
     test('print: no printer says so; a printer gets the builder\'s lines for ITS column count; share builds a PDF named by the day', () async {
       when(
-        () => repo.getDaybook(
-          'st1',
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay('st1', date: any(named: 'date')),
       ).thenAnswer((_) async => daybook());
       final printer = _Printer();
       when(() => printer.hasSavedPrinter).thenReturn(false);

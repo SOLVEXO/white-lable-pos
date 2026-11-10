@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart' show dayKey;
 import 'package:share_plus/share_plus.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_cash_models.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
@@ -93,8 +94,8 @@ class DaybookController extends GetxController {
       return;
     }
     loading.value = true;
-    final (from, to) = range;
-    final d = await _repo.getDaybook(await cashStoreId(_storeIdOverride), from: from, to: to);
+    // G4.0: the server takes the STORE day (its own time zone decides where the day starts and ends)
+    final d = await _repo.getDaybookDay(await cashStoreId(_storeIdOverride), date: dayKey(day.value));
     if (ticket != _ticket) return; // a newer day was asked for meanwhile
     if (d == null) {
       daybook.value = null;

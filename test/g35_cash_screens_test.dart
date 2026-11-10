@@ -845,11 +845,7 @@ void main() {
     DaybookController put({Future<void> Function(ShareParams)? share}) =>
         Get.put(DaybookController(repository: repo, storeId: 'st1', clock: () => DateTime(2026, 11, 9, 15), share: share, storeName: () async => 'Dev Store'));
     void stubBook(Daybook d) => when(
-      () => repo.getDaybook(
-        'st1',
-        from: any(named: 'from'),
-        to: any(named: 'to'),
-      ),
+      () => repo.getDaybookDay('st1', date: any(named: 'date')),
     ).thenAnswer((_) async => d);
 
     for (final env in _Env.values) {
@@ -951,7 +947,7 @@ void main() {
       await pump(t, DaybookView(controller: put()));
       expect(t.widget<IconButton>(find.byKey(const Key('daybookNext'))).onPressed, isNull);
       await tapKey(t, 'daybookPrev');
-      verify(() => repo.getDaybook('st1', from: DateTime(2026, 11, 8), to: DateTime(2026, 11, 9))).called(1);
+      verify(() => repo.getDaybookDay('st1', date: '2026-11-08')).called(1);
       expect(find.text('Sun 8 Nov 2026'), findsOneWidget);
       expect(t.widget<IconButton>(find.byKey(const Key('daybookNext'))).onPressed, isNotNull);
     });
@@ -986,11 +982,7 @@ void main() {
     testWidgets('loading / error / offline', (t) async {
       final comp = Completer<Daybook?>();
       when(
-        () => repo.getDaybook(
-          'st1',
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay('st1', date: any(named: 'date')),
       ).thenAnswer((_) => comp.future);
       await pump(t, DaybookView(controller: put()));
       expect(find.byKey(const Key('cashLoading')), findsOneWidget);
@@ -1006,11 +998,7 @@ void main() {
       await pump(t, DaybookView(controller: put()));
       expect(find.byKey(const Key('cashNeedsInternet')), findsOneWidget);
       verifyNever(
-        () => repo.getDaybook(
-          any(),
-          from: any(named: 'from'),
-          to: any(named: 'to'),
-        ),
+        () => repo.getDaybookDay(any(), date: any(named: 'date')),
       );
     });
   });

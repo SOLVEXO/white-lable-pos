@@ -8,6 +8,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_cash_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_team_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -2444,8 +2445,36 @@ class PosRepository {
     'teamReport',
     _team(storeId, 'report'),
     TeamReport.fromJson,
-    query: {'from': from.toUtc().toIso8601String(), 'to': to.toUtc().toIso8601String(), if (employeeId != null) 'employeeId': employeeId, 'tzOffsetMinutes': tzOffsetMinutes},
+    // G4.0: the server counts days in the STORE's time zone now; [tzOffsetMinutes] is accepted for compatibility and no longer sent
+    query: {'from': from.toUtc().toIso8601String(), 'to': to.toUtc().toIso8601String(), if (employeeId != null) 'employeeId': employeeId},
   );
+
+  // ── G4.0 / G4.1 · business pulse, reports, store time zone ──────────────────────────────────────────────────────────────────────────────────
+  String _reports(String kind, String storeId) => '${ApiConstants.apiPrefix}/pos/reports/$kind/$storeId';
+
+  /// Today so far vs the same weekday last week (managers / owner; a cashier is refused). [date] is a STORE day (`YYYY-MM-DD`), today when null.
+  Future<BusinessPulse?> getBusinessPulse(String storeId, {String? date}) => _invGet('reportPulse', _reports('pulse', storeId), BusinessPulse.fromJson, query: {if (date != null) 'date': date});
+
+  /// One of the eight reports for store days [ReportQuery.from] … [ReportQuery.to] (inclusive). Products also take a [sort] (`net` | `qty` | `margin`) and a [limit].
+  Future<BizReport?> getBizReport(String storeId, ReportKind kind, ReportQuery q, {String? sort, int? limit}) => _invGet(
+    'report_${kind.path}',
+    _reports(kind.path, storeId),
+    (d) => parseBizReport(kind, d),
+    query: {...q.toQuery(), if (sort != null) 'sort': sort, if (limit != null) 'limit': limit},
+  );
+
+  /// The store's time zone and today's store date. Anyone signed in may read it.
+  Future<StoreTimeZone?> getStoreTimeZone(String storeId) => _invGet('storeTimeZone', '${ApiConstants.apiPrefix}/pos/store/time-zone/$storeId', StoreTimeZone.fromJson);
+
+  /// Owner only (the server refuses everyone else with POS_ACTION_FORBIDDEN; a junk zone is INVALID_TIME_ZONE).
+  Future<({bool success, String? message, String? code, StoreTimeZone? zone})> setStoreTimeZone(String storeId, String timeZone) async {
+    final r = await _teamWrite('setStoreTimeZone', 'PATCH', '${ApiConstants.apiPrefix}/pos/store/time-zone/$storeId', {'timeZone': timeZone}, idempotencyKey: 'tz-${DateTime.now().microsecondsSinceEpoch}');
+    return (success: r.success, message: r.message, code: r.code, zone: r.data == null ? null : StoreTimeZone.fromJson(r.data!));
+  }
+
+  /// G4.0: the daybook of one STORE day (`YYYY-MM-DD` in the store's time zone).
+  Future<Daybook?> getDaybookDay(String storeId, {required String date, String? registerId}) =>
+      _invGet('cashDaybookDay', _cash(storeId, 'daybook'), Daybook.fromJson, query: {'date': date, if (registerId != null) 'registerId': registerId});
 }
 
 /// Whether an HTTP failure leaves the outcome UNKNOWN (so the request may be retried / queued with its
