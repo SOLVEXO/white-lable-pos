@@ -140,6 +140,20 @@ Order matters; the application code ships first with `STORE_CREDIT_LEDGER` unset
 
 4. Rollback: set `migrating`, `down` (refuses if the new ledger has activity of its own — decide consciously, `--force-lose-activity` does not delete those rows but the legacy ledger will not know about them), set `legacy`.
 
+## 8. Supply-side cost twins (G3.0 backfill) — prepared, **not run**
+Fills the integer `…Minor` twins of purchase orders, supplier returns, stock lots and variant costs written before G3. **Not required to use G3.4** (new rows are written with their twins; reads fall back to the decimals converted with the store's exponent), but **required before the G4 profit report is trusted** for old stock. Safe under live traffic (it only fills missing twins), idempotent, resumable, reversible.
+1. Backup/snapshot (note its id). On the **restored copy**: `MONGO_URI=… npx ts-node -r tsconfig-paths/register src/scripts/pos-g3-cost-minor-backfill.ts up --dry-run --production --i-have-a-backup`, read the counts (documents per collection, anything off the currency grid is listed), then `up`, then `up` again (must write 0), then `down --dry-run` / `down` and compare the database hash.
+2. Production in a quiet period with the same commands. **Checks:** the second run writes 0; `money_minor_mismatch` / `cost_minor_mismatch` counters in the API log stay 0 for a day.
+3. **Rollback:** `… pos-g3-cost-minor-backfill.ts down --production --i-have-a-backup` (removes only what `up` wrote).
+
+## 9. G3.4 – G3.6 deploy notes (no data migration)
+Order: **API first, then the apps.** Everything is additive; old app builds keep working (they simply have no Supply / Cash / Team screens).
+1. **New collections and indexes** (`purchasereceipts`, `supplierledgerentries`, `posexpenses`, `posexpenseevents`, `posattendanceevents`, `posattendancestates`, `posrostershifts`) are created by Mongoose on the first start; the unique indexes build on empty collections — nothing to run. If the DB role is insert-only for ledgers, grant it on the new append-only collections as for the G1a ones (receipts, supplier ledger, expenses, expense events, attendance events).
+2. **Expense receipt photos need the private storage that KYB documents already use** (Cloudinary private uploads) to be configured in the target environment; optional `EXPENSE_RECEIPT_MAX_BYTES` (default 5 MB). Without storage the receipt upload fails with a clear error and everything else works.
+3. **New approval limit** `purchaseOrderMinor` (default 1,000.00 in the store currency) and new matrix actions (`supply.*`, `team.attendance.view`, `team.roster.view`; `daybook.view` is now open to cashiers for their own shifts). Stores keep their existing overrides; the defaults apply to the new keys. Tell owners (Settings → Approval limits).
+4. **Smoke after deploy:** create a supplier and a draft PO; clock in / out as a test employee; record a 1.00 cash-in on an open shift and open the daybook for today — the shift must show "reconciled".
+5. **Rollback:** redeploy the previous API; the new collections stay (harmless, unread). Nothing to restore.
+
 ## Who does what
 | Step | You | Me |
 |---|---|---|
@@ -150,3 +164,6 @@ Order matters; the application code ships first with `STORE_CREDIT_LEDGER` unset
 | 4 | backup, deploy, run backfill | on call to read output |
 | 5 | run the report daily | analyse, request step f approval |
 | 6 | backup, dry run + run on the copy, then production (only if candidates) | review dry-run output, confirm checks |
+| 7 | store-credit switch (see 7, 7a) | on call |
+| 8 | cost-twin backfill on the copy, then production | review counts |
+| 9 | deploy API, then apps; smoke | review |

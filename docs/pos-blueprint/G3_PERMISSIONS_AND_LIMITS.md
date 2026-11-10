@@ -43,8 +43,10 @@ Making the matrix editable per store later (G4) means changing where the table i
 | `cash.out` | Cash out / safe drop | ✔ | ✔ | ✔ | cashOutMinor > limit → manager |
 | `expenses.record` | Record an expense | ✔ | ✔ | ✔ | expenseMinor > limit → manager |
 | `expenses.approve` | Approve / reject an expense | — | ✔ | ✔ |  |
-| `daybook.view` | See the daybook | — | ✔ | ✔ |  |
+| `daybook.view` | See the daybook (a cashier only the shifts they worked) | ✔ | ✔ | ✔ |  |
 | `team.attendance.own` | Clock in / out | ✔ | ✔ | ✔ |  |
+| `team.attendance.view` | See everyone's attendance, anomalies and reports | — | ✔ | ✔ |  |
+| `team.roster.view` | See the shift roster | ✔ | ✔ | ✔ |  |
 | `team.attendance.edit` | Edit someone's attendance | — | ✔ | ✔ |  |
 | `team.roster.edit` | Edit the shift roster | — | ✔ | ✔ |  |
 | `settings.approvalLimits.view` | See the approval limits | — | ✔ | ✔ |  |

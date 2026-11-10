@@ -8,6 +8,9 @@ import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/config/app_env.dart';
 import 'package:solvexo_pos/config/debug_launch_params.dart';
 import 'package:solvexo_pos/config/telemetry.dart';
+import 'package:solvexo_pos/app/data/services/pending_cash_sync_service.dart';
+import 'package:solvexo_pos/app/data/services/pending_team_sync_service.dart';
+import 'package:solvexo_pos/app/modules/pos_team/controllers/clock_controller.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
 import 'package:solvexo_pos/app/modules/pos_device/views/pos_lock_overlay.dart';
@@ -91,6 +94,11 @@ Future<void> _bootstrap() async {
   // Must come after NetworkStatusService — it looks that up in its own
   // init() to listen for reconnects and drain the offline sale queue.
   await Get.put(PendingSaleSyncService(hasCredentials: () => (AppPreferences.cachedToken ?? '').isNotEmpty), permanent: true).init();
+  // G3.5: the separate offline queue of cash in / out, drawer expenses and receipt photos (the sale queue above is untouched).
+  await Get.put(PendingCashSyncService(hasCredentials: () => (AppPreferences.cachedToken ?? '').isNotEmpty), permanent: true).init();
+  // G3.6: the offline queue of clock events and the clock controller shared by the clock screen, the Home card and the hub badge.
+  await Get.put(PendingTeamSyncService(hasCredentials: () => (AppPreferences.cachedToken ?? '').isNotEmpty), permanent: true).init();
+  Get.put(TeamClockController(), permanent: true);
   Get.put(PosEntitlementService(), permanent: true);
   Get.put(
     PosDeviceService(

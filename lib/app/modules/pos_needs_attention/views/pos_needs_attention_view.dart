@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
+import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
+import 'package:solvexo_pos/app/data/local/pending_cash_local_store.dart';
+import 'package:solvexo_pos/app/data/local/pending_team_local_store.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_team_models.dart';
+import 'package:solvexo_pos/app/modules/pos_team/views/correction_sheet.dart';
 import 'package:solvexo_pos/app/data/local/pending_sale_local_store.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_payment_intent_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
@@ -28,6 +33,9 @@ class PosNeedsAttentionView extends StatelessWidget {
         final unsynced = c.items.where((r) => r.isUnresolved || r.isDiscarding).toList();
         final flagged = c.flaggedSales;
         final digital = c.digital.toList();
+        final cash = c.cashItems.where((r) => r.isPending || r.isFailed).toList();
+        final team = c.teamItems.where((r) => r.isPending || r.isFailed).toList();
+        final anomalies = c.anomalies.toList();
         return RefreshIndicator(
           onRefresh: () async {
             await c.syncNow();
@@ -39,7 +47,7 @@ class PosNeedsAttentionView extends StatelessWidget {
             children: [
               _StatusHeader(c: c),
               const SizedBox(height: 12),
-              if (unsynced.isEmpty && flagged.isEmpty && digital.isEmpty)
+              if (unsynced.isEmpty && flagged.isEmpty && digital.isEmpty && cash.isEmpty && team.isEmpty && anomalies.isEmpty)
                 const Padding(
                   padding: EdgeInsets.only(top: 60),
                   child: Center(child: CustomText(text: 'Everything is synced. Nothing needs attention.', fontSize: AppFontSize.small2, color: AppColors.iosGrey)),
@@ -54,6 +62,24 @@ class PosNeedsAttentionView extends StatelessWidget {
                 const CustomText(text: 'Not yet on the server', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2),
                 const SizedBox(height: 8),
                 for (final r in unsynced) _UnsyncedTile(record: r, c: c),
+              ],
+              if (cash.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const CustomText(text: 'Cash & expenses not yet on the server', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2),
+                const SizedBox(height: 8),
+                for (final r in cash) _CashTile(record: r, c: c),
+              ],
+              if (anomalies.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const CustomText(text: 'Attendance problems', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2),
+                const SizedBox(height: 8),
+                for (final a in anomalies) _AnomalyTile(anomaly: a, c: c),
+              ],
+              if (team.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const CustomText(text: 'Clock events not yet on the server', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2),
+                const SizedBox(height: 8),
+                for (final r in team) _ClockQueueTile(record: r, c: c),
               ],
               if (flagged.isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -144,6 +170,136 @@ class _UnsyncedTile extends StatelessWidget {
             Obx(() => OutlinedButton(
                   onPressed: c.isManager.value ? () => c.discard(r) : null,
                   child: Text(c.isManager.value ? 'Discard…' : 'Discard (manager)'),
+                )),
+          ]),
+        ],
+      ]),
+    );
+  }
+}
+
+/// A cash in / out, drawer expense or receipt photo made offline: waiting to sync, or refused by the server (shift closed meanwhile, over the limit with
+/// nobody to approve …) with the reason, and Retry / Dismiss. A refused entry is never retried by itself.
+class _CashTile extends StatelessWidget {
+  final PendingCashRecord record;
+  final PosNeedsAttentionController c;
+  const _CashTile({required this.record, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = record;
+    final color = r.isFailed ? AppColors.red : AppColors.amberDark;
+    final status = r.isFailed ? 'Refused by the server — needs a decision' : (r.attempts > 0 ? 'Waiting to retry (attempt ${r.attempts})' : 'Waiting to sync');
+    final amount = !r.isReceipt && r.currency != null && r.exponent != null ? Money.format(Money.fromMinor(r.amountMinor, r.exponent!), currency: r.currency!, exponent: r.exponent!) : null;
+    return Container(
+      key: Key('cashAttention_${r.id}'),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.4))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: CustomText(text: amount == null ? r.title : '${r.title} · $amount', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2)),
+          CustomText(text: PosNeedsAttentionView._fmt.format(r.madeAt.toLocal()), fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+        ]),
+        const SizedBox(height: 4),
+        CustomText(text: status, fontSize: AppFontSize.tiny, fontWeight: FontWeight.w600, color: color),
+        if (r.isFailed && (r.errorMessage ?? '').isNotEmpty) ...[
+          const SizedBox(height: 4),
+          CustomText(text: r.errorMessage!, fontSize: AppFontSize.tiny, color: AppColors.black2),
+        ],
+        if (r.isFailed) ...[
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            OutlinedButton(key: Key('cashRetry_${r.id}'), onPressed: () => c.retryCash(r), child: const Text('Retry')),
+            Obx(() => OutlinedButton(
+                  key: Key('cashDismiss_${r.id}'),
+                  onPressed: c.isManager.value ? () => c.dismissCash(r) : null,
+                  child: Text(c.isManager.value ? 'Dismiss…' : 'Dismiss (manager)'),
+                )),
+          ]),
+        ],
+      ]),
+    );
+  }
+}
+
+/// An attendance problem a manager should look at (a missing clock-out, a double clock-in, an overlap, a device clock that was ahead, a late sync ...):
+/// Fix opens the Correct sheet on the record; Acknowledge says "seen, no action needed".
+class _AnomalyTile extends StatelessWidget {
+  final AttendanceAnomaly anomaly;
+  final PosNeedsAttentionController c;
+  const _AnomalyTile({required this.anomaly, required this.c});
+
+  Future<void> _fix() async {
+    final rec = await c.findRecord(anomaly);
+    if (rec == null) {
+      CustomAppSnackbar.warning('That record could not be found. Open the attendance list to fix it.');
+      return;
+    }
+    final fixed = await CorrectionSheet.open(rec);
+    if (fixed != null) await c.loadAnomalies();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = anomaly;
+    return Container(
+      key: Key('anomaly_${a.eventId ?? a.kind}'),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.amberDark.withOpacity(0.4))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: CustomText(text: '${a.title}${a.employeeName == null ? '' : ' · ${a.employeeName}'}', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2)),
+          if (a.at != null) CustomText(text: PosNeedsAttentionView._fmt.format(a.at!.toLocal()), fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+        ]),
+        const SizedBox(height: 4),
+        CustomText(text: a.detail, fontSize: AppFontSize.tiny, color: AppColors.black2),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          if (a.fixable) OutlinedButton(key: Key('anomalyFix_${a.eventId ?? a.kind}'), onPressed: _fix, child: const Text('Fix')),
+          if (a.ackable) OutlinedButton(key: Key('anomalyAck_${a.eventId ?? a.kind}'), onPressed: () => c.ackAnomaly(a), child: const Text('Acknowledge')),
+        ]),
+      ]),
+    );
+  }
+}
+
+/// A clock event made offline: waiting to sync, or refused by the server with the reason, and Retry / Dismiss.
+class _ClockQueueTile extends StatelessWidget {
+  final PendingClockRecord record;
+  final PosNeedsAttentionController c;
+  const _ClockQueueTile({required this.record, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = record;
+    final color = r.isFailed ? AppColors.red : AppColors.amberDark;
+    final status = r.isFailed ? 'Refused by the server — needs a decision' : (r.attempts > 0 ? 'Waiting to retry (attempt ${r.attempts})' : 'Waiting to sync');
+    return Container(
+      key: Key('clockAttention_${r.id}'),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.4))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: CustomText(text: '${ClockAction.pastLabel(r.action)} · ${teamTime(r.deviceAt)}', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2)),
+          CustomText(text: PosNeedsAttentionView._fmt.format(r.deviceAt.toLocal()), fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+        ]),
+        const SizedBox(height: 4),
+        CustomText(text: status, fontSize: AppFontSize.tiny, fontWeight: FontWeight.w600, color: color),
+        if (r.isFailed && (r.errorMessage ?? '').isNotEmpty) ...[
+          const SizedBox(height: 4),
+          CustomText(text: r.errorMessage!, fontSize: AppFontSize.tiny, color: AppColors.black2),
+        ],
+        if (r.isFailed) ...[
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            OutlinedButton(key: Key('clockRetry_${r.id}'), onPressed: () => c.retryClock(r), child: const Text('Retry')),
+            Obx(() => OutlinedButton(
+                  key: Key('clockDismiss_${r.id}'),
+                  onPressed: c.isManager.value ? () => c.dismissClock(r) : null,
+                  child: Text(c.isManager.value ? 'Dismiss…' : 'Dismiss (manager)'),
                 )),
           ]),
         ],

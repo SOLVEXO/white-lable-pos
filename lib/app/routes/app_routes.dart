@@ -78,6 +78,19 @@ abstract class Routes {
   static const posSupplyPayables = '/pos/supply/payables';
   static const posSupplyLedger = '/pos/supply/ledger';
 
+  // G3.5 cash & expenses: home (cash in / out, expenses, daybook), the expense list, one expense, the daybook
+  static const posCash = '/pos/cash';
+  static const posCashExpenses = '/pos/cash/expenses';
+  static const posCashExpense = '/pos/cash/expense';
+  static const posCashDaybook = '/pos/cash/daybook';
+
+  // G3.6 team: the clock, attendance history, one record, the roster, the attendance report
+  static const posTeamClock = '/pos/team/clock';
+  static const posTeamAttendance = '/pos/team/attendance';
+  static const posTeamRecord = '/pos/team/record';
+  static const posTeamRoster = '/pos/team/roster';
+  static const posTeamReport = '/pos/team/report';
+
   // 5D — shared-device security
   static const posDeviceSetup = '/pos/device-setup';
   static const posOwnerGate = '/pos/owner-gate';

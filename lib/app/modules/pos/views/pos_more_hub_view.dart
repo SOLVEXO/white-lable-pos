@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
+import 'package:solvexo_pos/app/modules/pos_team/controllers/clock_controller.dart';
 import 'package:solvexo_pos/app/modules/pos/utils/pos_access.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_hub_widgets.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
@@ -22,12 +23,15 @@ class PosMoreHubView extends StatelessWidget {
         // Obx only when there is something to observe (an Obx with no observable throws).
         if (unresolvedOverride == null && Get.isRegistered<PendingSaleSyncService>()) {
           final svc = Get.find<PendingSaleSyncService>();
-          return Obx(() => _content(a, svc.unresolvedCount.value));
+          return Obx(() => _content(a, svc.unresolvedCount.value + _attendanceProblems(a)));
         }
         return _content(a, unresolvedOverride ?? 0);
       },
     );
   }
+
+  /// G3.6: attendance problems a manager has to review count towards the Needs-attention badge (0 for a cashier, or when the app has no clock controller).
+  int _attendanceProblems(PosAccess a) => a.canManage && Get.isRegistered<TeamClockController>() ? Get.find<TeamClockController>().anomalyCount.value : 0;
 
   Widget _content(PosAccess a, int unresolved) {
     return HubScaffold(
@@ -43,6 +47,17 @@ class PosMoreHubView extends StatelessWidget {
         HubSection('People', [
           HubRow(icon: Icons.groups_2_outlined, title: 'Customers', subtitle: 'Search, add, store credit and points', onTap: () => Get.toNamed(Routes.posCustomerDirectory)),
         ]),
+        // G3.6: the clock, attendance, the roster and the attendance report (a cashier sees their own: the server filters)
+        HubSection('Team', [
+          HubRow(icon: Icons.schedule_rounded, title: 'Clock in', subtitle: 'Clock in and out, breaks, your next shifts', onTap: () => Get.toNamed(Routes.posTeamClock)),
+          HubRow(icon: Icons.fact_check_outlined, title: a.canManage ? 'Attendance' : 'My attendance', subtitle: a.canManage ? 'Everyone\'s hours, corrections and problems' : 'Your hours', onTap: () => Get.toNamed(Routes.posTeamAttendance)),
+          HubRow(icon: Icons.calendar_month_outlined, title: 'Roster', subtitle: 'Who works when', onTap: () => Get.toNamed(Routes.posTeamRoster)),
+          HubRow(icon: Icons.insights_outlined, title: a.canManage ? 'Attendance report' : 'My hours report', subtitle: 'Hours, late arrivals, missing clock-outs', onTap: () => Get.toNamed(Routes.posTeamReport)),
+        ]),
+        // G3.5: cash in / out, expenses and the daybook (a cashier gets their own expenses and shifts only: the server filters)
+        HubSection('Cash', [
+          HubRow(icon: Icons.account_balance_wallet_outlined, title: 'Cash & expenses', subtitle: a.canManage ? 'Cash in / out, expenses and the daybook' : 'Cash in / out, your expenses and your shifts', onTap: () => Get.toNamed(Routes.posCash)),
+        ]),
         if (!a.canManage)
           HubSection('Stock', [
             HubRow(icon: Icons.inventory_rounded, title: 'Stock', subtitle: 'Look up quantities and low stock', onTap: () => Get.toNamed(Routes.posStockOverview)),
@@ -56,11 +71,6 @@ class PosMoreHubView extends StatelessWidget {
             HubRow(icon: Icons.date_range_rounded, title: 'Date-range report', subtitle: 'Any period', onTap: () => Get.toNamed(Routes.posRangeReport), locked: true),
             HubRow(icon: Icons.inventory_2_outlined, title: 'Catalog', subtitle: 'Price, barcode, HS code, category, stock', onTap: () => Get.toNamed(Routes.posCatalog), locked: true),
             HubRow(icon: Icons.history_toggle_off_rounded, title: 'Shift history', subtitle: 'Past shifts and cash differences', onTap: () => Get.toNamed(Routes.posSessionHistory), locked: true),
-          ]),
-        if (a.canManage)
-          const HubSection('Coming soon', [
-            HubRow(icon: Icons.payments_outlined, title: 'Expenses & daybook', soon: true),
-            HubRow(icon: Icons.badge_outlined, title: 'Attendance', soon: true),
           ]),
         if (a.canManage)
           HubSection('Team & security', [

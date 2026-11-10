@@ -77,6 +77,16 @@ import '../modules/pos_customers/bindings/pos_customers_binding.dart';
 import '../modules/pos_customers/views/customer_list_view.dart';
 import '../modules/pos_customers/views/customer_profile_view.dart';
 import '../modules/pos_customers/views/pos_customers_view.dart';
+import '../data/models/pos/pos_team_models.dart';
+import '../modules/pos_team/views/attendance_view.dart';
+import '../modules/pos_team/views/clock_view.dart';
+import '../modules/pos_team/views/record_view.dart';
+import '../modules/pos_team/views/roster_view.dart';
+import '../modules/pos_team/views/team_report_view.dart';
+import '../modules/pos_cash/views/cash_home_view.dart';
+import '../modules/pos_cash/views/daybook_view.dart';
+import '../modules/pos_cash/views/expense_detail_view.dart';
+import '../modules/pos_cash/views/expense_list_view.dart';
 import '../modules/pos_supply/views/payables_view.dart';
 import '../modules/pos_supply/views/po_detail_view.dart';
 import '../modules/pos_supply/views/po_form_view.dart';
@@ -302,6 +312,17 @@ class AppPages {
     GetPage(name: Routes.posSupplySupplier, page: () => SupplierProfileView(supplierId: '${(Get.arguments as Map)['supplierId']}'), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posSupplyPayables, page: () => PayablesView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posSupplyLedger, page: () => SupplierLedgerView(supplierId: '${(Get.arguments as Map)['supplierId']}'), middlewares: [PosAccessMiddleware()]),
+    // G3.5 cash & expenses: cash in / out (works offline), expenses with a private receipt photo, the daybook. The server decides who may do what.
+    GetPage(name: Routes.posCash, page: () => const CashHomeView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posCashExpenses, page: () => ExpenseListView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posCashExpense, page: () => ExpenseDetailView(expenseId: '${(Get.arguments as Map)['expenseId']}'), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posCashDaybook, page: () => DaybookView(), middlewares: [PosAccessMiddleware()]),
+    // G3.6 team: the clock (works offline), attendance history, one record, the roster, the attendance report. The server decides who may do what.
+    GetPage(name: Routes.posTeamClock, page: () => const TeamClockView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posTeamAttendance, page: () => AttendanceView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posTeamRecord, page: () => AttendanceRecordView(record: (Get.arguments as Map)['record'] as AttendanceRecord), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posTeamRoster, page: () => RosterView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posTeamReport, page: () => TeamReportView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanInactive, page: () => const PosPlanInactiveView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanStatus, page: () => const PosPlanStatusView(), middlewares: [PosAccessMiddleware(), OwnerAccessMiddleware()]),
   ];

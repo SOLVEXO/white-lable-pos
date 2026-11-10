@@ -6,6 +6,8 @@ import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_cash_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_team_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -2128,6 +2130,318 @@ class PosRepository {
     }, approverToken: approverToken);
     return (success: r.success, message: r.message, code: r.code, result: r.data == null ? null : SupplierPaymentResult.fromJson(r.data!));
   }
+
+  // ── G3.5 cash & daybook: cash in / out, expenses (+ private receipt photo), the daybook ────────────────────────────────────────
+  // Reads return null on failure ([lastErrorCode] holds the server's code; null = no connection). Writes return a record that also says
+  // whether the failure may be retried (`retryable`: no answer, timeout, 5xx, "still in progress") or is a definite "no": the offline
+  // queue keeps retrying the first kind and parks the second one under Needs attention.
+
+  String _cash(String storeId, String path) => '${ApiConstants.apiPrefix}/pos/cash/$path/$storeId';
+
+  Future<CashConfig?> getCashConfig(String storeId) => _invGet('cashConfig', _cash(storeId, 'config'), CashConfig.fromJson);
+
+  /// Managers / owners see every expense; a cashier only their own. [from] inclusive, [to] exclusive.
+  Future<ExpenseList?> getExpenses(String storeId, {String status = 'all', DateTime? from, DateTime? to}) => _invGet(
+    'cashExpenses',
+    _cash(storeId, 'expenses'),
+    ExpenseList.fromJson,
+    query: {if (status != 'all') 'status': status, if (from != null) 'from': from.toUtc().toIso8601String(), if (to != null) 'to': to.toUtc().toIso8601String()},
+  );
+
+  Future<Expense?> getExpense(String storeId, String id) =>
+      _invGet('cashExpense', '${_cash(storeId, 'expenses')}/$id', (d) => Expense.fromJson((d['expense'] is Map ? (d['expense'] as Map).cast<String, dynamic>() : <String, dynamic>{}), fallbackCur: InvCur.fromJson(d)));
+
+  /// A fresh link to the private receipt, valid for at most 5 minutes. The caller shows it and drops it: it is never stored or logged.
+  Future<ReceiptLink?> getExpenseReceiptLink(String storeId, String id) => _invGet('cashReceiptLink', '${_cash(storeId, 'expenses')}/$id/receipt', ReceiptLink.fromJson);
+
+  /// The day's cash ledger: shifts that OPENED between [from] (inclusive) and [to] (exclusive). A cashier only gets their own shifts.
+  Future<Daybook?> getDaybook(String storeId, {required DateTime from, required DateTime to, String? registerId}) => _invGet(
+    'cashDaybook',
+    _cash(storeId, 'daybook'),
+    Daybook.fromJson,
+    query: {'from': from.toUtc().toIso8601String(), 'to': to.toUtc().toIso8601String(), if (registerId != null) 'registerId': registerId},
+  );
+
+  /// One write of the cash endpoints. [idempotencyKey] is the intent's stable key (the request id), so a retry or an offline replay can
+  /// never be booked twice. [employeeToken] replays a queued request as the employee who made it; [approverToken] is a manager's approval.
+  Future<({bool success, String? message, String? code, bool retryable, Map<String, dynamic>? data})> _cashWrite(
+    String tag,
+    String url,
+    Map<String, dynamic> payload, {
+    required String idempotencyKey,
+    String? employeeToken,
+    String? approverToken,
+  }) async {
+    lastErrorCode = null;
+    lastErrorReasons = const [];
+    try {
+      final headers = {...await _writeHeaders(idempotencyKey), if (employeeToken != null) 'x-pos-employee-token': employeeToken, if (approverToken != null) 'x-pos-approver-token': approverToken};
+      final res = await _client.post(url, data: payload, requiresAuth: true, headers: headers);
+      final data = _data(res);
+      return (success: _ok(res), message: res.data is Map ? res.data['message'] as String? : null, code: null, retryable: false, data: data is Map ? data.cast<String, dynamic>() : null);
+    } on DioException catch (e) {
+      _logDioError(tag, e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      return (success: false, message: _dioMessage(e), code: lastErrorCode, retryable: !_isFinalFailure(e), data: null);
+    } catch (e) {
+      debugPrint('❌ $tag: $e');
+      return (success: false, message: 'Could not reach the server.', code: null, retryable: true, data: null);
+    }
+  }
+
+  /// A cash in / out on the open shift ([sessionId]). [type]: cash_in | cash_out. [amountMinor] is minor units; [note] is required for `other_*`.
+  /// Above the store's limit the server answers `POS_APPROVAL_REQUIRED`: call again with [approverToken]. `occurredAt` keeps the device's time
+  /// (an offline movement replays with it). `duplicate: true` means this request id was already booked: treat it as success.
+  Future<({bool success, String? message, String? code, bool retryable, CashMovementResult? result})> recordCashMovement(
+    String storeId, {
+    required String type,
+    required String category,
+    required int amountMinor,
+    required String sessionId,
+    required String requestId,
+    String? note,
+    DateTime? occurredAt,
+    String? employeeToken,
+    String? approverToken,
+  }) async {
+    final r = await _cashWrite('cashMove', _cash(storeId, 'movements'), {
+      'type': type,
+      'category': category,
+      'amountMinor': amountMinor,
+      'sessionId': sessionId,
+      'requestId': requestId,
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      if (occurredAt != null) 'occurredAt': occurredAt.toUtc().toIso8601String(),
+    }, idempotencyKey: 'cash-$requestId', employeeToken: employeeToken, approverToken: approverToken);
+    return (success: r.success, message: r.message, code: r.code, retryable: r.retryable, result: r.data == null ? null : CashMovementResult.fromJson(r.data!));
+  }
+
+  /// Records an expense. A `cash` expense comes out of the open shift's drawer ([sessionId] needed); bank / other are only recorded.
+  Future<({bool success, String? message, String? code, bool retryable, ExpenseSaved? result})> recordExpense(
+    String storeId, {
+    required String category,
+    required String method,
+    required int amountMinor,
+    required String requestId,
+    String? sessionId,
+    String? payee,
+    String? note,
+    DateTime? occurredAt,
+    String? employeeToken,
+    String? approverToken,
+  }) async {
+    final r = await _cashWrite('cashExpense', _cash(storeId, 'expenses'), {
+      'category': category,
+      'method': method,
+      'amountMinor': amountMinor,
+      'requestId': requestId,
+      if (method == 'cash' && sessionId != null) 'sessionId': sessionId,
+      if (payee != null && payee.trim().isNotEmpty) 'payee': payee.trim(),
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      if (occurredAt != null) 'occurredAt': occurredAt.toUtc().toIso8601String(),
+    }, idempotencyKey: 'exp-$requestId', employeeToken: employeeToken, approverToken: approverToken);
+    return (success: r.success, message: r.message, code: r.code, retryable: r.retryable, result: r.data == null ? null : ExpenseSaved.fromJson(r.data!));
+  }
+
+  /// Managers only: approve or reject an expense after the fact (a rejection needs a [note]). Moves no cash.
+  Future<({bool success, String? message, String? code, Expense? expense})> decideExpense(String storeId, String id, {required bool approve, String? note}) async {
+    final payload = {'decision': approve ? 'approve' : 'reject', if (note != null && note.trim().isNotEmpty) 'note': note.trim()};
+    final fp = IdempotencyIntentStore.fingerprint('cashDecide:$id', payload);
+    final r = await _cashWrite('cashDecide', '${_cash(storeId, 'expenses')}/$id/decision', payload, idempotencyKey: await _intents.keyFor(fp));
+    if (!r.retryable) await _intents.release(fp);
+    return (
+      success: r.success,
+      message: r.message,
+      code: r.code,
+      expense: r.data?['expense'] is Map ? Expense.fromJson((r.data!['expense'] as Map).cast<String, dynamic>(), fallbackCur: InvCur.fromJson(r.data!)) : null,
+    );
+  }
+
+  /// Uploads the receipt photo of an expense (multipart field `file`; the server checks the real file type, max 5 MB by default).
+  Future<({bool success, String? message, String? code, bool retryable})> uploadExpenseReceipt(String storeId, String id, File file, {String? employeeToken}) async {
+    lastErrorCode = null;
+    try {
+      final form = FormData.fromMap({'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last)});
+      final headers = {...await _employeeAuthHeaders(), if (employeeToken != null) 'x-pos-employee-token': employeeToken};
+      final res = await _client.post('${_cash(storeId, 'expenses')}/$id/receipt', data: form, requiresAuth: true, headers: headers);
+      return (success: _ok(res), message: null, code: null, retryable: false);
+    } on DioException catch (e) {
+      _logDioError('cashReceiptUpload', e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      return (success: false, message: _dioMessage(e), code: lastErrorCode, retryable: !_isFinalFailure(e));
+    } catch (e) {
+      debugPrint('❌ cashReceiptUpload: $e');
+      return (success: false, message: 'Could not upload the photo.', code: null, retryable: true);
+    }
+  }
+
+  // ── G3.6 team: attendance, corrections, anomalies, roster, report ───────────────────────────────────────────────────────────────
+  // Reads return null on failure ([lastErrorCode] = the server's code; null = no connection). Writes return a record that also says whether the
+  // failure may be retried (`retryable`) and carries the rest of the error body in `extra` (a roster overlap names the shift it clashes with).
+
+  String _team(String storeId, String path) => '${ApiConstants.apiPrefix}/pos/team/$path/$storeId';
+
+  Future<({bool success, String? message, String? code, bool retryable, Map<String, dynamic>? data, Map<String, dynamic>? extra})> _teamWrite(
+    String tag,
+    String method,
+    String url,
+    Map<String, dynamic> payload, {
+    required String idempotencyKey,
+    String? employeeToken,
+  }) async {
+    lastErrorCode = null;
+    lastErrorReasons = const [];
+    try {
+      final headers = {...await _writeHeaders(idempotencyKey), if (employeeToken != null) 'x-pos-employee-token': employeeToken};
+      final res = method == 'PATCH' ? await _client.patch(url, data: payload, requiresAuth: true, headers: headers) : await _client.post(url, data: payload, requiresAuth: true, headers: headers);
+      final data = _data(res);
+      return (success: _ok(res), message: res.data is Map ? res.data['message'] as String? : null, code: null, retryable: false, data: data is Map ? data.cast<String, dynamic>() : null, extra: null);
+    } on DioException catch (e) {
+      _logDioError(tag, e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      final body = e.response?.data;
+      return (success: false, message: _dioMessage(e), code: lastErrorCode, retryable: !_isFinalFailure(e), data: null, extra: body is Map ? body.cast<String, dynamic>() : null);
+    } catch (e) {
+      debugPrint('❌ $tag: $e');
+      return (success: false, message: 'Could not reach the server.', code: null, retryable: true, data: null, extra: null);
+    }
+  }
+
+  /// The signed-in person: are they clocked in / on a break, their next rostered shifts and the server's time.
+  Future<TeamMe?> getTeamMe(String storeId) => _invGet('teamMe', _team(storeId, 'me'), TeamMe.fromJson);
+
+  /// clock_in | clock_out | break_start | break_end for the PIN-signed-in person. [deviceAt] is the till's time at the tap (an offline event keeps it);
+  /// [requestId] makes a retry or replay a no-op (`duplicate: true` is success). [employeeToken] replays a queued event as the person who made it.
+  Future<({bool success, String? message, String? code, bool retryable, ClockResult? result})> teamClock(
+    String storeId, {
+    required String action,
+    required String requestId,
+    required DateTime deviceAt,
+    String? note,
+    String? employeeToken,
+  }) async {
+    final r = await _teamWrite('teamClock', 'POST', _team(storeId, 'clock'), {
+      'action': action,
+      'requestId': requestId,
+      'deviceAt': deviceAt.toUtc().toIso8601String(),
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    }, idempotencyKey: 'clk-$requestId', employeeToken: employeeToken);
+    return (success: r.success, message: r.message, code: r.code, retryable: r.retryable, result: r.data == null ? null : ClockResult.fromJson(r.data!));
+  }
+
+  /// A cashier gets only their own records (the server enforces); a manager may pass [employeeId]. [from] inclusive, [to] exclusive.
+  Future<List<AttendanceRecord>?> getAttendanceRecords(String storeId, {required DateTime from, required DateTime to, String? employeeId}) => _invGet(
+    'teamRecords',
+    _team(storeId, 'records'),
+    (d) => [for (final e in (d['records'] as List? ?? const [])) if (e is Map) AttendanceRecord.fromJson(e.cast<String, dynamic>())],
+    query: {'from': from.toUtc().toIso8601String(), 'to': to.toUtc().toIso8601String(), if (employeeId != null) 'employeeId': employeeId},
+  );
+
+  /// Managers only.
+  Future<List<AttendanceAnomaly>?> getAttendanceAnomalies(String storeId) =>
+      _invGet('teamAnomalies', _team(storeId, 'anomalies'), (d) => [for (final e in (d['anomalies'] as List? ?? const [])) if (e is Map) AttendanceAnomaly.fromJson(e.cast<String, dynamic>())]);
+
+  /// Managers only: "seen, no action needed".
+  Future<({bool success, String? message, String? code})> ackAttendanceAnomaly(String storeId, {required String employeeId, required String eventId, required String kind, String? note}) async {
+    final payload = {'employeeId': employeeId, 'eventId': eventId, 'kind': kind, if (note != null && note.trim().isNotEmpty) 'note': note.trim()};
+    final fp = IdempotencyIntentStore.fingerprint('teamAck:$eventId:$kind', payload);
+    final r = await _teamWrite('teamAck', 'POST', '${_team(storeId, 'anomalies')}/ack', payload, idempotencyKey: await _intents.keyFor(fp));
+    if (!r.retryable) await _intents.release(fp);
+    return (success: r.success, message: r.message, code: r.code);
+  }
+
+  /// Managers only: a NEW correction on a record (set the times, add a missing clock-out, or void it). A reason is required; the raw punches stay.
+  Future<({bool success, String? message, String? code, AttendanceRecord? record})> correctAttendance(
+    String storeId, {
+    required String employeeId,
+    required String recordId,
+    required String reason,
+    DateTime? clockInAt,
+    DateTime? clockOutAt,
+    bool voided = false,
+  }) async {
+    final payload = {
+      'employeeId': employeeId,
+      'recordId': recordId,
+      'reason': reason.trim(),
+      if (clockInAt != null) 'clockInAt': clockInAt.toUtc().toIso8601String(),
+      if (clockOutAt != null) 'clockOutAt': clockOutAt.toUtc().toIso8601String(),
+      if (voided) 'voided': true,
+    };
+    final fp = IdempotencyIntentStore.fingerprint('teamCorrect:$recordId', payload);
+    final r = await _teamWrite('teamCorrect', 'POST', _team(storeId, 'corrections'), payload, idempotencyKey: await _intents.keyFor(fp));
+    if (!r.retryable) await _intents.release(fp);
+    return (success: r.success, message: r.message, code: r.code, record: r.data?['record'] is Map ? AttendanceRecord.fromJson((r.data!['record'] as Map).cast<String, dynamic>()) : null);
+  }
+
+  /// Shifts that START in [from, to). Everyone may read.
+  Future<List<RosterShift>?> getRoster(String storeId, {required DateTime from, required DateTime to, String? employeeId}) => _invGet(
+    'teamRoster',
+    _team(storeId, 'roster'),
+    (d) => [for (final e in (d['shifts'] as List? ?? const [])) if (e is Map) RosterShift.fromJson(e.cast<String, dynamic>())],
+    query: {'from': from.toUtc().toIso8601String(), 'to': to.toUtc().toIso8601String(), if (employeeId != null) 'employeeId': employeeId},
+  );
+
+  RosterShift? _shiftOf(Map<String, dynamic>? d) => d?['shift'] is Map ? RosterShift.fromJson((d!['shift'] as Map).cast<String, dynamic>()) : null;
+
+  /// Managers only. ROSTER_OVERLAP / SHIFT_TOO_LONG come back as the code; `extra` names the clashing shift; the saved shift carries `warnings`.
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? extra, RosterShift? shift})> createRosterShift(
+    String storeId, {
+    required String employeeId,
+    required DateTime startAt,
+    required DateTime endAt,
+    String? locationId,
+    String? note,
+  }) async {
+    final payload = {'employeeId': employeeId, 'startAt': startAt.toUtc().toIso8601String(), 'endAt': endAt.toUtc().toIso8601String(), if (locationId != null) 'locationId': locationId, if (note != null && note.trim().isNotEmpty) 'note': note.trim()};
+    final fp = IdempotencyIntentStore.fingerprint('rosterCreate', payload);
+    final r = await _teamWrite('rosterCreate', 'POST', _team(storeId, 'roster'), payload, idempotencyKey: await _intents.keyFor(fp));
+    if (!r.retryable) await _intents.release(fp);
+    return (success: r.success, message: r.message, code: r.code, extra: r.extra, shift: _shiftOf(r.data));
+  }
+
+  /// Managers only: change any of person / times / location / note of a shift.
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? extra, RosterShift? shift})> updateRosterShift(
+    String storeId,
+    String shiftId, {
+    String? employeeId,
+    DateTime? startAt,
+    DateTime? endAt,
+    String? locationId,
+    String? note,
+  }) async {
+    final payload = {
+      if (employeeId != null) 'employeeId': employeeId,
+      if (startAt != null) 'startAt': startAt.toUtc().toIso8601String(),
+      if (endAt != null) 'endAt': endAt.toUtc().toIso8601String(),
+      if (locationId != null) 'locationId': locationId,
+      if (note != null) 'note': note.trim(),
+    };
+    final fp = IdempotencyIntentStore.fingerprint('rosterUpdate:$shiftId', payload);
+    final r = await _teamWrite('rosterUpdate', 'PATCH', '${_team(storeId, 'roster')}/$shiftId', payload, idempotencyKey: await _intents.keyFor(fp));
+    if (!r.retryable) await _intents.release(fp);
+    return (success: r.success, message: r.message, code: r.code, extra: r.extra, shift: _shiftOf(r.data));
+  }
+
+  /// Managers only.
+  Future<({bool success, String? message, String? code})> cancelRosterShift(String storeId, String shiftId) async {
+    final fp = IdempotencyIntentStore.fingerprint('rosterCancel:$shiftId', const {});
+    final r = await _teamWrite('rosterCancel', 'POST', '${_team(storeId, 'roster')}/$shiftId/cancel', const {}, idempotencyKey: await _intents.keyFor(fp));
+    if (!r.retryable) await _intents.release(fp);
+    return (success: r.success, message: r.message, code: r.code);
+  }
+
+  /// Hours, days, breaks, late arrivals (vs the roster, with the server's grace), missing clock-outs and corrections per person. A cashier gets only
+  /// themself. [tzOffsetMinutes] is the device's offset in the JavaScript convention (minutes BEHIND UTC: UTC+5 is -300), used to count days.
+  Future<TeamReport?> getTeamReport(String storeId, {required DateTime from, required DateTime to, String? employeeId, int tzOffsetMinutes = 0}) => _invGet(
+    'teamReport',
+    _team(storeId, 'report'),
+    TeamReport.fromJson,
+    query: {'from': from.toUtc().toIso8601String(), 'to': to.toUtc().toIso8601String(), if (employeeId != null) 'employeeId': employeeId, 'tzOffsetMinutes': tzOffsetMinutes},
+  );
 }
 
 /// Whether an HTTP failure leaves the outcome UNKNOWN (so the request may be retried / queued with its

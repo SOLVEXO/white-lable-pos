@@ -259,7 +259,7 @@ class PosSettingsController extends GetxController {
         PosSettingsTile(
           emoji: AppIcons.cashIcon,
           title: 'Cash Management',
-          trailing: isManager ? 'Cash in / out' : 'Managers only',
+          trailing: 'Cash in / out, expenses',
           onTap: showCashAdjustmentDialog,
         ),
         PosSettingsTile(
@@ -779,121 +779,9 @@ class PosSettingsController extends GetxController {
   }
 
   // ── Cash in / cash out ───────────────────────────────────────────────────
-  // Manager-only, matching the backend's real, token-verified check
-  // (PosService.cashInOut now requires a verified manager token
-  // unconditionally) — see PosRole's doc comment.
-  void showCashAdjustmentDialog() {
-    if (!isManager) {
-      CustomAppSnackbar.warning('Only managers can record cash movements — ask a manager to do this from their own login.');
-      return;
-    }
-    if (_sessionId.isEmpty) {
-      CustomAppSnackbar.error('No active session found.');
-      return;
-    }
-    final ctx = Get.context;
-    if (ctx == null) return;
-    final amountController = TextEditingController();
-    final reasonController = TextEditingController();
-    final isCashIn = true.obs;
-
-    showDialog(
-      context: ctx,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimen.dialogRadius)),
-        title: const CustomText(
-          text: 'Cash Management',
-          fontSize: AppFontSize.small,
-          fontWeight: FontWeight.bold,
-          color: AppColors.black,
-        ),
-        content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Obx(() => Row(children: [
-              Expanded(
-                child: _CashTypeChip(
-                  label: 'Cash In',
-                  selected: isCashIn.value,
-                  color: AppColors.green2,
-                  onTap: () => isCashIn.value = true,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CashTypeChip(
-                  label: 'Cash Out',
-                  selected: !isCashIn.value,
-                  color: AppColors.red,
-                  onTap: () => isCashIn.value = false,
-                ),
-              ),
-            ])),
-            const SizedBox(height: 12),
-            CustomTextField(
-              controller: amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              hintText: 'Amount',
-              isborder: true,
-              fillColor: AppColors.background,
-              prefixIcon: const CustomText(text: '\$', fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
-            ),
-            const SizedBox(height: 10),
-            CustomTextField(
-              controller: reasonController,
-              hintText: 'Reason (e.g. petty cash, till top-up)',
-              isborder: true,
-              fillColor: AppColors.background,
-            ),
-          ]),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const CustomText(text: 'Cancel', fontSize: AppFontSize.verySmall, color: AppColors.grey),
-          ),
-          Obx(() => _DialogPillButton(
-            label: 'Save',
-            loading: isSavingCashAdjustment.value,
-            onTap: () {
-              final amount = double.tryParse(amountController.text.trim());
-              final reason = reasonController.text.trim();
-              if (amount == null || amount <= 0) {
-                CustomAppSnackbar.warning('Enter a valid amount.');
-                return;
-              }
-              if (reason.isEmpty) {
-                CustomAppSnackbar.warning('Enter a reason for this cash movement.');
-                return;
-              }
-              Navigator.pop(ctx);
-              _recordCashAdjustment(isCashIn.value ? 'cash_in' : 'cash_out', amount, reason);
-            },
-          )),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _recordCashAdjustment(String type, double amount, String reason) async {
-    isSavingCashAdjustment.value = true;
-    try {
-      final employeeId = await AppPreferences.getPosEmployeeId() ?? '';
-      final result = await _posRepo.cashAdjustment(
-        sessionId: _sessionId,
-        type: type,
-        amount: amount,
-        reason: reason,
-        employeeId: employeeId,
-      );
-      if (result == null) return;
-      CustomAppSnackbar.success(type == 'cash_in' ? 'Cash in recorded.' : 'Cash out recorded.');
-      await _loadSessionStats();
-    } finally {
-      isSavingCashAdjustment.value = false;
-    }
-  }
+  // G3.5: cash in / out always has a category (and a note for "other"), works offline, and is open to every role (the SERVER decides what each
+  // role may do and asks a manager's PIN above the store's limit). The old free-text dialog is gone; this entry point now opens the new screen.
+  void showCashAdjustmentDialog() => Get.toNamed(Routes.posCash);
 
   String _friendlyError(String raw) {
     if (raw.toLowerCase().contains('held')) {
@@ -979,32 +867,3 @@ class _CashFlowRow extends StatelessWidget {
 }
 
 /// Cash In / Cash Out selector chip for the cash-adjustment dialog.
-class _CashTypeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-  const _CashTypeChip({required this.label, required this.selected, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.12) : AppColors.background,
-          borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-          border: Border.all(color: selected ? color : AppColors.lightGrey2),
-        ),
-        alignment: Alignment.center,
-        child: CustomText(
-          text: label,
-          fontSize: AppFontSize.verySmall,
-          fontWeight: FontWeight.w600,
-          color: selected ? color : AppColors.black2,
-        ),
-      ),
-    );
-  }
-}

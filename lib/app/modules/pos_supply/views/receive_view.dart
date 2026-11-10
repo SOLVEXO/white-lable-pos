@@ -9,6 +9,13 @@ import 'package:solvexo_pos/app/modules/pos_supply/views/product_search_sheet.da
 import 'package:solvexo_pos/app/modules/pos_supply/views/supply_widgets.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 
+/// A date strictly before today (a warning only: the server decides what an expired lot means).
+bool _isPast(DateTime? d) {
+  if (d == null) return false;
+  final now = DateTime.now();
+  return DateTime(d.year, d.month, d.day).isBefore(DateTime(now.year, now.month, now.day));
+}
+
 /// One line being received. Owns its text controllers; the Obx is inside this widget's build().
 class ReceiveLineCard extends StatefulWidget {
   const ReceiveLineCard({super.key, required this.line, required this.controller});
@@ -104,6 +111,7 @@ class _ReceiveLineCardState extends State<ReceiveLineCard> {
                 AppTextField(key: Key('recvLot_$key'), label: 'Lot number', controller: _lot, mono: true, onChanged: (s) => l.lotNumber.value = s),
                 const SizedBox(height: Space.s2),
                 SupplyDateField(
+                  key: Key('recvExpiry_$key'),
                   label: 'Expiry date',
                   value: l.expiry.value,
                   onPick: () async {
@@ -112,6 +120,21 @@ class _ReceiveLineCardState extends State<ReceiveLineCard> {
                   },
                   onClear: () => l.expiry.value = null,
                 ),
+                if (_isPast(l.expiry.value))
+                  Padding(
+                    padding: const EdgeInsets.only(top: Space.s2),
+                    child: Row(
+                      key: Key('recvExpiryPast_$key'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, size: 18, color: p.warningFg),
+                        const SizedBox(width: Space.s2),
+                        Expanded(
+                          child: Text('This date has already passed — the stock will be treated as expired.', style: t.caption.copyWith(color: p.warningFg)),
+                        ),
+                      ],
+                    ),
+                  ),
               ] else
                 Align(
                   alignment: Alignment.centerLeft,
@@ -244,6 +267,7 @@ class _ReceiveViewState extends State<ReceiveView> {
         const SizedBox(height: Space.s2),
         Obx(
           () => SupplyDateField(
+            key: const Key('recvInvoiceDate'),
             label: 'Invoice date',
             value: c.invoiceDate.value,
             onPick: () async {

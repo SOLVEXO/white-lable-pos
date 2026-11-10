@@ -226,21 +226,22 @@ void main() {
   group('More tab', () {
     testWidgets('cashier: shift, held sales, sync, customers, settings — nothing managerial, no placeholders', (t) async {
       await mountHub(t, const PosMoreHubView(access: PosAccess.cashier, unresolvedOverride: 0));
-      for (final s in ['Shift summary', 'Held sales', 'Sync & needs attention', 'Customers', 'Settings']) {
+      for (final s in ['Shift summary', 'Held sales', 'Sync & needs attention', 'Customers', 'Clock in', 'My attendance', 'Roster', 'My hours report', 'Cash & expenses', 'Settings']) {
+        await t.scrollUntilVisible(find.text(s), 200, scrollable: find.byType(Scrollable).first); // the list is lazy
         expect(find.text(s), findsOneWidget, reason: s);
       }
-      for (final s in ['Past buyers', 'Daily report', 'Date-range report', 'Shift history', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders', 'Expenses & daybook', 'Attendance', 'Coming soon']) {
+      for (final s in ['Past buyers', 'Daily report', 'Date-range report', 'Shift history', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders', 'Attendance', 'Coming soon']) {
         expect(find.text(s), findsNothing, reason: '$s must not be shown to a cashier');
       }
     });
     for (final a in [PosAccess.manager, PosAccess.owner]) {
       testWidgets('${a.name}: business, team & security rows (locked where a gate applies) + coming-soon placeholders', (t) async {
         await mountHub(t, PosMoreHubView(access: a, unresolvedOverride: 0));
-        for (final s in ['Customers', 'Past buyers', 'Daily report', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders', 'Expenses & daybook', 'Attendance']) {
+        for (final s in ['Customers', 'Clock in', 'Attendance', 'Roster', 'Attendance report', 'Cash & expenses', 'Past buyers', 'Daily report', 'Team & registers', 'Devices', 'Audit log', 'Plan status', 'Suppliers & purchase orders']) {
           await t.scrollUntilVisible(find.text(s), 200, scrollable: find.byType(Scrollable).first); // the list is lazy
           expect(find.text(s), findsOneWidget, reason: '${a.name} $s');
         }
-        expect(find.text('Coming soon', skipOffstage: false), findsOneWidget);
+        expect(find.text('Coming soon', skipOffstage: false), findsNothing, reason: 'every placeholder of the More tab is built now');
         expect(find.byIcon(Icons.lock_outline_rounded, skipOffstage: false), findsWidgets);
       });
     }

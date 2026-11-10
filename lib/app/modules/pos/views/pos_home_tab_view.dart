@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/modules/pos_team/views/clock_home_card.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_payment_intent_model.dart';
@@ -114,6 +115,7 @@ class PosHomeTabView extends StatelessWidget {
                   ),
                   const SizedBox(height: Space.s4),
                   _Hero(c: c, access: access),
+                  const ClockHomeCard(),
                   const SizedBox(height: Space.s3),
                   _Tiles(c: c, access: access),
                   if (c.dashboard.value != null) ...[
