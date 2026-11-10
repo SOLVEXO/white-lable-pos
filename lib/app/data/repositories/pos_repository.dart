@@ -10,6 +10,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_cash_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_team_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_catalog_admin_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -886,6 +887,7 @@ class PosRepository {
     String? approverToken, // G2.4: a manager's PIN-login token approving custom items on this sale (replaces the cashier's token for this call)
     String? expiredApproverToken, // G3.2: a manager's token approving the sale of EXPIRED lot units (`items[].sellExpired`), sent as `x-pos-approver-token`
     int? redeemPoints, // G3.3: loyalty points spent on this sale (online only; the SERVER prices them)
+    String? priceBookId, // G4.5: the price book picked at checkout (the server prices with it)
   }) async {
     lastErrorCode = null;
     final payload = <String, dynamic>{
@@ -906,6 +908,7 @@ class PosRepository {
       if (paymentReference != null && paymentReference.isNotEmpty) 'paymentReference': paymentReference,
       'customerName': customerName,
       if (customerId != null) 'customerId': customerId,
+      'priceBookId': ?priceBookId,
       if (redeemPoints != null && redeemPoints > 0) 'redeemPoints': redeemPoints,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       'status': status,
@@ -1349,6 +1352,8 @@ class PosRepository {
     double? discountValue,
     int? settingsVersion,
     String? couponCode,
+    String? priceBookId, // G4.5: the book picked at checkout (PRICE_BOOK_NOT_ACTIVE when it is not in force)
+    String? customerId, // G4.5: so the customer's own price book prices the quote as it will the sale
   }) async {
     try {
       final res = await _client.post(
@@ -1356,6 +1361,8 @@ class PosRepository {
         data: {
           'storeId': storeId,
           'items': items,
+          'priceBookId': ?priceBookId,
+          'customerId': ?customerId,
           if (couponCode != null && couponCode.trim().isNotEmpty) 'couponCode': couponCode.trim(),
           if (discountType != null && (discountValue ?? 0) > 0) ...{'discountType': discountType, 'discountValue': discountValue},
           if (settingsVersion != null) 'settingsVersion': settingsVersion,
@@ -2588,6 +2595,64 @@ class PosRepository {
   /// G4.4: the server's time, devices with when each was last seen, the latest audit seal.
   Future<SyncStatus?> getSyncStatus(String storeId) => _invGet('syncStatus', '${ApiConstants.apiPrefix}/pos/store/sync-status/$storeId', SyncStatus.fromJson);
 
+  // ── G4.5 · products & pricing (catalog-admin) ──────────────────────────────────────────────────────────────────────────────────────────
+  String _cat(String storeId, String path) => '${ApiConstants.apiPrefix}/pos/catalog-admin/$path/$storeId';
+
+  /// A write's outcome: the parsed data, or the server's code and words.
+  ({bool success, String? code, String? message, T? data}) _catResult<T>(({bool success, String? message, String? code, Map<String, dynamic>? data, Map<String, dynamic>? extra}) r, T Function(Map<String, dynamic>) parse) =>
+      (success: r.success && r.data != null, code: r.code, message: r.extra?['message'] as String? ?? r.message, data: r.success && r.data != null ? parse(r.data!) : null);
+
+  /// The modifier groups the till sells with (active only, unless [all] for the editor).
+  Future<ModifierGroups?> getModifierGroups(String storeId, {bool all = false}) => _invGet('modifierGroups', _cat(storeId, 'modifiers'), ModifierGroups.fromJson, query: {if (all) 'all': 'true'});
+
+  Future<({bool success, String? code, String? message, ModifierGroup? data})> saveModifierGroup(String storeId, ModifierGroup g) async {
+    final r = g.id.isEmpty
+        ? await _adminWrite('modifierCreate', 'POST', _cat(storeId, 'modifiers'), g.toWrite())
+        : await _adminWrite('modifierUpdate', 'PATCH', '${_cat(storeId, 'modifiers')}/${g.id}', g.toWrite());
+    return _catResult(r, (d) => ModifierGroup.fromJson((d['group'] as Map).cast<String, dynamic>()));
+  }
+
+  Future<PriceBooks?> getPriceBooks(String storeId) => _invGet('priceBooks', _cat(storeId, 'price-books'), PriceBooks.fromJson);
+
+  /// [body] = name, active, startsAt, endsAt, note, entries [{variantId, priceMinor}] (only the keys that change on an update).
+  Future<({bool success, String? code, String? message, PriceBook? data})> savePriceBook(String storeId, Map<String, dynamic> body, {String? id}) async {
+    final r = id == null
+        ? await _adminWrite('priceBookCreate', 'POST', _cat(storeId, 'price-books'), body)
+        : await _adminWrite('priceBookUpdate', 'PATCH', '${_cat(storeId, 'price-books')}/$id', body);
+    return _catResult(r, (d) => PriceBook.fromJson((d['book'] as Map).cast<String, dynamic>()));
+  }
+
+  /// Gives a customer a price book (null clears it).
+  Future<({bool success, String? code, String? message, String? data})> assignPriceBook(String storeId, String customerId, String? priceBookId) async {
+    final r = await _adminWrite('priceBookAssign', 'POST', '${_cat(storeId, 'price-books')}/customers/$customerId', {'priceBookId': priceBookId});
+    return _catResult<String?>(r, (d) => d['priceBookId'] as String?);
+  }
+
+  Future<List<CatalogCategory>?> getCatalogCategories(String storeId) => _invGet('catalogCategories', _cat(storeId, 'categories'), CatalogCategory.listFrom);
+
+  Future<({bool success, String? code, String? message, List<CatalogCategory>? data})> createCatalogCategory(String storeId, String name) async =>
+      _catResult(await _adminWrite('categoryCreate', 'POST', _cat(storeId, 'categories'), {'name': name}), CatalogCategory.listFrom);
+
+  Future<({bool success, String? code, String? message, List<CatalogCategory>? data})> updateCatalogCategory(String storeId, String id, {String? name, int? sortOrder}) async =>
+      _catResult(await _adminWrite('categoryUpdate', 'PATCH', '${_cat(storeId, 'categories')}/$id', {'name': ?name, 'sortOrder': ?sortOrder}), CatalogCategory.listFrom);
+
+  Future<({bool success, String? code, String? message, List<CatalogCategory>? data})> deleteCatalogCategory(String storeId, String id) async =>
+      _catResult(await _adminWrite('categoryDelete', 'POST', '${_cat(storeId, 'categories')}/$id/delete', const {}), CatalogCategory.listFrom);
+
+  /// [body] = name, categoryId?, description?, variants [{priceMinor, costMinor?, sku?, barcode?, stock?, options?, trackLots?, reorderPoint?}]
+  Future<({bool success, String? code, String? message, CatalogProduct? data})> createCatalogProduct(String storeId, Map<String, dynamic> body) async =>
+      _catResult(await _adminWrite('productCreate', 'POST', _cat(storeId, 'products'), body), CatalogProduct.fromJson);
+
+  Future<({bool success, String? code, String? message, CatalogProduct? data})> addCatalogVariant(String storeId, String productId, Map<String, dynamic> body) async =>
+      _catResult(await _adminWrite('variantAdd', 'POST', '${_cat(storeId, 'products')}/$productId/variants', body), CatalogProduct.fromJson);
+
+  Future<({bool success, String? code, String? message, CatalogProduct? data})> archiveCatalogVariant(String storeId, String productId, String variantId) async =>
+      _catResult(await _adminWrite('variantArchive', 'POST', '${_cat(storeId, 'products')}/$productId/variants/$variantId/archive', const {}), CatalogProduct.fromJson);
+
+  /// CSV import of `products` or `categories` (the dashboard's importer: same columns, same report).
+  Future<({bool success, String? code, String? message, ImportReport? data})> importCatalogCsv(String storeId, {required String kind, required String csv}) async =>
+      _catResult(await _adminWrite('catalogImport', 'POST', _cat(storeId, 'import'), {'kind': kind, 'csv': csv}), ImportReport.fromJson);
+
   /// G4.0: the daybook of one STORE day (`YYYY-MM-DD` in the store's time zone).
   Future<Daybook?> getDaybookDay(String storeId, {required String date, String? registerId}) =>
       _invGet('cashDaybookDay', _cash(storeId, 'daybook'), Daybook.fromJson, query: {'date': date, if (registerId != null) 'registerId': registerId});
@@ -2623,6 +2688,9 @@ class PosQuote {
   /// The server's current unit price per variant (variantId → price) — used to refresh a stale cart.
   final Map<String, double> unitPrices;
 
+  /// G4.5: each line's unit price in the cart's order, and whether the server priced it with options or a price book (then it is not the list price)
+  final List<({double price, bool priced})> lines;
+
   /// G2.4: the coupon the server applied (code + how it discounts: 'percent' or 'amount'), null when none.
   final PosAppliedCoupon? coupon;
 
@@ -2637,6 +2705,7 @@ class PosQuote {
     required this.settingsVersion,
     this.settingsVersionReplaced = false,
     this.unitPrices = const {},
+    this.lines = const [],
     this.coupon,
   });
 
@@ -2656,6 +2725,10 @@ class PosQuote {
           for (final l in (j['lines'] as List? ?? []))
             if ((l as Map)['variantId'] != null) l['variantId'] as String: MoneyJson.read(l, 'price', exp: exp),
         },
+        lines: [
+          for (final l in (j['lines'] as List? ?? []))
+            if (l is Map) (price: MoneyJson.read(l.cast<String, dynamic>(), 'price', exp: exp), priced: (l['modifiers'] is List && (l['modifiers'] as List).isNotEmpty) || l['basePriceMinor'] != null),
+        ],
         coupon: j['coupon'] is Map ? PosAppliedCoupon.fromJson((j['coupon'] as Map).cast<String, dynamic>()) : null,
       );
   }

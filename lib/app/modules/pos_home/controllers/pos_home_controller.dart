@@ -9,6 +9,8 @@ import 'dart:async';
 
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
+import 'package:solvexo_pos/app/data/local/catalog_pricing_cache.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_catalog_admin_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart' show InvCur;
 import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
@@ -32,6 +34,7 @@ import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/modules/category/models/category_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/hid_scan_detector.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/manager_approval_sheet.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_modifier_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_variant_picker_sheet.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
@@ -66,7 +69,16 @@ class CartItem {
   final RxBool lotPreviewLive = false.obs;
   final RxBool sellExpired = false.obs;
 
-  CartItem({required this.product, this.variant, int qty = 1, this.taxCategory = 'standard', this.customNote = ''})
+  /// G4.5: the options chosen for this line (part of its identity: a Large and a Small latte are two lines). The SERVER prices them.
+  final List<ChosenModifier> modifiers;
+
+  /// G4.5: the price book's price for this variant (the cashier picked a book at checkout), an on-screen estimate until the server's quote
+  double? bookUnitPrice;
+
+  /// G4.5: the server's unit price for a line it priced with modifiers or a price book (from the quote) — wins over every estimate
+  double? serverUnitPrice;
+
+  CartItem({required this.product, this.variant, int qty = 1, this.taxCategory = 'standard', this.customNote = '', this.modifiers = const [], this.bookUnitPrice, this.serverUnitPrice})
     : quantity = qty.obs;
 
   /// A line with no catalogue product (a service, a one-off, a price the shelf doesn't have). Never touches stock; the server
@@ -91,13 +103,30 @@ class CartItem {
   bool get isCustom => product.productId.startsWith(kCustomPrefix);
   bool get isTaxable => !isCustom || taxCategory != 'exempt';
 
-  double get unitPrice => variant?.price ?? product.price; // a custom item's price is its shell product's only variant
+  /// the list price (a custom item's price is its shell product's only variant)
+  double get listPrice => variant?.price ?? product.price;
+
+  /// Σ of the chosen options' price deltas, in minor units
+  int get modifierDeltaMinor => modifiers.fold(0, (n, m) => n + m.priceDeltaMinor);
+
+  /// What this line charges per unit: the server's price when it has priced the line, else (book price or list price) + the options.
+  double get unitPrice {
+    if (isCustom) return listPrice;
+    if (serverUnitPrice != null) return serverUnitPrice!;
+    final base = bookUnitPrice ?? listPrice;
+    return modifiers.isEmpty ? base : base + Money.fromMinor(modifierDeltaMinor);
+  }
+
   double get lineTotal => unitPrice * quantity.value;
 
-  /// The key used to deduplicate in the cart.
-  String get cartKey => variant != null
-      ? '${product.productId}_${variant!.variantId}'
-      : product.productId;
+  /// "Latte (Large, Extra shot)" — the same name the server gives the line
+  String get displayName => '${product.name}${ChosenModifier.suffix(modifiers)}';
+
+  /// The key used to deduplicate in the cart (different options = different lines).
+  String get cartKey {
+    final base = variant != null ? '${product.productId}_${variant!.variantId}' : product.productId;
+    return modifiers.isEmpty ? base : '${base}_${ChosenModifier.key(modifiers)}';
+  }
 }
 
 // ── How the last Charge ended (read by the sale-success view) ────────────────
@@ -588,12 +617,67 @@ class PosHomeController extends GetxController {
       hasItems && paymentCheck.covered && !isDiscountBlocked && !isDiscountInvalid && !PosEntitlementService.isRestricted && customerSaleIssue == null;
 
   int cartQtyFor(PosProductModel p, [PosProductVariant? v]) {
-    final key = v != null ? '${p.productId}_${v.variantId}' : p.productId;
+    // every line of this product / variant (G4.5: different options are different lines)
     return cartItems
-            .firstWhereOrNull((c) => c.cartKey == key)
-            ?.quantity
-            .value ??
-        0;
+        .where((c) => c.product.productId == p.productId && (v == null || c.variant?.variantId == v.variantId))
+        .fold(0, (n, c) => n + c.quantity.value);
+  }
+
+  // ── G4.5: modifier groups + price books (read from the server, cached for offline; the SERVER prices every line) ──
+  final Rxn<ModifierGroups> modifierGroups = Rxn<ModifierGroups>();
+  final RxList<PriceBook> priceBooks = <PriceBook>[].obs;
+
+  /// the price book the cashier picked for this sale (null = normal prices, or the customer's own book, which the server applies)
+  final Rxn<PriceBook> priceBook = Rxn<PriceBook>();
+
+  Future<void> _loadPricing() async {
+    final sid = storeId.value;
+    if (sid.isEmpty) return;
+    try {
+      final g = await _posRepo.getModifierGroups(sid);
+      if (g != null) {
+        modifierGroups.value = g;
+        unawaited(CatalogPricingCache.saveGroups(sid, g));
+      } else {
+        modifierGroups.value ??= await CatalogPricingCache.groups(sid);
+      }
+      final b = await _posRepo.getPriceBooks(sid);
+      if (b != null) {
+        priceBooks.assignAll(b.books);
+        unawaited(CatalogPricingCache.saveBooks(sid, b));
+      } else if (priceBooks.isEmpty) {
+        priceBooks.assignAll((await CatalogPricingCache.books(sid))?.books ?? const <PriceBook>[]);
+      }
+    } catch (e) {
+      debugPrint('pricing: $e'); // options and books are extras: selling never waits for them
+    }
+  }
+
+  /// the books the picker offers (in force now by their own window; the server has the last word)
+  List<PriceBook> get bookChoices => priceBooks.where((b) => b.inForceAt(DateTime.now())).toList();
+
+  void setPriceBook(PriceBook? b) {
+    priceBook.value = b;
+    for (final i in cartItems) {
+      _applyBookEstimate(i);
+    }
+    cartItems.refresh();
+  }
+
+  /// the book's price for the line as the on-screen estimate (the next quote replaces it with the server's)
+  void _applyBookEstimate(CartItem i) {
+    if (i.isCustom) return;
+    i.serverUnitPrice = null;
+    final m = priceBook.value?.entries[i.variant?.variantId];
+    i.bookUnitPrice = m == null ? null : Money.fromMinor(m);
+  }
+
+  void _showModifierSheet(PosProductModel product, PosProductVariant variant, List<ModifierGroup> groups) {
+    Get.bottomSheet(
+      PosModifierSheet(product: product, variant: variant, groups: groups, controller: this),
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+    );
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -606,6 +690,7 @@ class PosHomeController extends GetxController {
       unawaited(resumePendingQr());
       _loadProducts();
       _loadSettings();
+      unawaited(_loadPricing());
     });
     _loadCategoryNames();
     unawaited(loadRecentSearches());
@@ -680,6 +765,7 @@ class PosHomeController extends GetxController {
   Future<void> refreshCatalogAndSettings() async {
     await _loadSettings();
     await _loadProducts();
+    await _loadPricing();
   }
 
   // ── Products ──────────────────────────────────────────────────────────────
@@ -816,7 +902,8 @@ class PosHomeController extends GetxController {
   }
 
   // ── Cart actions ──────────────────────────────────────────────────────────
-  void addToCart(PosProductModel product, [PosProductVariant? variant]) {
+  /// [modifiers] = the options chosen in the modifier sheet; null = not asked yet (a product sold with options opens the sheet first).
+  void addToCart(PosProductModel product, [PosProductVariant? variant, List<ChosenModifier>? modifiers]) {
     if (!product.inStock) return;
     if (product.hasMultipleVariants && variant == null) {
       _showVariantSheet(product);
@@ -824,14 +911,21 @@ class PosHomeController extends GetxController {
     }
     variant ??= product.defaultVariant;
     if (variant == null) return;
+    final groups = modifiers == null ? (modifierGroups.value?.of(product.productId) ?? const <ModifierGroup>[]) : const <ModifierGroup>[];
+    if (groups.isNotEmpty) {
+      // after this event: the variant sheet that called us closes itself (Get.back) right after this returns
+      final v = variant;
+      Future<void>.delayed(Duration.zero, () => _showModifierSheet(product, v, groups));
+      return;
+    }
     if (searchText.value.trim().isNotEmpty) unawaited(rememberSearch(searchText.value)); // the search that found it is worth keeping
-    final key = '${product.productId}_${variant.variantId}';
-    final idx = cartItems.indexWhere((c) => c.cartKey == key);
+    final item = CartItem(product: product, variant: variant, modifiers: modifiers ?? const []);
+    final idx = cartItems.indexWhere((c) => c.cartKey == item.cartKey);
     if (idx >= 0) {
       cartItems[idx].quantity.value++;
       _lots.request(cartItems[idx]);
     } else {
-      final item = CartItem(product: product, variant: variant);
+      _applyBookEstimate(item);
       cartItems.add(item);
       _lots.request(item);
     }
@@ -887,7 +981,7 @@ class PosHomeController extends GetxController {
   CartSnapshot _snapshot() => CartSnapshot(
         storeId: storeId.value,
         sessionId: sessionId.value,
-        lines: [for (final i in cartItems) CartLineSnapshot(product: i.product.toJson(), variantId: i.variant?.variantId, qty: i.quantity.value, taxCategory: i.isCustom ? i.taxCategory : null, note: i.isCustom ? i.customNote : null)],
+        lines: [for (final i in cartItems) CartLineSnapshot(product: i.product.toJson(), variantId: i.variant?.variantId, qty: i.quantity.value, taxCategory: i.isCustom ? i.taxCategory : null, note: i.isCustom ? i.customNote : null, modifiers: [for (final m in i.modifiers) m.toJson()])],
         coupon: appliedCoupon.value?.toJson(),
         discountText: discountController.text,
         percentDiscount: isPercentDiscount.value,
@@ -923,7 +1017,7 @@ class PosHomeController extends GetxController {
       for (final l in snap.lines) {
         final product = PosProductModel.fromJson(l.product);
         final variant = l.variantId == null ? null : product.variantById(l.variantId);
-        final item = CartItem(product: product, variant: variant, qty: l.qty, taxCategory: l.taxCategory ?? 'standard', customNote: l.note ?? '');
+        final item = CartItem(product: product, variant: variant, qty: l.qty, taxCategory: l.taxCategory ?? 'standard', customNote: l.note ?? '', modifiers: [for (final m in l.modifiers) ChosenModifier.fromJson(m)]);
         cartItems.add(item);
         _lots.request(item);
       }
@@ -968,6 +1062,7 @@ class PosHomeController extends GetxController {
     _persistTimer?.cancel();
     unawaited(_cartStore.clear());
     cartItems.clear();
+    priceBook.value = null;
     appliedCoupon.value = null;
     _approverToken = null;
     _expiredApproverToken = null;
@@ -1107,6 +1202,14 @@ class PosHomeController extends GetxController {
         _pendingAt = null;
         return;
       }
+      if (q.code != null && catalogSaleCodes.contains(q.code)) {
+        // G4.5: the picked price book is no longer in force, or an option rule is broken: say so in words; nothing is charged
+        CustomAppSnackbar.error(catalogErrorMessage(q.code, message: q.message));
+        if (q.code == 'PRICE_BOOK_NOT_ACTIVE') setPriceBook(null);
+        _pendingKey = null;
+        _pendingAt = null;
+        return;
+      }
       if (q.quote != null) {
         version = q.quote!.settingsVersion;
         if (Money.toMinor(q.quote!.total) != Money.toMinor(total)) {
@@ -1227,7 +1330,7 @@ class PosHomeController extends GetxController {
         settings: settings.value,
         currency: Money.currency,
         exponent: Money.exponent,
-        items: [for (final c in cartItems) (name: c.product.name, qty: c.quantity.value, unitPrice: c.unitPrice)],
+        items: [for (final c in cartItems) (name: c.displayName, qty: c.quantity.value, unitPrice: c.unitPrice)],
         subtotal: subtotal,
         discount: discountValue,
         taxLabel: taxValue > 0 ? 'Tax ($taxLabel)' : null,
@@ -1260,11 +1363,19 @@ class PosHomeController extends GetxController {
 
   /// Takes the server's current unit prices and tax rate into the cart/settings so the on-screen numbers equal its.
   void _applyQuote(PosQuote quote) {
+    final byLine = quote.lines.length == cartItems.length; // the server answers line by line, in the cart's order
     for (var i = 0; i < cartItems.length; i++) {
       final item = cartItems[i];
-      final price = item.variant == null ? null : quote.unitPrices[item.variant!.variantId];
+      if (item.isCustom) continue;
+      // G4.5: a line priced with options or a price book takes the server's unit price as is (the list price stays the variant's)
+      if (byLine && quote.lines[i].priced) {
+        item.serverUnitPrice = quote.lines[i].price;
+        continue;
+      }
+      item.serverUnitPrice = null;
+      final price = item.variant == null ? null : (byLine ? quote.lines[i].price : quote.unitPrices[item.variant!.variantId]);
       if (price != null && price != item.variant!.price) {
-        cartItems[i] = CartItem(product: item.product, variant: item.variant!.withPrice(price), qty: item.quantity.value);
+        cartItems[i] = CartItem(product: item.product, variant: item.variant!.withPrice(price), qty: item.quantity.value, modifiers: item.modifiers, bookUnitPrice: item.bookUnitPrice);
       }
     }
     final cur = settings.value;
@@ -1299,9 +1410,11 @@ class PosHomeController extends GetxController {
         discountType: redeemValueMajor > 0 ? 'amount' : (isPercentDiscount.value ? 'percent' : 'amount'),
         discountValue: redeemValueMajor > 0 ? redeemValueMajor : _rawDiscountInput, // a redemption prices exactly like a flat discount
         settingsVersion: version,
+        priceBookId: priceBook.value?.id,
+        customerId: selectedCustomer.value?.id,
       );
     }
-    return _posRepo.quoteSale(storeId: storeId.value, items: _buildItems(), settingsVersion: version, couponCode: coupon);
+    return _posRepo.quoteSale(storeId: storeId.value, items: _buildItems(), settingsVersion: version, couponCode: coupon, priceBookId: priceBook.value?.id, customerId: selectedCustomer.value?.id);
   }
 
   Future<({bool success, PosSaleModel? sale, String? message, bool queued})> _sendSale({
@@ -1343,6 +1456,7 @@ class PosHomeController extends GetxController {
         customerId: selectedCustomer.value?.id,
         notes: _buildNotes(),
         status: status,
+        priceBookId: priceBook.value?.id,
       );
     }
     return _posRepo.createSale(
@@ -1369,6 +1483,7 @@ class PosHomeController extends GetxController {
       approverToken: approver,
       expiredApproverToken: expiredToken,
       redeemPoints: redeem > 0 ? redeem : null,
+      priceBookId: priceBook.value?.id,
     );
   }
 
@@ -1469,7 +1584,7 @@ class PosHomeController extends GetxController {
     if (!_online) return 'Coupons need a connection to check — try again when online, or charge without it';
     isApplyingCoupon.value = true;
     try {
-      final q = await _posRepo.quoteSale(storeId: storeId.value, items: _buildItems(), settingsVersion: settings.value?.settingsVersion, couponCode: c);
+      final q = await _posRepo.quoteSale(storeId: storeId.value, items: _buildItems(), settingsVersion: settings.value?.settingsVersion, couponCode: c, priceBookId: priceBook.value?.id, customerId: selectedCustomer.value?.id);
       if (q.quote?.coupon != null) {
         appliedCoupon.value = q.quote!.coupon;
         return null;
@@ -1584,7 +1699,14 @@ class PosHomeController extends GetxController {
       final variant = liveProduct != null
           ? liveProduct.variantById(item.variantId)
           : product.defaultVariant;
-      final line = CartItem(product: product, variant: variant, qty: item.qty);
+      final line = CartItem(
+        product: product,
+        variant: variant,
+        qty: item.qty,
+        modifiers: item.modifiers,
+        // G4.5: the held price of a line priced with options or a book is the server's (re-priced when the sale is completed)
+        serverUnitPrice: item.modifiers.isNotEmpty || item.basePriceMinor != null ? item.price : null,
+      );
       cartItems.add(line);
       _lots.request(line);
     }
@@ -1603,9 +1725,11 @@ class PosHomeController extends GetxController {
   }
 
   PosProductModel _productFromSaleItemSnapshot(PosSaleItemModel item) {
+    // the line name carries the options ("Tea (Large)"); the cart adds them back from the line's modifiers
+    final suffix = ChosenModifier.suffix(item.modifiers);
     return PosProductModel(
       productId: item.productId,
-      name: item.name,
+      name: suffix.isNotEmpty && item.name.endsWith(suffix) ? item.name.substring(0, item.name.length - suffix.length) : item.name,
       type: 'physical',
       image: item.image,
       categoryId: '',
@@ -1642,6 +1766,7 @@ class PosHomeController extends GetxController {
             if (c.variant != null) 'variantId': c.variant!.variantId,
             'qty': c.quantity.value,
             if (c.sellExpired.value) 'sellExpired': true,
+            if (c.modifiers.isNotEmpty) 'modifiers': ChosenModifier.toRequest(c.modifiers),
             // the price this till shows/charges — the server uses it only when the sale is replayed offline
             'unitPrice': c.unitPrice,
           },
@@ -1671,8 +1796,12 @@ class PosHomeController extends GetxController {
       return 'A manager must approve selling expired stock. Ask the manager again.';
     }
     if (code != null && customerCodes.contains(code)) return customerErrorMessage(code);
+    if (code != null && catalogSaleCodes.contains(code)) return catalogErrorMessage(code, message: message);
     return _friendlyError(message ?? '');
   }
+
+  /// G4.5: server codes of the price book / option rules of a sale (explained by [catalogErrorMessage]).
+  static const catalogSaleCodes = {'PRICE_BOOK_NOT_ACTIVE', 'MODIFIER_REQUIRED', 'MODIFIER_TOO_MANY', 'MODIFIER_OPTION_UNKNOWN', 'MODIFIER_NOT_ON_PRODUCT', 'MODIFIER_GROUP_TWICE', 'PRICE_BELOW_ZERO'};
 
   /// Server codes of the store-credit / points rules of a sale (explained by [customerErrorMessage]).
   static const customerCodes = {

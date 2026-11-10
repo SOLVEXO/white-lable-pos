@@ -148,6 +148,7 @@ class SaleHarness {
         notes: any(named: 'notes'),
         status: any(named: 'status'),
         idempotencyKey: any(named: 'idempotencyKey'),
+        priceBookId: any(named: 'priceBookId'),
       ),
     ).thenAnswer((inv) {
       calls.add(Map.of(inv.namedArguments));
@@ -189,6 +190,8 @@ class SaleHarness {
         discountType: any(named: 'discountType'),
         discountValue: any(named: 'discountValue'),
         settingsVersion: any(named: 'settingsVersion'),
+        priceBookId: any(named: 'priceBookId'),
+        customerId: any(named: 'customerId'),
       ),
     ).thenAnswer((_) async => f());
   }

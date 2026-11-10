@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/models/pos/pos_catalog_admin_models.dart' show ChosenModifier;
 import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/utils/money_json.dart';
 class PosSaleItemModel {
@@ -24,6 +25,10 @@ class PosSaleItemModel {
   final List<SaleLot> lots;
   final bool soldExpired;
 
+  /// G4.5: the options sold with this line (priced by the server) and, when options or a price book applied, the base unit price in minor units
+  final List<ChosenModifier> modifiers;
+  final int? basePriceMinor;
+
   const PosSaleItemModel({
     this.saleItemId,
     required this.productId,
@@ -41,6 +46,8 @@ class PosSaleItemModel {
     this.isCustom = false,
     this.lots = const [],
     this.soldExpired = false,
+    this.modifiers = const [],
+    this.basePriceMinor,
   });
 
   int get refundableQty => qty - refundedQty;
@@ -66,6 +73,8 @@ class PosSaleItemModel {
         isCustom: json['isCustom'] as bool? ?? false,
         lots: [for (final l in (json['lots'] as List? ?? const [])) if (l is Map) SaleLot.fromJson(l.cast<String, dynamic>())],
         soldExpired: json['soldExpired'] == true,
+        modifiers: [for (final m in (json['modifiers'] as List? ?? const [])) if (m is Map) ChosenModifier.fromJson(m.cast<String, dynamic>())],
+        basePriceMinor: (json['basePriceMinor'] as num?)?.toInt(),
       );
 }
 
@@ -147,6 +156,9 @@ class PosSaleModel {
   final String paymentMethod;
   final String customerName;
   final String? customerId;
+
+  /// G4.5: the price book the server priced this sale with (picked at checkout or the customer's own), null for normal prices
+  final String? priceBookName;
   final String notes;
   final DateTime? heldAt;
   /// completed | held | refunded | voided | partially_refunded
@@ -199,6 +211,7 @@ class PosSaleModel {
     required this.paymentMethod,
     required this.customerName,
     this.customerId,
+    this.priceBookName,
     required this.notes,
     this.heldAt,
     required this.status,
@@ -263,6 +276,7 @@ class PosSaleModel {
         paymentMethod: json['paymentMethod'] as String? ?? '',
         customerName: json['customerName'] as String? ?? 'Walk-in',
         customerId: json['customerId'] as String?,
+        priceBookName: json['priceBookName'] as String?,
         notes: json['notes'] as String? ?? '',
         heldAt: json['heldAt'] != null
             ? DateTime.tryParse(json['heldAt'] as String)

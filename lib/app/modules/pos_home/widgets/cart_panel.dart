@@ -8,6 +8,7 @@ import 'package:solvexo_pos/app/modules/pos_home/widgets/cart_lot_info.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/coupon_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/custom_item_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/discount_sheet.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/price_book_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/hold_confirm_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_home/widgets/payment_sheet.dart';
 import 'package:solvexo_pos/core/design/design.dart';
@@ -137,6 +138,11 @@ class CartLine extends StatelessWidget {
                       children: [
                         Text(item.product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: context.type.subtitle.copyWith(color: p.textPrimary)),
                         if (variantLabel != null && variantLabel.isNotEmpty) Text(variantLabel, style: context.type.caption.copyWith(color: p.textMuted)),
+                        // G4.5: the options chosen for the line, and a line priced from the picked price book
+                        if (item.modifiers.isNotEmpty)
+                          Text(item.modifiers.map((m) => m.name).join(', '), key: Key('lineMods_${item.cartKey}'), style: context.type.caption.copyWith(color: p.textSecondary)),
+                        if (item.bookUnitPrice != null && item.modifiers.isEmpty && item.serverUnitPrice == null)
+                          Text('Price book · list ${Money.format(item.listPrice)}', key: Key('lineBook_${item.cartKey}'), style: context.type.caption.copyWith(color: p.accentFg)),
                         if (item.isCustom)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
@@ -224,6 +230,17 @@ class CartFooter extends StatelessWidget {
                 Expanded(child: _ActionChip(key: const Key('discountSheetButton'), icon: Icons.percent_rounded, label: 'Discount', onPressed: (!c.hasItems || c.isChargingOrHolding.value) ? null : () => DiscountSheet.open(c))),
               ],
             ),
+            // G4.5: the price book of this sale (only when the store has any)
+            if (c.priceBooks.isNotEmpty || c.priceBook.value != null) ...[
+              const SizedBox(height: Space.s2),
+              _ActionChip(
+                key: const Key('priceBookButton'),
+                icon: Icons.menu_book_rounded,
+                label: c.priceBook.value == null ? 'Prices: normal' : 'Prices: ${c.priceBook.value!.name}',
+                active: c.priceBook.value != null,
+                onPressed: c.isChargingOrHolding.value ? null : () => PriceBookSheet.open(c),
+              ),
+            ],
             const SizedBox(height: Space.s2),
             AppTextField(
               key: const Key('customerField'),

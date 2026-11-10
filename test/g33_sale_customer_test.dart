@@ -56,6 +56,8 @@ void main() {
         discountType: any(named: 'discountType'),
         discountValue: any(named: 'discountValue'),
         settingsVersion: any(named: 'settingsVersion'),
+        priceBookId: any(named: 'priceBookId'),
+        customerId: any(named: 'customerId'),
       ),
     ).thenAnswer((_) async => (quote: null, message: null, code: null));
   });
@@ -388,6 +390,8 @@ void main() {
           discountType: 'amount',
           discountValue: 5.0,
           settingsVersion: any(named: 'settingsVersion'),
+          priceBookId: any(named: 'priceBookId'),
+          customerId: any(named: 'customerId'),
         ),
       ).called(1);
       await t.pump(const Duration(seconds: 4));

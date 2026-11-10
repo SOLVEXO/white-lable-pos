@@ -13,15 +13,19 @@ class CartLineSnapshot {
   /// G2.4 custom item only: its tax category ('standard' | 'exempt') and the cashier's note.
   final String? taxCategory;
   final String? note;
-  const CartLineSnapshot({required this.product, this.variantId, required this.qty, this.taxCategory, this.note});
 
-  Map<String, dynamic> toJson() => {'product': product, 'variantId': variantId, 'qty': qty, if (taxCategory != null) 'taxCategory': taxCategory, if (note != null) 'note': note};
+  /// G4.5: the options chosen for the line (`ChosenModifier.toJson()` maps)
+  final List<Map<String, dynamic>> modifiers;
+  const CartLineSnapshot({required this.product, this.variantId, required this.qty, this.taxCategory, this.note, this.modifiers = const []});
+
+  Map<String, dynamic> toJson() => {'product': product, 'variantId': variantId, 'qty': qty, if (taxCategory != null) 'taxCategory': taxCategory, if (note != null) 'note': note, if (modifiers.isNotEmpty) 'modifiers': modifiers};
   factory CartLineSnapshot.fromJson(Map<String, dynamic> j) => CartLineSnapshot(
       product: (j['product'] as Map).cast<String, dynamic>(),
       variantId: j['variantId'] as String?,
       qty: (j['qty'] as num?)?.toInt() ?? 1,
       taxCategory: j['taxCategory'] as String?,
-      note: j['note'] as String?);
+      note: j['note'] as String?,
+      modifiers: [for (final m in (j['modifiers'] as List? ?? const [])) if (m is Map) m.cast<String, dynamic>()]);
 }
 
 class SplitLineSnapshot {

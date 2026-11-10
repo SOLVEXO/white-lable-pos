@@ -188,6 +188,7 @@ class _ItemsCard extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const CustomText(text: 'Items', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2),
+        if (sale.priceBookName != null) CustomText(key: const Key('salePriceBook'), text: 'Priced with: ${sale.priceBookName}', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
         const SizedBox(height: 10),
         ...sale.items.map((item) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
@@ -206,6 +207,17 @@ class _ItemsCard extends StatelessWidget {
                   fontSize: AppFontSize.tiny,
                   color: AppColors.iosGrey,
                 ),
+                // G4.5: the base price (list or price book) and each option's price, when the server priced the line with them
+                if (item.basePriceMinor != null)
+                  CustomText(
+                    key: Key('saleBase_${item.saleItemId ?? item.productId}'),
+                    text: [
+                      'Base ${Money.format(Money.fromMinor(item.basePriceMinor!, sale.currencyExponent), currency: sale.currency, exponent: sale.currencyExponent)}',
+                      for (final m in item.modifiers) '${m.name} ${m.priceDeltaMinor < 0 ? '−' : '+'}${Money.format(Money.fromMinor(m.priceDeltaMinor.abs(), sale.currencyExponent), currency: sale.currency, exponent: sale.currencyExponent)}',
+                    ].join(' · '),
+                    fontSize: AppFontSize.tiny,
+                    color: AppColors.iosGrey,
+                  ),
                 // G3.2: which lot(s) this line was taken from, and a plain mark when any of it was expired stock
                 if (item.lots.isNotEmpty)
                   CustomText(key: Key('saleLots_${item.saleItemId ?? item.productId}'), text: item.lots.map((l) => l.label).join(' · '), fontSize: AppFontSize.tiny, color: AppColors.iosGrey),

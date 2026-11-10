@@ -56,7 +56,7 @@ class CartRemovalUndo {
     if (_toast) {
       _toastShown = true;
       AppToast.show(
-        'Removed ${item.product.name}',
+        'Removed ${item.displayName}',
         actionLabel: 'Undo',
         onAction: undo,
         duration: window,
