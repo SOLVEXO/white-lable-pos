@@ -1,4 +1,6 @@
-# G4 — Intelligence & control: plan (PLAN ONLY — no code written)
+# G4 — Intelligence & control: plan
+
+**Status (2026-11-10): approved with the owner's decisions below; building in the order of §1b.**
 
 Written after G3.6. Sources: `GAP_AUDIT.md` §G4, `G3_PLAN.md`, `FBR_PLAN.md`, `G3_CLOSEOUT.md`, and what G3 actually built (the numbers below are about *data that now exists*, not about screens).
 
@@ -17,7 +19,31 @@ Written after G3.6. Sources: `GAP_AUDIT.md` §G4, `G3_PLAN.md`, `FBR_PLAN.md`, `
 
 What G4 must still **build**: aggregation endpoints (reports read the same tables; nothing new is *recorded*), a chart toolkit (no chart package approved yet — see decision 4), the per-store editable matrix, the settings hub, and tamper-evidence for the audit log.
 
-## 1. Sub-phases (shippable, in order)
+## 0b. Owner decisions (2026-11-10)
+1. **Reports live from the ledgers** with proper indexes; a performance test: a 90-day report on a large seeded dataset must return in **< 2 s locally**. Rollups only if that fails (then I propose them).
+2. **Profit:** gross margin (WAC snapshots) AND "after expenses", clearly labelled. **Supplier payments are never expenses** (inventory cost is already in WAC) — tested.
+3. **Charts:** CustomPainter, no package.
+4. **Audit:** nightly sealing job — a hash per store per day over that day's events, stored append-only, plus a verify command that detects any change; lease-protected like the other jobs.
+5. **Store time zone:** per-store IANA time zone (default `Asia/Karachi` for PK stores); every "day" boundary (reports, daybook, dashboard, attendance) uses it; tested with a DST-free and a DST zone.
+6. **Roles:** the three fixed roles become editable per store (owner only), safe defaults, "reset to defaults", audit. No custom roles.
+7. **FBR:** route A/B undecided — **no FBR transmission work**; keep `FBR_PLAN.md` current.
+8. **Customer credit on account (khata):** recommended yes, pending owner confirmation; built **last**, its own sub-phase; skipped if the owner says no.
+
+## 1b. Build order (replaces the order in §1 — scope check added the missing items)
+| # | Sub-phase | Content |
+|---|---|---|
+| G4.0 | Store time zone + report engine + business pulse | per-store time zone setting used by every day boundary (reports, daybook, dashboard, attendance); aggregation layer; pulse; indexes; **performance test** |
+| G4.1 | The eight reports | sales, profit (gross margin + after expenses; supplier payments excluded), product, category, tax, payment mix, cashier (+ staff stats), hourly; CustomPainter charts; CSV/PDF; drill-down |
+| G4.2 | Editable roles per store | owner-only matrix overrides for cashier / manager / owner, pinned invariants, presets → defaults, reset, diff, audit |
+| G4.3 | Audit log screens + nightly sealing | sealing job (hash per store per day, append-only, lease), verify command, audit viewer + export |
+| G4.4 | Settings hub | store profile (incl. time zone), registers & devices, payments setup, tax rules, receipt designer, notifications, hardware, integrations, security, backup & sync, help, about |
+| G4.5 | **Products & pricing** (scope check) | product creation from the till (behind the matrix), variants editor, categories CRUD, **price books**, **modifiers** (new backend), **bulk import** |
+| G4.6 | **Stock & shift completion** (deferred G3 items) | stock transfer + transfer-detail screens, batch-expiry screen (buckets + write-off), low stock → PO draft link, opening-shift previous-close variance + notes/coins counter |
+| G4.7 | Customer credit on account (khata) — LAST, pending the owner | per-customer limit, manager approval above it, online-only credit sales, payment collection (cash → cash-in on the shift), append-only minor ledger, aging, printable statement |
+
+FBR transmission stays out of G4 (decision 7).
+
+## 1. Sub-phases (original proposal — superseded by §1b) (shippable, in order)
 | Sub-phase | What ships | Depends on | Size | Risk |
 |---|---|---|---|---|
 | **G4.0 Report engine + business pulse** | one server-side aggregation layer (`api/pos/reports/*`): period + register/cashier/location filters, minor-only, currency stated; **Business pulse** (today vs same weekday last week: sales, transactions, avg basket, margin, cash vs card, refunds, expenses, top 5, low stock, attendance) | G3 data | M | slow queries on big stores → pre-aggregated daily rollups (an append-only `daily_facts` table written at shift close and rebuilt on demand); decide before building |
