@@ -55,17 +55,17 @@ void main() {
 
     // ── a · cash in / out, replay ─────────────────────────────────────────────────────────────────────────────────────────────
     final inId = rid('in');
-    final cashIn = await t.repo.recordCashMovement(storeId, type: 'cash_in', category: 'float_topup', amountMinor: 2000, sessionId: session.id, requestId: inId, occurredAt: DateTime.now());
+    final cashIn = await t.repo.recordCashMovement(storeId, type: 'cash_in', category: 'float_topup', amountMinor: 30000, sessionId: session.id, requestId: inId, occurredAt: DateTime.now());
     expect(cashIn.success, isTrue, reason: 'cash in: ${cashIn.message}');
-    final replay = await t.repo.recordCashMovement(storeId, type: 'cash_in', category: 'float_topup', amountMinor: 2000, sessionId: session.id, requestId: inId, occurredAt: DateTime.now());
-    expect(replay.result!.duplicate, isTrue, reason: 'the same request is booked once');
+    final replay = await t.repo.recordCashMovement(storeId, type: 'cash_in', category: 'float_topup', amountMinor: 30000, sessionId: session.id, requestId: inId, occurredAt: DateTime.now());
+    expect(replay.success, isTrue, reason: 'a replay of the same request is answered, not an error'); // (same Idempotency-Key → the server hands back the original answer)
     final out = await t.repo.recordCashMovement(storeId, type: 'cash_out', category: 'safe_drop', amountMinor: 500, sessionId: session.id, requestId: rid('out'));
     expect(out.success, isTrue, reason: 'cash out: ${out.message}');
     final noNote = await t.repo.recordCashMovement(storeId, type: 'cash_out', category: 'other_out', amountMinor: 100, sessionId: session.id, requestId: rid('o'));
     expect(noNote.code, 'NOTE_REQUIRED');
     final big = await t.repo.recordCashMovement(storeId, type: 'cash_out', category: 'bank_deposit', amountMinor: 15000, sessionId: session.id, requestId: rid('big'));
     expect(big.success, isTrue, reason: 'a manager above the limit approves themselves (audited): ${big.message}');
-    print('a ok: in 20.00, out 5.00 + 150.00, replay duplicate');
+    print('a ok: in 300.00, out 5.00 + 150.00, replay duplicate');
 
     // ── b · expenses ──────────────────────────────────────────────────────────────────────────────────────────────────────────
     final exId = rid('ex');
@@ -73,7 +73,6 @@ void main() {
     expect(drawer.success, isTrue, reason: 'drawer expense: ${drawer.message}');
     expect(drawer.result!.expense.status, 'recorded');
     final again = await t.repo.recordExpense(storeId, category: 'supplies', method: 'cash', amountMinor: 750, sessionId: session.id, requestId: exId, payee: 'Corner shop');
-    expect(again.result!.duplicate, isTrue);
     expect(again.result!.expense.id, drawer.result!.expense.id);
     final bank = await t.repo.recordExpense(storeId, category: 'rent', method: 'bank', amountMinor: 12000, requestId: rid('bank'), payee: 'Landlord');
     expect(bank.success, isTrue, reason: 'bank expense: ${bank.message}');
@@ -92,7 +91,8 @@ void main() {
     final types = shift.lines.map((l) => l.type).toList();
     expect(types.first, 'opening');
     expect(types, containsAll(['cash_sale', 'cash_in', 'cash_out', 'expense']));
-    expect(types.where((x) => x == 'expense'), hasLength(1), reason: 'the bank expense never touched the drawer');
+    expect(types.where((x) => x == 'expense'), hasLength(1), reason: 'the bank expense never touched the drawer, and the replayed drawer expense was booked once');
+    expect(shift.lines.where((l) => l.type == 'cash_in'), hasLength(1), reason: 'the replayed cash-in was booked exactly once');
     var run = 0;
     for (final l in shift.lines) {
       run += l.amountMinor;

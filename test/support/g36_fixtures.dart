@@ -5,6 +5,9 @@ import 'package:solvexo_pos/app/data/local/sealed_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_team_models.dart';
 
+/// A LOCAL wall-clock time on 2026-11-09 as the ISO-UTC string the server sends — so the screens show the same hh:mm in every time zone (CI runs in UTC).
+String _t(int h, int m, [int sec = 0]) => DateTime(2026, 11, 9, h, m, sec).toUtc().toIso8601String();
+
 /// A team cache with a fixed key (no secure storage needed in tests).
 TeamCache testTeamCache({DateTime Function()? clock}) => TeamCache(
   sealed: SealedText(cipher: AesGcmQueueCipher(fixedKey: SecretKey(List.filled(32, 11)))),
@@ -107,17 +110,17 @@ PosEmployeeModel employee(String id, String name, {String role = 'cashier'}) =>
 
 Map<String, dynamic> meJson({bool clockedIn = true}) => {
   'employeeId': 'e1',
-  'state': {'clockedIn': clockedIn, 'onBreak': false, 'since': '2026-11-09T04:02:00.000Z', 'recordId': 'rec1'},
+  'state': {'clockedIn': clockedIn, 'onBreak': false, 'since': _t(9, 2), 'recordId': 'rec1'},
   'nextShifts': [
-    {'id': 'sh1', 'employeeId': 'e1', 'employeeName': 'Sam', 'locationId': null, 'startAt': '2026-11-09T04:00:00.000Z', 'endAt': '2026-11-09T12:00:00.000Z', 'note': null, 'status': 'active'},
+    {'id': 'sh1', 'employeeId': 'e1', 'employeeName': 'Sam', 'locationId': null, 'startAt': _t(9, 0), 'endAt': _t(17, 0), 'note': null, 'status': 'active'},
   ],
-  'serverTime': '2026-11-09T04:05:00.000Z',
+  'serverTime': _t(9, 5),
 };
 
 Map<String, dynamic> clockResultJson({String type = 'clock_in', bool duplicate = false, bool clockedIn = true, bool onBreak = false}) => {
   'duplicate': duplicate,
-  'event': {'id': 'ev1', 'type': type, 'at': '2026-11-09T04:02:00.000Z', 'deviceAt': '2026-11-09T04:02:00.000Z', 'serverAt': '2026-11-09T04:02:01.000Z', 'flags': <String>[]},
-  'state': {'clockedIn': clockedIn, 'onBreak': onBreak, 'since': '2026-11-09T04:02:00.000Z', 'recordId': 'rec1'},
+  'event': {'id': 'ev1', 'type': type, 'at': _t(9, 2), 'deviceAt': _t(9, 2), 'serverAt': _t(9, 2, 1), 'flags': <String>[]},
+  'state': {'clockedIn': clockedIn, 'onBreak': onBreak, 'since': _t(9, 2), 'recordId': 'rec1'},
 };
 
 ClockResult clockResult({String type = 'clock_in', bool clockedIn = true, bool onBreak = false, bool duplicate = false}) =>
