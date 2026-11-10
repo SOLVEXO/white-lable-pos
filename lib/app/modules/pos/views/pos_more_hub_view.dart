@@ -50,6 +50,7 @@ class PosMoreHubView extends StatelessWidget {
         if (a.canManage)
           HubSection('Business', [
             HubRow(icon: Icons.inventory_rounded, title: 'Inventory', subtitle: 'Stock levels, history, counts and limits', onTap: () => Get.toNamed(Routes.posStockOverview)),
+            HubRow(icon: Icons.local_shipping_outlined, title: 'Suppliers & purchase orders', subtitle: 'Orders, receiving, supplier returns and payables', onTap: () => Get.toNamed(Routes.posSupply)),
             HubRow(icon: Icons.history_rounded, title: 'Past buyers', subtitle: 'Who has ordered from the store, and what they spent', onTap: () => Get.toNamed(Routes.posCustomers), locked: true),
             HubRow(icon: Icons.bar_chart_rounded, title: 'Daily report', subtitle: 'Sales, tenders and top products', onTap: () => Get.toNamed(Routes.posDailyReport), locked: true),
             HubRow(icon: Icons.date_range_rounded, title: 'Date-range report', subtitle: 'Any period', onTap: () => Get.toNamed(Routes.posRangeReport), locked: true),
@@ -58,7 +59,6 @@ class PosMoreHubView extends StatelessWidget {
           ]),
         if (a.canManage)
           const HubSection('Coming soon', [
-            HubRow(icon: Icons.local_shipping_outlined, title: 'Suppliers & purchase orders', soon: true),
             HubRow(icon: Icons.payments_outlined, title: 'Expenses & daybook', soon: true),
             HubRow(icon: Icons.badge_outlined, title: 'Attendance', soon: true),
           ]),

@@ -77,6 +77,15 @@ import '../modules/pos_customers/bindings/pos_customers_binding.dart';
 import '../modules/pos_customers/views/customer_list_view.dart';
 import '../modules/pos_customers/views/customer_profile_view.dart';
 import '../modules/pos_customers/views/pos_customers_view.dart';
+import '../modules/pos_supply/views/payables_view.dart';
+import '../modules/pos_supply/views/po_detail_view.dart';
+import '../modules/pos_supply/views/po_form_view.dart';
+import '../modules/pos_supply/views/po_list_view.dart';
+import '../modules/pos_supply/views/receive_view.dart';
+import '../modules/pos_supply/views/supplier_ledger_view.dart';
+import '../modules/pos_supply/views/supplier_list_view.dart';
+import '../modules/pos_supply/views/supplier_profile_view.dart';
+import '../modules/pos_supply/views/supply_home_view.dart';
 part 'app_routes.dart';
 
 class AppPages {
@@ -283,6 +292,16 @@ class AppPages {
     // G3.3 customers: the directory and a profile (every role; the server decides what a role sees / may change). The legacy past-buyers list above stays on /pos/customers.
     GetPage(name: Routes.posCustomerDirectory, page: () => CustomerListView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posCustomerProfile, page: () => CustomerProfileView(customerId: '${(Get.arguments as Map)['customerId']}'), middlewares: [PosAccessMiddleware()]),
+    // G3.4 supply: the server decides who may do what (a cashier only receives against approved orders and never sees a cost)
+    GetPage(name: Routes.posSupply, page: () => const SupplyHomeView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posSupplyOrders, page: () => PoListView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posSupplyOrder, page: () => PoDetailView(orderId: '${(Get.arguments as Map)['orderId']}'), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posSupplyOrderForm, page: () => PoFormView(orderId: Get.arguments is Map ? (Get.arguments as Map)['orderId'] as String? : null, supplierId: Get.arguments is Map ? (Get.arguments as Map)['supplierId'] as String? : null), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posSupplyReceive, page: () => ReceiveView(orderId: Get.arguments is Map ? (Get.arguments as Map)['orderId'] as String? : null, supplierId: Get.arguments is Map ? (Get.arguments as Map)['supplierId'] as String? : null), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posSupplySuppliers, page: () => SupplierListView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posSupplySupplier, page: () => SupplierProfileView(supplierId: '${(Get.arguments as Map)['supplierId']}'), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posSupplyPayables, page: () => PayablesView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posSupplyLedger, page: () => SupplierLedgerView(supplierId: '${(Get.arguments as Map)['supplierId']}'), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanInactive, page: () => const PosPlanInactiveView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanStatus, page: () => const PosPlanStatusView(), middlewares: [PosAccessMiddleware(), OwnerAccessMiddleware()]),
   ];

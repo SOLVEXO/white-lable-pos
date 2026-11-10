@@ -67,6 +67,17 @@ abstract class Routes {
   static const posCustomerDirectory = '/pos/customers/directory';
   static const posCustomerProfile = '/pos/customers/profile';
 
+  // G3.4 supply: home (managers), purchase orders, one order, order form, receiving, suppliers, a supplier, payables, a ledger
+  static const posSupply = '/pos/supply';
+  static const posSupplyOrders = '/pos/supply/orders';
+  static const posSupplyOrder = '/pos/supply/order';
+  static const posSupplyOrderForm = '/pos/supply/order-form';
+  static const posSupplyReceive = '/pos/supply/receive';
+  static const posSupplySuppliers = '/pos/supply/suppliers';
+  static const posSupplySupplier = '/pos/supply/supplier';
+  static const posSupplyPayables = '/pos/supply/payables';
+  static const posSupplyLedger = '/pos/supply/ledger';
+
   // 5D — shared-device security
   static const posDeviceSetup = '/pos/device-setup';
   static const posOwnerGate = '/pos/owner-gate';

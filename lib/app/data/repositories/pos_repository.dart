@@ -5,6 +5,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -1997,6 +1998,135 @@ class PosRepository {
       if (expiresAt != null) 'expiresAt': expiresAt.toUtc().toIso8601String(),
     });
     return (success: r.success, message: r.message, code: r.code);
+  }
+
+  // ── G3.4 supply: suppliers, purchase orders, receiving, supplier returns, payables, supplier payments ────────────────────────────
+  // Reads return null on failure (the server's `code` is in [lastErrorCode]; no code = no connection). Writes return a record with
+  // `success`, `message`, `code`. The server decides who may do what: a cashier gets no costs and POS_ACTION_FORBIDDEN on manager actions.
+
+  String _sup(String storeId, String path) => '${ApiConstants.apiPrefix}/pos/supply/$path/$storeId';
+
+  Future<SupplierList?> getSuppliers(String storeId) => _invGet('supplyList', _sup(storeId, 'suppliers'), SupplierList.fromJson);
+
+  Future<SupplierProfile?> getSupplier(String storeId, String supplierId) => _invGet('supplyOne', '${_sup(storeId, 'suppliers')}/$supplierId', SupplierProfile.fromJson);
+
+  /// [status]: all | draft | approved | sent | partially_received | received | cancelled (a cashier always gets only the receivable ones, without costs).
+  Future<PoList?> getSupplyOrders(String storeId, {String status = 'all', String? supplierId}) =>
+      _invGet('supplyOrders', _sup(storeId, 'orders'), PoList.fromJson, query: {if (status != 'all') 'status': status, if (supplierId != null) 'supplierId': supplierId});
+
+  Future<PoDetail?> getSupplyOrder(String storeId, String orderId) => _invGet('supplyOrder', '${_sup(storeId, 'orders')}/$orderId', PoDetail.fromJson);
+
+  /// Managers / owners only.
+  Future<List<SupplyReceipt>?> getSupplyReceipts(String storeId, {String? supplierId, String? purchaseOrderId}) => _invGet(
+    'supplyReceipts',
+    _sup(storeId, 'receipts'),
+    (d) => [for (final e in (d['receipts'] as List? ?? const [])) if (e is Map) SupplyReceipt.fromJson(e.cast<String, dynamic>())],
+    query: {if (supplierId != null) 'supplierId': supplierId, if (purchaseOrderId != null) 'purchaseOrderId': purchaseOrderId},
+  );
+
+  /// Managers / owners only.
+  Future<Payables?> getPayables(String storeId) => _invGet('supplyPayables', _sup(storeId, 'payables'), Payables.fromJson);
+
+  /// Managers / owners only: the supplier's ledger, newest first, each entry with the running balance.
+  Future<SupplierLedger?> getSupplierLedger(String storeId, String supplierId) => _invGet('supplyLedger', '${_sup(storeId, 'payables')}/$supplierId', SupplierLedger.fromJson);
+
+  /// One write of the supply endpoints. The Idempotency-Key belongs to this intent (same payload = same key until the server answers).
+  /// [approverToken] (a manager's approval of THIS action) goes in `x-pos-approver-token`.
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> _supplyWrite(
+    String tag,
+    String method,
+    String url,
+    Map<String, dynamic> payload, {
+    String? approverToken,
+  }) async {
+    lastErrorCode = null;
+    lastErrorReasons = const [];
+    final fp = IdempotencyIntentStore.fingerprint('$tag:$url${approverToken != null ? ':approved' : ''}', payload);
+    var settled = false;
+    try {
+      final headers = {...await _writeHeaders(await _intents.keyFor(fp)), if (approverToken != null) 'x-pos-approver-token': approverToken};
+      final res = method == 'PATCH' ? await _client.patch(url, data: payload, requiresAuth: true, headers: headers) : await _client.post(url, data: payload, requiresAuth: true, headers: headers);
+      settled = true;
+      final data = _data(res);
+      return (success: _ok(res), message: res.data is Map ? res.data['message'] as String? : null, code: null, data: data is Map ? data.cast<String, dynamic>() : null);
+    } on DioException catch (e) {
+      settled = _isFinalFailure(e);
+      _logDioError(tag, e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      return (success: false, message: _dioMessage(e), code: lastErrorCode, data: null);
+    } catch (e) {
+      debugPrint('❌ $tag: $e');
+      return (success: false, message: 'Could not reach the server.', code: null, data: null);
+    } finally {
+      if (settled) await _intents.release(fp);
+    }
+  }
+
+  Future<({bool success, String? message, String? code, Supplier? supplier})> createSupplier(String storeId, Map<String, dynamic> fields) async {
+    final r = await _supplyWrite('supplyCreate', 'POST', _sup(storeId, 'suppliers'), fields);
+    return (success: r.success, message: r.message, code: r.code, supplier: r.data?['supplier'] is Map ? Supplier.fromJson((r.data!['supplier'] as Map).cast<String, dynamic>()) : null);
+  }
+
+  Future<({bool success, String? message, String? code, Supplier? supplier})> updateSupplier(String storeId, String supplierId, Map<String, dynamic> fields) async {
+    final r = await _supplyWrite('supplyUpdate', 'PATCH', '${_sup(storeId, 'suppliers')}/$supplierId', fields);
+    return (success: r.success, message: r.message, code: r.code, supplier: r.data?['supplier'] is Map ? Supplier.fromJson((r.data!['supplier'] as Map).cast<String, dynamic>()) : null);
+  }
+
+  PurchaseOrder? _poOf(Map<String, dynamic>? d) => d?['order'] is Map ? PurchaseOrder.fromJson({...(d!['order'] as Map).cast<String, dynamic>(), ...?_curOf(d)}) : null;
+  Map<String, dynamic>? _curOf(Map<String, dynamic> d) => d['currency'] != null ? {'currency': d['currency'], 'currencyExponent': d['currencyExponent']} : null;
+
+  /// Managers / owners only. Money is integer minor units: `items[].unitCostMinor`, `shippingMinor`, `taxMinor`.
+  Future<({bool success, String? message, String? code, PurchaseOrder? order})> createSupplyOrder(String storeId, Map<String, dynamic> payload) async {
+    final r = await _supplyWrite('supplyOrderCreate', 'POST', _sup(storeId, 'orders'), payload);
+    return (success: r.success, message: r.message, code: r.code, order: _poOf(r.data));
+  }
+
+  /// Managers / owners only. An approved / sent order that is edited goes back to draft; `PO_NOT_EDITABLE` once receiving started.
+  Future<({bool success, String? message, String? code, PurchaseOrder? order})> updateSupplyOrder(String storeId, String orderId, Map<String, dynamic> payload) async {
+    final r = await _supplyWrite('supplyOrderUpdate', 'PATCH', '${_sup(storeId, 'orders')}/$orderId', payload);
+    return (success: r.success, message: r.message, code: r.code, order: _poOf(r.data));
+  }
+
+  /// [action]: approve | send | cancel | close-short. Approving above the store's limit needs the owner; [approverToken] answers `POS_APPROVAL_REQUIRED`.
+  Future<({bool success, String? message, String? code, PurchaseOrder? order})> supplyOrderAction(String storeId, String orderId, String action, {String? approverToken}) async {
+    final r = await _supplyWrite('supplyOrder_$action', 'POST', '${_sup(storeId, 'orders')}/$orderId/$action', const {}, approverToken: approverToken);
+    return (success: r.success, message: r.message, code: r.code, order: _poOf(r.data));
+  }
+
+  /// A goods receipt. With `purchaseOrderId` the lines are `{poItemId, qtyGood, qtyDamaged, lotNumber?, expiryDate?}` (a cashier sends NO cost);
+  /// without one (managers) `{variantId, qtyGood, qtyDamaged, unitCostMinor, ...}` plus `supplierId`. `requestId` makes a retry safe.
+  Future<({bool success, String? message, String? code, ReceiveResult? result})> receiveSupply(String storeId, Map<String, dynamic> payload) async {
+    final r = await _supplyWrite('supplyReceive', 'POST', _sup(storeId, 'receipts'), payload);
+    return (success: r.success, message: r.message, code: r.code, result: r.data == null ? null : ReceiveResult.fromJson(r.data!));
+  }
+
+  /// Managers / owners only: items `{variantId, quantity, lotId?, fromDamaged?}` back to the supplier of [receiptId] (or [supplierId]); the credit goes to the ledger.
+  Future<({bool success, String? message, String? code, SupplierReturnResult? result})> createSupplierReturn(String storeId, Map<String, dynamic> payload) async {
+    final r = await _supplyWrite('supplyReturn', 'POST', _sup(storeId, 'returns'), payload);
+    return (success: r.success, message: r.message, code: r.code, result: r.data == null ? null : SupplierReturnResult.fromJson(r.data!));
+  }
+
+  /// Managers / owners only. [method]: cash (needs the open shift's [sessionId]) | bank | other. Above the manager's limit the owner approves
+  /// (`POS_OWNER_REQUIRED` / `POS_APPROVAL_REQUIRED`); `EXCEEDS_BALANCE` when it is more than is owed. [requestId] makes a retry safe.
+  Future<({bool success, String? message, String? code, SupplierPaymentResult? result})> paySupplier(
+    String storeId,
+    String supplierId, {
+    required int amountMinor,
+    required String method,
+    required String requestId,
+    String? reference,
+    String? sessionId,
+    String? approverToken,
+  }) async {
+    final r = await _supplyWrite('supplyPay', 'POST', '${_sup(storeId, 'payments')}/$supplierId', {
+      'amountMinor': amountMinor,
+      'method': method,
+      'requestId': requestId,
+      if (reference != null && reference.trim().isNotEmpty) 'reference': reference.trim(),
+      if (method == 'cash' && sessionId != null) 'sessionId': sessionId,
+    }, approverToken: approverToken);
+    return (success: r.success, message: r.message, code: r.code, result: r.data == null ? null : SupplierPaymentResult.fromJson(r.data!));
   }
 }
 

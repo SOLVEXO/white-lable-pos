@@ -20,7 +20,7 @@ Making the matrix editable per store later (G4) means changing where the table i
 | `inventory.count.finish` | Finish a count and post its variances | — | ✔ | ✔ |  |
 | `inventory.transfer.create` | Create / ship a stock transfer | — | ✔ | ✔ |  |
 | `inventory.transfer.receive` | Receive a stock transfer | — | ✔ | ✔ |  |
-| `inventory.lot.sellExpired` | Sell stock from an expired lot (override) | — | ✔ | ✔ | always → manager |
+| `inventory.lot.sellExpired` | Sell stock from an expired lot (override) | ✔ | ✔ | ✔ | always → manager |
 | `catalog.edit` | Edit price, barcode, category, HS code | — | ✔ | ✔ |  |
 | `customers.view` | Find customers and see their balance | ✔ | ✔ | ✔ |  |
 | `customers.create` | Add a customer | ✔ | ✔ | ✔ |  |
@@ -29,10 +29,15 @@ Making the matrix editable per store later (G4) means changing where the table i
 | `storeCredit.refundIssue` | Refund to store credit | ✔ | ✔ | ✔ | storeCreditRefundMinor > limit → manager |
 | `storeCredit.adjust` | Adjust a customer's store credit by hand | — | ✔ | ✔ | storeCreditAdjustMinor > limit → owner |
 | `loyalty.redeem` | Redeem loyalty points at checkout | ✔ | ✔ | ✔ |  |
+| `loyalty.configure` | Set the loyalty earn / redeem rates for the till | — | — | ✔ |  |
 | `loyalty.adjust` | Adjust loyalty points by hand | — | ✔ | ✔ | loyaltyAdjustPoints > limit → owner |
 | `supply.view` | See suppliers and purchase orders | — | ✔ | ✔ |  |
 | `supply.po.write` | Create / edit a purchase order | — | ✔ | ✔ |  |
-| `supply.po.receive` | Receive stock against a purchase order | — | ✔ | ✔ |  |
+| `supply.po.approve` | Approve a purchase order (above the limit the owner approves) | — | ✔ | ✔ | purchaseOrderMinor > limit → owner |
+| `supply.po.receive` | Receive stock against an approved purchase order | ✔ | ✔ | ✔ |  |
+| `supply.receive.direct` | Receive stock without a purchase order | — | ✔ | ✔ |  |
+| `supply.return` | Return stock to a supplier | — | ✔ | ✔ |  |
+| `supply.costs.view` | See costs, payables and payments | — | ✔ | ✔ |  |
 | `supply.payment` | Pay a supplier | — | ✔ | ✔ | supplierPaymentManagerMinor > limit → owner |
 | `cash.in` | Cash in (float top-up) | ✔ | ✔ | ✔ |  |
 | `cash.out` | Cash out / safe drop | ✔ | ✔ | ✔ | cashOutMinor > limit → manager |
@@ -51,6 +56,7 @@ Making the matrix editable per store later (G4) means changing where the table i
 | `stockAdjustValueMinor` | Stock adjustment a cashier may make alone — value at cost | 20.00 (major units of the store currency) |
 | `cashOutMinor` | Cash out / safe drop | 100.00 (major units of the store currency) |
 | `expenseMinor` | Expense | 100.00 (major units of the store currency) |
+| `purchaseOrderMinor` | Purchase order a manager may approve alone | 1000.00 (major units of the store currency) |
 | `supplierPaymentManagerMinor` | Supplier payment a manager may make alone | 500.00 (major units of the store currency) |
 | `supplierPaymentOwnerMinor` | Supplier payment that needs the owner | 2000.00 (major units of the store currency) |
 | `storeCreditRefundMinor` | Refund to store credit | 50.00 (major units of the store currency) |

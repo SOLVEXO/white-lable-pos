@@ -27,6 +27,13 @@ class PosStockHubView extends StatelessWidget {
             ]),
             HubSection('Stock', [
               HubRow(icon: Icons.fact_check_outlined, title: 'Stock on hand', subtitle: a.canManage ? 'Levels, low stock and adjustments' : 'Levels and low stock', onTap: () => Get.toNamed(Routes.posInventory)),
+              // G3.4: a cashier receives stock against approved purchase orders (no costs); managers get the whole supply area
+              HubRow(
+                icon: Icons.move_to_inbox_outlined,
+                title: a.canManage ? 'Suppliers & receiving' : 'Receive stock',
+                subtitle: a.canManage ? 'Purchase orders, receiving and payables' : 'Receive goods against an approved purchase order',
+                onTap: () => Get.toNamed(a.canManage ? Routes.posSupply : Routes.posSupplyOrders),
+              ),
               if (a.canManage) HubRow(icon: Icons.history_rounded, title: 'Stock activity', subtitle: 'Every change to stock, with who and why', onTap: () => Get.toNamed(Routes.posStockActivity), locked: true),
             ]),
             if (a.canManage)
