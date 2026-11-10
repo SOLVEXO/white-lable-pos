@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart' show ReceiptOptions;
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/utils/money.dart';
@@ -38,6 +39,12 @@ class ReceiptRefundRow {
 /// Everything a receipt shows, computed ONCE from the sale + store settings — the PDF, the thermal (ESC/POS)
 /// print and the shared text are all rendered from this one object, so they can never disagree. All amounts are
 /// already formatted in the SALE's own currency and decimals (JPY has no cents, KWD has three).
+/// G4.4: the receipt's closing text — the owner's promotion line (receipt designer) above the footer; null when there is neither.
+String? receiptFooterText(PosSettingsModel? settings, String? Function(String?) clean) {
+  final parts = [clean(settings?.receiptOptions.promoText), clean(settings?.receiptFooter)].whereType<String>();
+  return parts.isEmpty ? null : parts.join('\n');
+}
+
 class ReceiptData {
   final String? businessName;
   final String? header;
@@ -46,7 +53,8 @@ class ReceiptData {
   final String receiptNumber;
   final String dateText;
   final String? cashier;
-  final String customer;
+  /// null when the owner's receipt designer hides the customer's name
+  final String? customer;
   final List<ReceiptLine> lines;
   final String subtotal;
   final String? discountLabel;
@@ -169,7 +177,7 @@ class ReceiptData {
         receiptNumber: j['receiptNumber'] as String,
         dateText: j['dateText'] as String,
         cashier: j['cashier'] as String?,
-        customer: j['customer'] as String,
+        customer: j['customer'] as String?,
         lines: [for (final l in (j['lines'] as List)) ReceiptLine.fromJson(Map<String, dynamic>.from(l as Map))],
         subtotal: j['subtotal'] as String,
         discountLabel: j['discountLabel'] as String?,
@@ -251,15 +259,16 @@ class ReceiptData {
                 ? 'PARTIALLY REFUNDED'
                 : null;
 
+    final o = settings?.receiptOptions ?? const ReceiptOptions();
     return ReceiptData(
       businessName: clean(settings?.businessName),
       header: clean(settings?.receiptHeader),
-      address: clean(settings?.businessAddress),
-      taxId: clean(settings?.businessTaxId),
+      address: o.showStoreAddress ? clean(settings?.businessAddress) : null,
+      taxId: o.showTaxId ? clean(settings?.businessTaxId) : null,
       receiptNumber: sale.saleNumber.isNotEmpty ? sale.saleNumber : sale.id,
       dateText: DateFormat('yyyy-MM-dd HH:mm').format(sale.createdAt.toLocal()),
-      cashier: clean(sale.employeeName),
-      customer: sale.customerName.isEmpty ? 'Walk-in' : sale.customerName,
+      cashier: o.showCashierName ? clean(sale.employeeName) : null,
+      customer: o.showCustomerName ? (sale.customerName.isEmpty ? 'Walk-in' : sale.customerName) : null,
       lines: [
         for (final i in sale.items)
           ReceiptLine(
@@ -272,7 +281,7 @@ class ReceiptData {
       subtotal: m(sale.subtotal),
       discountLabel: discLabel,
       discount: sale.discount > 0 ? '-${m(sale.discount)}' : null,
-      taxLabel: sale.tax > 0 ? (taxPct != null ? 'Tax ($taxPct)' : 'Tax') : null,
+      taxLabel: sale.tax > 0 ? (taxPct != null && o.showTaxBreakdown ? 'Tax ($taxPct)' : 'Tax') : null,
       tax: sale.tax > 0 ? m(sale.tax) : null,
       total: m(sale.total),
       payments: payments,
@@ -281,7 +290,7 @@ class ReceiptData {
       totalRefunded: sale.refundedAmount > 0 ? m(sale.refundedAmount) : null,
       banner: banner,
       isCopy: isCopy,
-      footer: clean(settings?.receiptFooter),
+      footer: receiptFooterText(settings, clean),
       offlineRef: offlineRef,
       saleId: sale.id.isEmpty ? null : sale.id,
     );
@@ -322,12 +331,12 @@ class ReceiptData {
     return ReceiptData(
       businessName: clean(settings?.businessName),
       header: clean(settings?.receiptHeader),
-      address: clean(settings?.businessAddress),
-      taxId: clean(settings?.businessTaxId),
+      address: (settings?.receiptOptions.showStoreAddress ?? true) ? clean(settings?.businessAddress) : null,
+      taxId: (settings?.receiptOptions.showTaxId ?? true) ? clean(settings?.businessTaxId) : null,
       receiptNumber: provisionalNumber,
       dateText: DateFormat('yyyy-MM-dd HH:mm').format(madeAt.toLocal()),
-      cashier: clean(cashier),
-      customer: customer.trim().isEmpty ? 'Walk-in' : customer.trim(),
+      cashier: (settings?.receiptOptions.showCashierName ?? true) ? clean(cashier) : null,
+      customer: (settings?.receiptOptions.showCustomerName ?? true) ? (customer.trim().isEmpty ? 'Walk-in' : customer.trim()) : null,
       lines: [for (final i in items) ReceiptLine(name: i.name, qtyAndPrice: '${i.qty} × ${m(i.unitPrice)}', total: m(i.unitPrice * i.qty))],
       subtotal: m(subtotal),
       discountLabel: discount > 0 ? (discountLabel ?? 'Discount') : null,
@@ -341,7 +350,7 @@ class ReceiptData {
       ],
       change: change > 0 ? m(change) : null,
       isCopy: false,
-      footer: clean(settings?.receiptFooter),
+      footer: receiptFooterText(settings, clean),
       offlineNote: offlinePendingNote,
     );
   }

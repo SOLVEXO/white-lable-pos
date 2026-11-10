@@ -44,6 +44,7 @@ class AppPreferences {
   // ── POS device-local preferences (not backend-tracked) ─────────────────────
   static const String _posSoundEffectsKey = 'pos_sound_effects';
   static const String _posAutoLockMinutesKey = 'pos_auto_lock_minutes';
+  static const String _posLockOnBackgroundKey = 'pos_lock_on_background';
   static const String _posPrinterAddressKey = 'pos_printer_address';
   static const String _posPrinterNameKey = 'pos_printer_name';
 
@@ -446,6 +447,17 @@ class AppPreferences {
   static Future<int> getPosAutoLockMinutes() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_posAutoLockMinutesKey) ?? 5;
+  }
+
+  /// G4.4: lock the till as soon as the app leaves the screen (the owner's store setting, cached for offline).
+  static Future<void> setPosLockOnBackground(bool on) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_posLockOnBackgroundKey, on);
+  }
+
+  static Future<bool> getPosLockOnBackground() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_posLockOnBackgroundKey) ?? false;
   }
 
   // ── First-launch onboarding flag ─────────────────────────────────────────

@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:get/get.dart';
-import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart' show dayKey;
+import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart' show dayKey, parseDayKey;
+import 'package:solvexo_pos/app/modules/pos_reports/controllers/reports_common.dart' show StoreDay;
 import 'package:share_plus/share_plus.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_cash_models.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
@@ -55,8 +56,11 @@ class DaybookController extends GetxController {
     return (from, DateTime(d.year, d.month, d.day + 1));
   }
 
+  /// the STORE's today (from the time-zone endpoint); the device date until it is known
+  DateTime? _storeToday;
+
   bool get isToday {
-    final n = _clock();
+    final n = _storeToday ?? _clock();
     return day.value.year == n.year && day.value.month == n.month && day.value.day == n.day;
   }
 
@@ -64,10 +68,24 @@ class DaybookController extends GetxController {
   void onInit() {
     super.onInit();
     day.value = _clock();
-    load();
+    _start();
     _online = ever<bool>(cashOnlineRx(), (on) {
       if (on && daybook.value == null) load();
     });
+  }
+
+  /// G4.1: the picker starts on the STORE's today (its time zone), not the device's date.
+  Future<void> _start() async {
+    try {
+      final d = parseDayKey(await StoreDay.today(_repo, await cashStoreId(_storeIdOverride), _clock()));
+      if (d != null) {
+        _storeToday = d;
+        day.value = d;
+      }
+    } catch (_) {
+      /* the device date stays */
+    }
+    await load();
   }
 
   @override

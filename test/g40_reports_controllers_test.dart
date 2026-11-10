@@ -108,7 +108,7 @@ void main() {
       c.onClose();
     });
 
-    test('sales with compare ON: compare=previous, then the previous period\'s days for the dashed line; OFF: none', () async {
+    test('sales with compare ON: compare=previous, the previous period\'s days come with the report (no second request); OFF: none', () async {
       when(
         () => repo.getBizReport(
           'st1',
@@ -135,9 +135,8 @@ void main() {
           limit: any(named: 'limit'),
         ),
       ).captured.cast<ReportQuery>();
-      expect(calls[calls.length - 2].compare, isTrue);
-      expect([calls.last.from, calls.last.to, calls.last.compare], ['2026-10-30', '2026-11-01', false]);
-      expect(c.previousByDay.first.day, '2026-10-30');
+      expect(calls.map((q) => q.compare), [false, true], reason: 'one request per load: the previous days are in the compared report');
+      expect(c.previousByDay.map((d) => d.day), ['2026-10-30', '2026-10-31', '2026-11-01']);
       c.setCompare(false);
       await pause();
       expect(c.previousByDay, isEmpty);

@@ -81,6 +81,7 @@ class PosMoreHubView extends StatelessWidget {
           HubSection('Team & security', [
             HubRow(icon: Icons.manage_accounts_outlined, title: 'Team & registers', subtitle: 'Employees, PINs and registers', onTap: () => Get.toNamed(Routes.sellerPosManagement), locked: true),
             HubRow(icon: Icons.devices_other_rounded, title: 'Devices', subtitle: 'Registered tills', onTap: () => Get.toNamed(Routes.posDevices), locked: true),
+            HubRow(icon: Icons.admin_panel_settings_outlined, title: 'Roles & permissions', subtitle: 'Who may do what, and who approves', onTap: () => Get.toNamed(Routes.posRoles)),
             HubRow(icon: Icons.shield_outlined, title: 'Audit log', subtitle: 'Who did what, and when', onTap: () => Get.toNamed(Routes.posAuditLog), locked: true),
             HubRow(icon: Icons.badge_outlined, title: 'Store tax profile', subtitle: 'NTN, STRN, returns policy', onTap: () => Get.toNamed(Routes.posTaxProfile), locked: true),
             HubRow(icon: Icons.verified_user_outlined, title: 'Business verification', subtitle: 'Needed for Raast QR payments', onTap: () => Get.toNamed(Routes.posKyb), locked: true),
@@ -88,6 +89,7 @@ class PosMoreHubView extends StatelessWidget {
           ]),
         HubSection('App', [
           HubRow(icon: Icons.privacy_tip_outlined, title: 'Permissions', subtitle: 'Camera, Bluetooth printer, local network', onTap: () => Get.toNamed(Routes.posPermissions)),
+          if (a.canManage) HubRow(icon: Icons.tune_rounded, title: 'Store settings', subtitle: 'Receipt, alerts, security, backup & sync', onTap: () => Get.toNamed(Routes.posSettingsHub)),
           HubRow(icon: Icons.settings_outlined, title: 'Settings', subtitle: a.canManage ? 'Receipt, printer, tax, auto-lock, shift close' : 'Printer, sound, auto-lock', onTap: () => Get.toNamed(Routes.posSettings)),
         ]),
       ],

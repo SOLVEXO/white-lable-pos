@@ -121,6 +121,18 @@ class _Sales extends StatelessWidget {
       children: [
         if (prev != null) ReportInfo('Compared with ${storeDayLabel(r.previousFrom ?? '')} - ${storeDayLabel(r.previousTo ?? '')}. The arrows show the change.', icon: Icons.compare_arrows_rounded),
         _TwoUp(left: stats, right: chart),
+        if (r.byDay.isNotEmpty) ...[
+          const InvSectionTitle('By day'),
+          for (final d in r.byDay)
+            ReportRow(
+              key: Key('salesDay_${d.day}'),
+              title: storeDayLabel(d.day),
+              subtitle: '${d.transactions} sale${d.transactions == 1 ? '' : 's'}',
+              value: r.head.money(d.totalMinor),
+              // a day with sales opens the list of that STORE day's sales
+              onTap: d.transactions == 0 ? null : () => Get.toNamed(Routes.posDayOrders, arguments: {'date': d.day}),
+            ),
+        ],
       ],
     );
   }

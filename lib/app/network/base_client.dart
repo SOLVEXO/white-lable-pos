@@ -108,6 +108,8 @@ class BaseClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     bool requiresAuth = true,
+    // G4.2: optional extra headers (the employee token, the Idempotency-Key)
+    Map<String, dynamic>? headers,
   }) async {
     final dio = await DioService.getDio();
     debugPrint("PUT → $url");
@@ -116,7 +118,7 @@ class BaseClient {
       url,
       data: data,
       queryParameters: queryParameters,
-      options: Options(extra: {'requiresAuth': requiresAuth}),
+      options: Options(extra: {'requiresAuth': requiresAuth}, headers: headers),
     );
   }
 

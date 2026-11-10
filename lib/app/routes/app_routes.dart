@@ -96,6 +96,15 @@ abstract class Routes {
   static const posReports = '/pos/reports';
   static const posReport = '/pos/reports/view';
   static const posStoreTimeZone = '/pos/store/time-zone';
+  static const posDayOrders = '/pos/reports/day-orders';
+
+  // G4.2 – G4.4 roles & permissions, store settings hub and its screens
+  static const posRoles = '/pos/roles';
+  static const posSettingsHub = '/pos/settings-hub';
+  static const posReceiptDesigner = '/pos/settings/receipt';
+  static const posAlertSettings = '/pos/settings/notifications';
+  static const posSecuritySettings = '/pos/settings/security';
+  static const posBackupSync = '/pos/settings/backup-sync';
 
   // 5D — shared-device security
   static const posDeviceSetup = '/pos/device-setup';

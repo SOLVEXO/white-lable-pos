@@ -122,11 +122,14 @@ class DayPoint {
 }
 
 class SalesReport extends BizReport {
-  const SalesReport(super.head, {required this.totals, this.previous, this.previousFrom, this.previousTo, this.byDay = const []});
+  const SalesReport(super.head, {required this.totals, this.previous, this.previousFrom, this.previousTo, this.byDay = const [], this.previousByDay = const []});
   final SalesTotals totals;
   final SalesTotals? previous;
   final String? previousFrom, previousTo;
   final List<DayPoint> byDay;
+
+  /// the previous period's days (sent with `compare=previous`) — the dashed line
+  final List<DayPoint> previousByDay;
   @override
   ReportKind get kind => ReportKind.sales;
 
@@ -139,6 +142,7 @@ class SalesReport extends BizReport {
       previousFrom: prev == null ? null : _str(_map(prev['period'])['from']),
       previousTo: prev == null ? null : _str(_map(prev['period'])['to']),
       byDay: [for (final d in _maps(j['byDay'])) DayPoint('${d['day'] ?? ''}', _int(d['transactions']), _int(d['totalMinor']))],
+      previousByDay: prev == null ? const [] : [for (final d in _maps(prev['byDay'])) DayPoint('${d['day'] ?? ''}', _int(d['transactions']), _int(d['totalMinor']))],
     );
   }
 }

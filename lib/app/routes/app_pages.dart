@@ -3,6 +3,9 @@ import 'package:solvexo_pos/app/modules/pos_reports/views/pulse_view.dart';
 import 'package:solvexo_pos/app/modules/pos_reports/views/report_view.dart';
 import 'package:solvexo_pos/app/modules/pos_reports/views/reports_hub_view.dart';
 import 'package:solvexo_pos/app/modules/pos_reports/views/time_zone_view.dart';
+import 'package:solvexo_pos/app/modules/pos_reports/views/day_orders_view.dart';
+import 'package:solvexo_pos/app/modules/pos_admin/views/roles_view.dart';
+import 'package:solvexo_pos/app/modules/pos_admin/views/settings_hub_views.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/config/debug_launch_params.dart';
@@ -339,6 +342,15 @@ class AppPages {
       middlewares: [PosAccessMiddleware()],
     ),
     GetPage(name: Routes.posStoreTimeZone, page: () => const TimeZoneView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posDayOrders, page: () => DayOrdersView(date: (Get.arguments as Map)['date'] as String), middlewares: [PosAccessMiddleware()]),
+    // G4.2: managers read, the owner edits (the server decides)
+    GetPage(name: Routes.posRoles, page: () => const RolesView(), middlewares: [PosAccessMiddleware()]),
+    // G4.4 settings hub and its screens (managers read, the owner edits — the server decides)
+    GetPage(name: Routes.posSettingsHub, page: () => const SettingsHubView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posReceiptDesigner, page: () => ReceiptDesignerView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posAlertSettings, page: () => AlertSettingsView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posSecuritySettings, page: () => SecuritySettingsView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posBackupSync, page: () => const BackupSyncView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanInactive, page: () => const PosPlanInactiveView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanStatus, page: () => const PosPlanStatusView(), middlewares: [PosAccessMiddleware(), OwnerAccessMiddleware()]),
   ];

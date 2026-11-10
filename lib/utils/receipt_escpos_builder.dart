@@ -110,7 +110,7 @@ class ReceiptEscPosBuilder {
       for (final r in data.refunds) {
         row(r.label, r.amount);
       }
-      row('Customer', data.customer);
+      if (data.customer != null) row('Customer', data.customer!);
 
       if (data.footer != null) {
         bytes.addAll(g.hr());

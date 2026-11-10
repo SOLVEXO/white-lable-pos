@@ -2,6 +2,7 @@
 // Currency and decimals come from the SALE; VOID / REFUNDED / COPY banners, tax rate, tenders, change, refunds.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/utils/receipt_data.dart';
@@ -133,5 +134,53 @@ void main() {
       settings,
     );
     expect(d.refunds.map((r) => '${r.label} ${r.amount}'), ['Refund — to card -\$30.00', 'Refund — cash returned -\$28.42']);
+  });
+
+  // G4.4: the owner's receipt designer decides what prints (defaults = everything, exactly as before)
+  group('receipt designer options', () {
+    PosSettingsModel withOptions(Map<String, dynamic> o) => PosSettingsModel.fromJson({...settings.toCacheJson(), 'receiptOptions': o});
+
+    test('defaults print everything as before; the cache keeps the options', () {
+      final d = ReceiptData.fromSale(sale(), PosSettingsModel.fromJson(settings.toCacheJson()));
+      expect([d.address, d.taxId, d.cashier, d.customer, d.taxLabel, d.footer], ['1 Main St', 'NTN 123', 'Cal Cashier', 'Walk-in', 'Tax (8.25%)', 'No returns after 7 days']);
+      final cached = PosSettingsModel.fromJson(withOptions({'showTaxId': false, 'promoText': 'Eid sale'}).toCacheJson());
+      expect([cached.receiptOptions.showTaxId, cached.receiptOptions.promoText], [false, 'Eid sale']);
+    });
+
+    test('each switch hides its line on the thermal print and the PDF; the promotion line sits above the footer', () async {
+      final s = withOptions({'showStoreAddress': false, 'showTaxId': false, 'showCashierName': false, 'showCustomerName': false, 'showTaxBreakdown': false, 'promoText': 'Eid sale 10% off'});
+      final d = ReceiptData.fromSale(sale(), s, asciiSafeMoney: true);
+      expect([d.address, d.taxId, d.cashier, d.customer], [null, null, null, null]);
+      expect(d.taxLabel, 'Tax', reason: 'the tax amount always prints; only the rate breakdown is optional');
+      expect(d.footer, 'Eid sale 10% off\nNo returns after 7 days');
+      final text = String.fromCharCodes(await ReceiptEscPosBuilder.build(data: d));
+      for (final gone in ['1 Main St', 'NTN 123', 'Cal Cashier', 'Customer']) {
+        expect(text, isNot(contains(gone)), reason: gone);
+      }
+      expect(text, contains('Eid sale 10% off'));
+      expect(await ReceiptPdfBuilder.build(data: d), isNotEmpty);
+    });
+
+    test('the offline receipt follows the same switches', () {
+      final s = withOptions({'showCashierName': false, 'showCustomerName': false});
+      final d = ReceiptData.forOfflineSale(
+        provisionalNumber: 'OFF-1',
+        madeAt: DateTime(2026, 11, 2, 14),
+        settings: s,
+        currency: 'USD',
+        exponent: 2,
+        items: const [(name: 'Tea', qty: 1, unitPrice: 2.0)],
+        subtotal: 2,
+        discount: 0,
+        tax: 0,
+        total: 2,
+        payments: const [(method: 'cash', amount: 2.0, reference: null)],
+        change: 0,
+        cashier: 'Cal',
+        customer: 'Bilal',
+      );
+      expect([d.cashier, d.customer], [null, null]);
+      expect(const ReceiptOptions().showCustomerName, isTrue);
+    });
   });
 }

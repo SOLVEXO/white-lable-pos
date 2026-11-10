@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/services/owner_session.dart';
@@ -13,7 +14,7 @@ enum UnlockResult { ok, wrongPin, differentEmployee, failed }
 /// exactly as they were, so nothing is lost and a sync in progress carries on. Unlocking re-runs PIN login for the SAME
 /// employee; the new session token replaces the old one and the old one is revoked server-side. The owner's elevated
 /// session ends the moment the till locks.
-class IdleLockService extends GetxController {
+class IdleLockService extends GetxController with WidgetsBindingObserver {
   IdleLockService({
     PosRepository? posRepository,
     DateTime Function()? clock,
@@ -32,6 +33,9 @@ class IdleLockService extends GetxController {
 
   final RxBool locked = false.obs;
   final RxInt minutes = 5.obs;
+
+  /// G4.4: the owner's "lock when the app goes to the background" (store security setting, cached on the device)
+  final RxBool lockOnBackground = false.obs;
   final RxnString employeeName = RxnString();
 
   DateTime _lastActivity = DateTime.now();
@@ -42,16 +46,31 @@ class IdleLockService extends GetxController {
     super.onInit();
     _lastActivity = _clock();
     unawaited(_loadMinutes());
+    WidgetsBinding.instance.addObserver(this);
     _timer = Timer.periodic(_checkEvery, (_) => checkIdle());
   }
 
   @override
   void onClose() {
     _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.onClose();
   }
 
-  Future<void> _loadMinutes() async => minutes.value = await AppPreferences.getPosAutoLockMinutes();
+  Future<void> _loadMinutes() async {
+    minutes.value = await AppPreferences.getPosAutoLockMinutes();
+    lockOnBackground.value = await AppPreferences.getPosLockOnBackground();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) onBackground();
+  }
+
+  /// The app left the screen: locks at once when the owner asked for it and someone is signed in. Public so a test can drive it.
+  void onBackground() {
+    if (lockOnBackground.value && _employeeSignedIn()) unawaited(lock());
+  }
 
   /// The owner-set value, as last told by the backend (cached so it applies offline too).
   Future<void> setMinutes(int m) async {

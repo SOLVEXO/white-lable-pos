@@ -1,3 +1,5 @@
+import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart' show ReceiptOptions;
+
 class PosSettingsModel {
   final String storeId;
   final double taxRate; // 0..1
@@ -27,6 +29,9 @@ class PosSettingsModel {
   final int? returnApprovalAboveMinor;
   final int? returnApprovalAfterDays;
 
+  /// G4.4: what the owner's receipt designer says to print (defaults = everything, as before)
+  final ReceiptOptions receiptOptions;
+
   const PosSettingsModel({
     required this.storeId,
     required this.taxRate,
@@ -48,6 +53,7 @@ class PosSettingsModel {
     this.cashierReturnsEnabled = false,
     this.returnApprovalAboveMinor,
     this.returnApprovalAfterDays,
+    this.receiptOptions = const ReceiptOptions(),
   });
 
   String get taxRatePercentLabel => '${(taxRate * 100).toStringAsFixed(taxRate * 100 % 1 == 0 ? 0 : 1)}%';
@@ -73,6 +79,7 @@ class PosSettingsModel {
         cashierReturnsEnabled: json['cashierReturnsEnabled'] as bool? ?? false,
         returnApprovalAboveMinor: (json['returnApprovalAboveMinor'] as num?)?.toInt(),
         returnApprovalAfterDays: (json['returnApprovalAfterDays'] as num?)?.toInt(),
+        receiptOptions: json['receiptOptions'] is Map ? ReceiptOptions.fromJson((json['receiptOptions'] as Map).cast<String, dynamic>()) : const ReceiptOptions(),
       );
 
   /// The same settings with the pricing fields the server just told us about (a quote answered with a newer tax rate).
@@ -82,6 +89,7 @@ class PosSettingsModel {
         businessTaxId: businessTaxId, settingsVersion: settingsVersion, autoLockMinutes: autoLockMinutes,
         taxNtn: taxNtn, taxStrn: taxStrn, taxLegalName: taxLegalName, taxRegisteredAddress: taxRegisteredAddress, defaultTaxCategory: defaultTaxCategory,
         cashierReturnsEnabled: cashierReturnsEnabled, returnApprovalAboveMinor: returnApprovalAboveMinor, returnApprovalAfterDays: returnApprovalAfterDays,
+        receiptOptions: receiptOptions,
       );
 
   /// For the on-device settings cache (round-trips through [fromJson]).
@@ -106,6 +114,7 @@ class PosSettingsModel {
         'cashierReturnsEnabled': cashierReturnsEnabled,
         'returnApprovalAboveMinor': returnApprovalAboveMinor,
         'returnApprovalAfterDays': returnApprovalAfterDays,
+        'receiptOptions': receiptOptions.toJson(),
       };
 
   Map<String, dynamic> toUpdateJson({

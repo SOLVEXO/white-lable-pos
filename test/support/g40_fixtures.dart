@@ -30,6 +30,12 @@ Map<String, dynamic> salesJson({bool compare = false, bool empty = false, String
       ? {
           'period': {'from': '2026-10-30', 'to': '2026-11-01'},
           'totals': salesTotalsJson(tx: 2, net: 6000, gross: 6600),
+          // b767fcc: the previous period's days come with the report (the dashed line)
+          'byDay': [
+            {'day': '2026-10-30', 'transactions': 1, 'totalMinor': 3300},
+            {'day': '2026-10-31', 'transactions': 1, 'totalMinor': 3300},
+            {'day': '2026-11-01', 'transactions': 0, 'totalMinor': 0},
+          ],
         }
       : null,
   'byDay': [

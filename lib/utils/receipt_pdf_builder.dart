@@ -84,7 +84,7 @@ class ReceiptPdfBuilder {
             if (data.change != null) row('Change', data.change!),
             for (final r in data.refunds) row(r.label, r.amount, size: 9),
             pw.SizedBox(height: 4),
-            row('Customer', data.customer),
+            if (data.customer != null) row('Customer', data.customer!),
             if (data.footer != null) ...[
               pw.SizedBox(height: 10),
               pw.Divider(),

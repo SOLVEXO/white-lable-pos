@@ -52,7 +52,7 @@ class ReportController extends GetxController {
   /// products only: net | qty | margin (the server sorts)
   final RxString sort = 'net'.obs;
 
-  /// sales with "compare": the previous period's days (the dashed line)
+  /// sales with "compare": the previous period's days (the dashed line), sent by the server with the report
   final RxList<DayPoint> previousByDay = <DayPoint>[].obs;
   final RxBool loading = true.obs;
   final RxBool busy = false.obs;
@@ -161,20 +161,7 @@ class ReportController extends GetxController {
       report.value = r;
     }
     loading.value = false;
-    await _loadPreviousDays(sid, r, ticket);
-  }
-
-  /// The server sends the previous period's TOTALS; for the dashed line of the sales chart the previous period's days are read with one more
-  /// request (same filters, no comparison). A failure only leaves the dashed line out.
-  Future<void> _loadPreviousDays(String sid, BizReport? r, int ticket) async {
-    if (r is! SalesReport || r.previousFrom == null || r.previousTo == null) {
-      previousByDay.clear();
-      return;
-    }
-    final q = query;
-    final prev = await _repo.getBizReport(sid, kind, ReportQuery(from: r.previousFrom!, to: r.previousTo!, registerId: q.registerId, employeeId: q.employeeId));
-    if (ticket != _ticket) return;
-    previousByDay.assignAll(prev is SalesReport ? prev.byDay : const <DayPoint>[]);
+    previousByDay.assignAll(r is SalesReport ? r.previousByDay : const <DayPoint>[]);
   }
 
   String get _fileBase {

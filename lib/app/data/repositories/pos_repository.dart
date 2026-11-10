@@ -9,6 +9,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_cash_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_team_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -2471,6 +2472,121 @@ class PosRepository {
     final r = await _teamWrite('setStoreTimeZone', 'PATCH', '${ApiConstants.apiPrefix}/pos/store/time-zone/$storeId', {'timeZone': timeZone}, idempotencyKey: 'tz-${DateTime.now().microsecondsSinceEpoch}');
     return (success: r.success, message: r.message, code: r.code, zone: r.data == null ? null : StoreTimeZone.fromJson(r.data!));
   }
+
+  // ── G4.1 follow-up · the sales of one STORE day (a report's day drills down here) ─────────────────────────────────────────────────────────
+  /// Null on failure (with the server's code in [lastErrorCode]) — unlike [getSales], nothing is toasted, so the screen shows its own error.
+  Future<PagedResult<PosSaleModel>?> getSalesForDay(String storeId, String date, {int page = 1}) async {
+    lastErrorCode = null;
+    try {
+      final res = await _client.get(ApiConstants.posSales, queryParameters: {'storeId': storeId, 'date': date, 'page': page}, requiresAuth: true, headers: await _employeeAuthHeaders());
+      if (!_ok(res)) return null;
+      final data = _data(res);
+      return data is Map ? _page(data.cast<String, dynamic>(), 'sales', PosSaleModel.fromJson) : null;
+    } on DioException catch (e) {
+      _logDioError('getSalesForDay', e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      return null;
+    } catch (e) {
+      debugPrint('❌ getSalesForDay: $e');
+      return null;
+    }
+  }
+
+  /// G4.3: one page of the activity log with the screen's filters (store days). Null on failure (code in [lastErrorCode]); nothing is toasted.
+  Future<PagedResult<PosAuditLogModel>?> getAuditLogsFiltered(String storeId, {int page = 1, int limit = 30, String? employeeId, String? targetType, String? from, String? to}) async {
+    lastErrorCode = null;
+    try {
+      final res = await _client.get(
+        ApiConstants.posAuditLogs(storeId),
+        queryParameters: {'page': page, 'limit': limit, 'employeeId': ?employeeId, 'targetType': ?targetType, 'from': ?from, 'to': ?to},
+        requiresAuth: true,
+      );
+      if (!_ok(res)) return null;
+      final data = _data(res);
+      return data is Map ? _page(data.cast<String, dynamic>(), 'logs', PosAuditLogModel.fromJson) : null;
+    } on DioException catch (e) {
+      _logDioError('getAuditLogsFiltered', e);
+      lastErrorCode = _dioCode(e);
+      return null;
+    } catch (e) {
+      debugPrint('❌ getAuditLogsFiltered: $e');
+      return null;
+    }
+  }
+
+  // ── G4.2 – G4.4 · permissions, audit seals, store settings ──────────────────────────────────────────────────────────────────────────────────
+  /// One owner / manager write: PUT / POST / PATCH with the employee token and an Idempotency-Key. `extra` = the error body.
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data, Map<String, dynamic>? extra})> _adminWrite(String tag, String verb, String url, Map<String, dynamic> payload) async {
+    lastErrorCode = null;
+    try {
+      final headers = await _writeHeaders('$tag-${DateTime.now().microsecondsSinceEpoch}');
+      final res = switch (verb) {
+        'PUT' => await _client.put(url, data: payload, requiresAuth: true, headers: headers),
+        'PATCH' => await _client.patch(url, data: payload, requiresAuth: true, headers: headers),
+        _ => await _client.post(url, data: payload, requiresAuth: true, headers: headers),
+      };
+      final data = _data(res);
+      return (success: _ok(res), message: res.data is Map ? res.data['message'] as String? : null, code: null, data: data is Map ? data.cast<String, dynamic>() : null, extra: null);
+    } on DioException catch (e) {
+      _logDioError(tag, e);
+      _noteEntitlement(e);
+      lastErrorCode = _dioCode(e);
+      final body = e.response?.data;
+      return (success: false, message: _dioMessage(e), code: lastErrorCode, data: null, extra: body is Map ? body.cast<String, dynamic>() : null);
+    } catch (e) {
+      debugPrint('❌ $tag: $e');
+      return (success: false, message: 'Could not reach the server.', code: null, data: null, extra: null);
+    }
+  }
+
+  String _perms(String storeId) => '${ApiConstants.apiPrefix}/pos/permissions/$storeId';
+
+  /// The store's permission matrix (managers read it; `canEdit` is true for the owner; a cashier is refused).
+  Future<PermissionMatrix?> getPermissionMatrix(String storeId) => _invGet('permissions', _perms(storeId), PermissionMatrix.fromJson);
+
+  /// Owner only. [changes] = `{action: {roles?, approval?}}`. With [preview] the server only returns the diff; otherwise it saves when the version
+  /// still is [expectedVersion] (else VERSION_CONFLICT) and returns the new matrix.
+  Future<({bool success, String? code, String? message, PermissionMatrix? matrix, List<PermDiff> diff})> updatePermissions(
+    String storeId,
+    Map<String, dynamic> changes, {
+    bool preview = false,
+    int? expectedVersion,
+  }) async {
+    final r = await _adminWrite('permissionsUpdate', 'PUT', _perms(storeId), {'changes': changes, if (preview) 'preview': true, 'expectedVersion': ?expectedVersion});
+    return _permResult(r, preview);
+  }
+
+  /// Owner only: back to the documented defaults ([preview] = the diff only).
+  Future<({bool success, String? code, String? message, PermissionMatrix? matrix, List<PermDiff> diff})> resetPermissions(String storeId, {bool preview = false}) async {
+    final r = await _adminWrite('permissionsReset', 'POST', '${_perms(storeId)}/reset', {if (preview) 'preview': true});
+    return _permResult(r, preview);
+  }
+
+  ({bool success, String? code, String? message, PermissionMatrix? matrix, List<PermDiff> diff}) _permResult(
+    ({bool success, String? message, String? code, Map<String, dynamic>? data, Map<String, dynamic>? extra}) r,
+    bool preview,
+  ) {
+    final d = r.data;
+    final diff = d != null && d['diff'] is List ? [for (final x in d['diff'] as List) if (x is Map) PermDiff.fromJson(x.cast<String, dynamic>())] : <PermDiff>[];
+    return (success: r.success, code: r.code, message: r.message, matrix: d != null && !preview && d['actions'] is List ? PermissionMatrix.fromJson(d) : null, diff: diff);
+  }
+
+  /// G4.3: recompute every sealed store day in [from] … [to] (store days) and compare (managers / owner; the check itself is audited).
+  Future<AuditVerify?> verifyAuditSeals(String storeId, {String? from, String? to}) =>
+      _invGet('auditVerify', '${ApiConstants.apiPrefix}/pos/audit/verify/$storeId', AuditVerify.fromJson, query: {'from': ?from, 'to': ?to});
+
+  /// G4.4: receipt designer, in-app alerts, security, profile (managers read; `canEdit` for the owner).
+  Future<StoreSettings?> getStoreSettings(String storeId) => _invGet('storeSettings', '${ApiConstants.apiPrefix}/pos/store/settings/$storeId', StoreSettings.fromJson);
+
+  /// Owner only. [patch] = `{receipt?: {...}, alerts?: {...}, security?: {...}}` — only the keys that change.
+  Future<({bool success, String? code, String? message, StoreSettings? settings})> updateStoreSettings(String storeId, Map<String, dynamic> patch) async {
+    final r = await _adminWrite('storeSettingsUpdate', 'PATCH', '${ApiConstants.apiPrefix}/pos/store/settings/$storeId', patch);
+    return (success: r.success, code: r.code, message: r.extra?['message'] as String? ?? r.message, settings: r.data == null ? null : StoreSettings.fromJson(r.data!));
+  }
+
+  /// G4.4: the server's time, devices with when each was last seen, the latest audit seal.
+  Future<SyncStatus?> getSyncStatus(String storeId) => _invGet('syncStatus', '${ApiConstants.apiPrefix}/pos/store/sync-status/$storeId', SyncStatus.fromJson);
 
   /// G4.0: the daybook of one STORE day (`YYYY-MM-DD` in the store's time zone).
   Future<Daybook?> getDaybookDay(String storeId, {required String date, String? registerId}) =>
