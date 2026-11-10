@@ -14,6 +14,7 @@ import 'package:solvexo_pos/app/data/services/pending_team_sync_service.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/attendance_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/clock_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/correction_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_team/controllers/record_detail_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/roster_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/shift_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/team_report_controller.dart';
@@ -885,6 +886,52 @@ void main() {
       final d = rep()..onInit();
       await pause();
       expect(d.error.value, 'Choose a period of at most 93 days.');
+      d.onClose();
+    });
+  });
+
+  group('RecordDetailController and the detail models', () {
+    test('models: effective vs device vs server time, flags and what a correction changed', () {
+      final d = recordDetail();
+      expect(d.punches[0].label, 'Clocked in');
+      expect(d.punches[0].timesDiffer, isFalse, reason: 'one second apart');
+      expect(d.punches[2].timesDiffer, isTrue);
+      expect(d.punches[2].flags, ['late_sync']);
+      expect(d.punches[2].deviceId, isNull);
+      expect(d.corrections[0].clockOutAt, isNotNull);
+      expect(d.corrections[1].voided, isTrue);
+      expect(d.corrections[1].byName, isNull);
+    });
+
+    test('loads the detail for the record\'s person', () async {
+      when(() => repo.getAttendanceRecordDetail('st1', employeeId: 'e1', recordId: 'rec1')).thenAnswer((_) async => recordDetail());
+      final c = RecordDetailController(employeeId: 'e1', recordId: 'rec1', repository: repo, storeId: 'st1')..onInit();
+      await pause();
+      expect(c.loading.value, isFalse);
+      expect(c.detail.value!.punches, hasLength(3));
+      c.onClose();
+    });
+
+    test('a refusal is worded; offline makes no request and loads on reconnect', () async {
+      when(() => repo.getAttendanceRecordDetail('st1', employeeId: 'e1', recordId: 'rec1')).thenAnswer((_) async => null);
+      when(() => repo.lastErrorCode).thenReturn('RECORD_NOT_FOUND');
+      final c = RecordDetailController(employeeId: 'e1', recordId: 'rec1', repository: repo, storeId: 'st1')..onInit();
+      await pause();
+      expect(c.error.value, 'That attendance record was not found.');
+      c.onClose();
+      Get.reset();
+      clearInteractions(repo);
+      Get.put<NetworkStatusService>(NetworkStatusService()..isOnline.value = false);
+      final d = RecordDetailController(employeeId: 'e1', recordId: 'rec1', repository: repo, storeId: 'st1')..onInit();
+      await pause();
+      verifyNever(
+        () => repo.getAttendanceRecordDetail(
+          any(),
+          employeeId: any(named: 'employeeId'),
+          recordId: any(named: 'recordId'),
+        ),
+      );
+      expect(d.detail.value, isNull);
       d.onClose();
     });
   });

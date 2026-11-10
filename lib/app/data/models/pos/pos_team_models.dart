@@ -228,6 +228,72 @@ class AttendanceRecord {
   );
 }
 
+/// One raw punch of a record (clock-in / clock-out / break start / break end) as the server stored it: the effective time `at`, the device's own time and
+/// the server's time (they differ when the till was offline or its clock was wrong).
+class AttendancePunch {
+  const AttendancePunch({required this.id, required this.type, required this.at, this.deviceAt, this.serverAt, this.flags = const [], this.deviceId});
+  final String id, type;
+  final DateTime at;
+  final DateTime? deviceAt, serverAt;
+  final List<String> flags;
+  final String? deviceId;
+
+  String get label => switch (type) {
+    'clock_in' => 'Clocked in',
+    'clock_out' => 'Clocked out',
+    'break_start' => 'Break started',
+    'break_end' => 'Break ended',
+    _ => type.isEmpty ? '' : '${type[0].toUpperCase()}${type.substring(1).replaceAll('_', ' ')}',
+  };
+
+  /// the device and server times disagree by a minute or more, so both are worth showing
+  bool get timesDiffer => deviceAt != null && serverAt != null && (deviceAt!.difference(serverAt!).inSeconds).abs() >= 60;
+
+  factory AttendancePunch.fromJson(Map<String, dynamic> j) => AttendancePunch(
+    id: '${j['id'] ?? ''}',
+    type: '${j['type'] ?? ''}',
+    at: _date(j['at']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+    deviceAt: _date(j['deviceAt']),
+    serverAt: _date(j['serverAt']),
+    flags: _strings(j['flags']),
+    deviceId: _str(j['deviceId']),
+  );
+}
+
+/// A manager's correction of a record: who, when, why and what it set. A null time means "not changed by this correction".
+class AttendanceCorrection {
+  const AttendanceCorrection({required this.id, this.at, this.reason, this.byId, this.byName, this.clockInAt, this.clockOutAt, this.voided = false});
+  final String id;
+  final DateTime? at, clockInAt, clockOutAt;
+  final String? reason, byId, byName;
+  final bool voided;
+
+  factory AttendanceCorrection.fromJson(Map<String, dynamic> j) => AttendanceCorrection(
+    id: '${j['id'] ?? ''}',
+    at: _date(j['at']),
+    reason: _str(j['reason']),
+    byId: _str(j['byId']),
+    byName: _str(j['byName']),
+    clockInAt: _date(j['clockInAt']),
+    clockOutAt: _date(j['clockOutAt']),
+    voided: j['voided'] == true,
+  );
+}
+
+/// `GET team/records/:storeId/:employeeId/:recordId`: the record plus its raw punches and its correction history.
+class AttendanceRecordDetail {
+  const AttendanceRecordDetail({required this.record, this.punches = const [], this.corrections = const []});
+  final AttendanceRecord record;
+  final List<AttendancePunch> punches;
+  final List<AttendanceCorrection> corrections;
+
+  factory AttendanceRecordDetail.fromJson(Map<String, dynamic> j) => AttendanceRecordDetail(
+    record: AttendanceRecord.fromJson(((j['record'] as Map?) ?? const {}).cast<String, dynamic>()),
+    punches: [for (final e in _maps(j['punches'])) AttendancePunch.fromJson(e)],
+    corrections: [for (final e in _maps(j['corrections'])) AttendanceCorrection.fromJson(e)],
+  );
+}
+
 String attFlagLabel(String f) => switch (f) {
   'missing_clock_out' => 'Missing clock-out',
   'overlap' => 'Overlaps another record',

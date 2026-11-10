@@ -21,6 +21,7 @@ import 'package:solvexo_pos/app/modules/pos_needs_attention/views/pos_needs_atte
 import 'package:solvexo_pos/app/modules/pos_team/controllers/attendance_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/clock_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/correction_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_team/controllers/record_detail_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/roster_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/shift_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/team_report_controller.dart';
@@ -124,6 +125,13 @@ void main() {
     when(() => repo.lastErrorCode).thenReturn(null);
     when(() => repo.getTeamMe('st1')).thenAnswer((_) async => me());
     when(
+      () => repo.getAttendanceRecordDetail(
+        'st1',
+        employeeId: any(named: 'employeeId'),
+        recordId: any(named: 'recordId'),
+      ),
+    ).thenAnswer((_) async => recordDetail());
+    when(
       () => repo.getAttendanceRecords(
         'st1',
         from: any(named: 'from'),
@@ -200,6 +208,11 @@ void main() {
       ),
     ).thenAnswer((_) async => r);
   }
+
+  RecordDetailController detailCtl() => Get.put(
+    RecordDetailController(employeeId: 'e1', recordId: 'rec1', repository: repo, storeId: 'st1'),
+    tag: 'd${DateTime.now().microsecondsSinceEpoch}',
+  );
 
   // ── clock ─────────────────────────────────────────────────────────────────────────────────────
   group('TeamClockView', () {
@@ -498,7 +511,14 @@ void main() {
 
   group('AttendanceRecordView and CorrectionSheet', () {
     testWidgets('the record: in / out, hours, breaks, flags and the Corrected note; a manager gets Correct, a cashier does not', (t) async {
-      await pump(t, AttendanceRecordView(record: record(corrected: true, flags: ['late_sync']), canCorrect: true));
+      await pump(
+        t,
+        AttendanceRecordView(
+          record: record(corrected: true, flags: ['late_sync']),
+          canCorrect: true,
+          detailController: detailCtl(),
+        ),
+      );
       expect(find.text('09:02'), findsOneWidget);
       expect(find.text('17:00'), findsOneWidget);
       expect(find.text('7:45'), findsOneWidget);
@@ -507,13 +527,20 @@ void main() {
       expect(find.text('Synced late'), findsWidgets);
       expect(find.byKey(const Key('recCorrect')), findsOneWidget);
       Get.reset();
-      await pump(t, AttendanceRecordView(record: record(), canCorrect: false));
+      await pump(t, AttendanceRecordView(record: record(), canCorrect: false, detailController: detailCtl()));
       expect(find.byKey(const Key('recCorrect')), findsNothing);
       expect(find.byKey(const Key('recNoBreaks')), findsNothing);
     });
 
     testWidgets('a voided record cannot be corrected again', (t) async {
-      await pump(t, AttendanceRecordView(record: record(status: 'voided'), canCorrect: true));
+      await pump(
+        t,
+        AttendanceRecordView(
+          record: record(status: 'voided'),
+          canCorrect: true,
+          detailController: detailCtl(),
+        ),
+      );
       expect(find.byKey(const Key('recCorrect')), findsNothing);
     });
 
@@ -598,6 +625,76 @@ void main() {
       await t.pump();
       expect(find.byKey(const Key('corrOffline')), findsOneWidget);
       expect(t.widget<AppButton>(find.byKey(const Key('corrSave'))).onPressed, isNull);
+    });
+  });
+
+  group('AttendanceRecordView history: punches and corrections', () {
+    for (final env in _Env.values) {
+      testWidgets('${env.name}: every punch with its effective time, device vs server time when they differ, flags in words, and who corrected what and why', (t) async {
+        await pump(t, AttendanceRecordView(record: record(corrected: true), canCorrect: false, detailController: detailCtl()), env);
+        expect(find.text('Punches'), findsOneWidget);
+        expect(find.text('Clocked in · 09:02'), findsOneWidget);
+        expect(find.text('Break started · 12:00'), findsOneWidget);
+        expect(find.text('Clocked out · 17:00'), findsOneWidget);
+        expect(find.byKey(const Key('punchTimes_p1')), findsNothing, reason: 'device and server agree');
+        expect(find.byKey(const Key('punchTimes_p3')), findsOneWidget);
+        expect(find.textContaining('Device time 17:00 · server time 08:30'), findsOneWidget);
+        expect(find.text('Synced late'), findsWidgets);
+        expect(find.text('Corrections'), findsOneWidget);
+        expect(find.textContaining('Mia Manager'), findsOneWidget);
+        expect(find.text('Clock-out set to 17:00'), findsOneWidget);
+        expect(find.text('Reason: forgot to clock out'), findsOneWidget);
+        expect(find.text('Voided the record'), findsOneWidget);
+        expect(find.textContaining('A manager ·'), findsOneWidget, reason: 'a correction without a known name');
+        expect(t.takeException(), isNull);
+      });
+    }
+
+    testWidgets('no corrections: no Corrections section', (t) async {
+      when(
+        () => repo.getAttendanceRecordDetail(
+          'st1',
+          employeeId: any(named: 'employeeId'),
+          recordId: any(named: 'recordId'),
+        ),
+      ).thenAnswer((_) async => recordDetail(withCorrection: false));
+      await pump(t, AttendanceRecordView(record: record(), canCorrect: false, detailController: detailCtl()));
+      expect(find.text('Punches'), findsOneWidget);
+      expect(find.text('Corrections'), findsNothing);
+    });
+
+    testWidgets('loading, then a worded error with Try again', (t) async {
+      final comp = Completer<AttendanceRecordDetail?>();
+      when(
+        () => repo.getAttendanceRecordDetail(
+          'st1',
+          employeeId: any(named: 'employeeId'),
+          recordId: any(named: 'recordId'),
+        ),
+      ).thenAnswer((_) => comp.future);
+      await pump(t, AttendanceRecordView(record: record(), canCorrect: false, detailController: detailCtl()));
+      expect(find.byKey(const Key('recDetailLoading')), findsOneWidget);
+      when(() => repo.lastErrorCode).thenReturn('POS_ACTION_FORBIDDEN');
+      comp.complete(null);
+      await t.pump();
+      await t.pump();
+      expect(find.text('Your role is not allowed to do this.'), findsOneWidget);
+      expect(find.byKey(const Key('recDetailRetry')), findsOneWidget);
+    });
+
+    testWidgets('offline: the record still shows and the history says it needs an internet connection (no request)', (t) async {
+      offline();
+      await pump(t, AttendanceRecordView(record: record(), canCorrect: false, detailController: detailCtl()));
+      expect(find.byKey(const Key('recIn')), findsOneWidget);
+      expect(find.byKey(const Key('recDetailOffline')), findsOneWidget);
+      expect(find.text('Punches'), findsNothing);
+      verifyNever(
+        () => repo.getAttendanceRecordDetail(
+          any(),
+          employeeId: any(named: 'employeeId'),
+          recordId: any(named: 'recordId'),
+        ),
+      );
     });
   });
 

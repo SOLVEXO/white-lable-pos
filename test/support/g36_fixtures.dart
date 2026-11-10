@@ -125,3 +125,41 @@ Map<String, dynamic> clockResultJson({String type = 'clock_in', bool duplicate =
 
 ClockResult clockResult({String type = 'clock_in', bool clockedIn = true, bool onBreak = false, bool duplicate = false}) =>
     ClockResult.fromJson(clockResultJson(type: type, clockedIn: clockedIn, onBreak: onBreak, duplicate: duplicate));
+
+/// A record's detail as the server sends it: a late-synced clock-out (device time 17:00, server time next morning) and one correction by a manager.
+Map<String, dynamic> recordDetailJson({bool withCorrection = true}) => {
+  'record': {
+    'recordId': 'rec1',
+    'employeeId': 'e1',
+    'employeeName': 'Sam',
+    'clockInAt': _t(9, 2),
+    'clockOutAt': _t(17, 0),
+    'status': 'closed',
+    'workedMinutes': 465,
+    'breakMinutes': 30,
+    'breaks': <Map<String, dynamic>>[],
+    'corrected': withCorrection,
+    'flags': <String>[],
+  },
+  'punches': [
+    {'id': 'p1', 'type': 'clock_in', 'at': _t(9, 2), 'deviceAt': _t(9, 2), 'serverAt': _t(9, 2, 1), 'flags': <String>[], 'deviceId': 'd1'},
+    {'id': 'p2', 'type': 'break_start', 'at': _t(12, 0), 'deviceAt': _t(12, 0), 'serverAt': _t(12, 0), 'flags': <String>[], 'deviceId': 'd1'},
+    {
+      'id': 'p3',
+      'type': 'clock_out',
+      'at': _t(17, 0),
+      'deviceAt': _t(17, 0),
+      'serverAt': DateTime(2026, 11, 10, 8, 30).toUtc().toIso8601String(),
+      'flags': ['late_sync'],
+      'deviceId': null,
+    },
+  ],
+  'corrections': withCorrection
+      ? [
+          {'id': 'c1', 'at': _t(18, 30), 'reason': 'forgot to clock out', 'byId': 'm1', 'byName': 'Mia Manager', 'clockInAt': null, 'clockOutAt': _t(17, 0), 'voided': false},
+          {'id': 'c2', 'at': _t(18, 40), 'reason': null, 'byId': 'm1', 'byName': null, 'clockInAt': null, 'clockOutAt': null, 'voided': true},
+        ]
+      : <Map<String, dynamic>>[],
+};
+
+AttendanceRecordDetail recordDetail({bool withCorrection = true}) => AttendanceRecordDetail.fromJson(recordDetailJson(withCorrection: withCorrection));

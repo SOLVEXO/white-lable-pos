@@ -2340,6 +2340,10 @@ class PosRepository {
     query: {'from': from.toUtc().toIso8601String(), 'to': to.toUtc().toIso8601String(), if (employeeId != null) 'employeeId': employeeId},
   );
 
+  /// One record with its raw punches and correction history. A cashier may open their own; the server enforces who may open whose.
+  Future<AttendanceRecordDetail?> getAttendanceRecordDetail(String storeId, {required String employeeId, required String recordId}) =>
+      _invGet('teamRecordDetail', '${_team(storeId, 'records')}/$employeeId/$recordId', AttendanceRecordDetail.fromJson);
+
   /// Managers only.
   Future<List<AttendanceAnomaly>?> getAttendanceAnomalies(String storeId) =>
       _invGet('teamAnomalies', _team(storeId, 'anomalies'), (d) => [for (final e in (d['anomalies'] as List? ?? const [])) if (e is Map) AttendanceAnomaly.fromJson(e.cast<String, dynamic>())]);

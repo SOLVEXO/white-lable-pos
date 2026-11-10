@@ -19,6 +19,7 @@ import 'package:solvexo_pos/app/modules/pos_needs_attention/views/pos_needs_atte
 import 'package:solvexo_pos/app/modules/pos_team/controllers/attendance_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/clock_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/correction_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_team/controllers/record_detail_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/roster_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/shift_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/team_report_controller.dart';
@@ -191,6 +192,13 @@ void main() {
           tzOffsetMinutes: any(named: 'tzOffsetMinutes'),
         ),
       ).thenAnswer((_) async => report());
+      when(
+        () => repo.getAttendanceRecordDetail(
+          'st1',
+          employeeId: any(named: 'employeeId'),
+          recordId: any(named: 'recordId'),
+        ),
+      ).thenAnswer((_) async => recordDetail());
       when(() => repo.getEmployees('st1')).thenAnswer((_) async => [employee('e1', 'Sam'), employee('e2', 'Ali')]);
       return repo;
     }
@@ -257,7 +265,14 @@ void main() {
       await shot(t, 'g36_05_attendance_manager', tn);
 
       repo = fresh();
-      await show(t, AttendanceRecordView(record: record(corrected: true, flags: ['late_sync']), canCorrect: true));
+      await show(
+        t,
+        AttendanceRecordView(
+          record: record(corrected: true),
+          canCorrect: true,
+          detailController: Get.put(RecordDetailController(employeeId: 'e1', recordId: 'rec1', repository: repo, storeId: 'st1')),
+        ),
+      );
       await shot(t, 'g36_06_record_detail_corrected', tn);
 
       repo = fresh();

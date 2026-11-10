@@ -271,4 +271,21 @@ void main() {
       expect(up.shift!.employeeId, 'e2');
     });
   });
+
+  group('record detail', () {
+    test('asks for team/records/:store/:employee/:record and reads punches and corrections', () async {
+      scriptGet(_res({'success': true, 'data': recordDetailJson()}));
+      final d = await repo.getAttendanceRecordDetail('st1', employeeId: 'e1', recordId: 'rec1');
+      expect(sent.single.url, '$base/records/st1/e1/rec1');
+      expect(d!.record.recordId, 'rec1');
+      expect(d.punches.map((p) => p.type), ['clock_in', 'break_start', 'clock_out']);
+      expect(d.corrections.first.byName, 'Mia Manager');
+    });
+
+    test('a refusal is null with the server code kept', () async {
+      scriptGet(_fail(404, {'code': 'RECORD_NOT_FOUND', 'message': 'no'}));
+      expect(await repo.getAttendanceRecordDetail('st1', employeeId: 'e1', recordId: 'x'), isNull);
+      expect(repo.lastErrorCode, 'RECORD_NOT_FOUND');
+    });
+  });
 }
