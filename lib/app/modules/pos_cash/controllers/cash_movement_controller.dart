@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 
 import 'package:get/get.dart';
@@ -63,6 +64,11 @@ class CashMovementController extends GetxController {
   final RxBool busy = false.obs;
   final RxnString error = RxnString();
   final Rxn<CashOutcome> outcome = Rxn<CashOutcome>();
+
+  /// G5.1: an optional photo of the slip — uploaded right after an ONLINE booking (an offline movement queues without it)
+  final Rxn<File> photo = Rxn<File>();
+  final RxnString photoNotice = RxnString();
+  void setPhoto(File? f) => photo.value = f;
 
   String? _requestId, _fingerprint;
   DateTime? _occurredAt;
@@ -166,6 +172,11 @@ class CashMovementController extends GetxController {
       }
       if (r.success) {
         outcome.value = CashOutcome.booked;
+        final f = photo.value;
+        if (f != null) {
+          final up = await _repo.uploadCashMovementReceipt(sid, _requestId!, f);
+          photoNotice.value = up.success ? null : 'The cash movement is recorded, but the photo could not be uploaded: ${cashErrorMessage(up.code, fallback: up.message)}';
+        }
         _reset();
         return true;
       }
@@ -200,6 +211,7 @@ class CashMovementController extends GetxController {
       employeeToken: await _employeeToken(),
     );
     outcome.value = CashOutcome.queued;
+    if (photo.value != null) photoNotice.value = 'Saved on this device. The photo was not kept — a photo can only be attached online.';
     _reset();
     q.scheduleSync();
     return true;

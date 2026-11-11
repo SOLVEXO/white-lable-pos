@@ -124,6 +124,25 @@ class ReceiveController extends GetxController {
     lines.add(l);
   }
 
+  /// G5.1 scan-to-receive: each scan is one more GOOD unit of that line (never above what is still due on the order); receiving without an order
+  /// adds the product. Returns the line to show under the camera.
+  Future<String> addByCode(String code) async {
+    final rows = await _repo.lookupInventory(await supplyStoreId(_storeIdOverride), code);
+    if (rows == null) return 'Could not look up $code — check the connection.';
+    if (rows.isEmpty) return 'Not found: $code';
+    final row = rows.first;
+    final line = lines.firstWhereOrNull((l) => l.variantId == row.variantId);
+    if (line == null) {
+      if (!direct) return '${row.productName} is not on this order';
+      addProduct(row);
+      return 'Added ${row.productName} — 1';
+    }
+    final max = maxFor(line, good: true);
+    if (max != null && line.good.value >= max) return '${line.name}: all ${line.remaining} already counted';
+    line.good.value += 1;
+    return '${line.name} — ${line.good.value}${line.remaining != null ? ' of ${line.remaining}' : ''}';
+  }
+
   void removeLine(ReceiveLine l) => lines.remove(l);
 
   /// Quantities are capped by the stepper at what is still due; the server enforces it anyway (OVER_RECEIPT).

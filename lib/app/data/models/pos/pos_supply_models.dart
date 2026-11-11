@@ -387,18 +387,44 @@ class PoDetail {
 }
 
 class SupplierProfile {
-  const SupplierProfile({required this.supplier, required this.aging, this.orders = const [], this.receipts = const [], this.cur});
+  const SupplierProfile({required this.supplier, required this.aging, this.orders = const [], this.receipts = const [], this.cur, this.supplied = const []});
   final Supplier supplier;
   final Aging aging;
   final List<PurchaseOrder> orders;
   final List<SupplyReceipt> receipts;
   final InvCur? cur;
+
+  /// G5.1: what this supplier has supplied (from its purchase orders), newest first
+  final List<SuppliedProduct> supplied;
   factory SupplierProfile.fromJson(Map<String, dynamic> j) => SupplierProfile(
     supplier: Supplier.fromJson(_map(j['supplier'])),
     aging: Aging.fromJson(_map(j['aging'])),
     orders: [for (final o in _maps(j['orders'])) PurchaseOrder.fromJson(o)],
     receipts: [for (final r in _maps(j['receipts'])) SupplyReceipt.fromJson(r)],
     cur: InvCur.fromJson(j),
+    supplied: [for (final x in _maps(j['productsSupplied'])) SuppliedProduct.fromJson(x)],
+  );
+}
+
+/// G5.1: one product a supplier supplied. [lastUnitCostMinor] is cost — absent when the owner hides costs from this manager.
+class SuppliedProduct {
+  const SuppliedProduct({required this.variantId, required this.name, this.sku, this.options = const [], this.orderedQty = 0, this.receivedQty = 0, this.orders = 0, this.lastOrderedAt, this.lastUnitCostMinor});
+  final String variantId, name;
+  final String? sku;
+  final List<String> options;
+  final int orderedQty, receivedQty, orders;
+  final DateTime? lastOrderedAt;
+  final int? lastUnitCostMinor;
+  factory SuppliedProduct.fromJson(Map<String, dynamic> j) => SuppliedProduct(
+    variantId: '${j['variantId'] ?? ''}',
+    name: j['name'] as String? ?? '',
+    sku: j['sku'] as String?,
+    options: [for (final o in (j['options'] as List? ?? const [])) if (o is Map) '${o['value'] ?? ''}'].where((e) => e.isNotEmpty).toList(),
+    orderedQty: _int(j['orderedQty']) ?? 0,
+    receivedQty: _int(j['receivedQty']) ?? 0,
+    orders: _int(j['orders']) ?? 0,
+    lastOrderedAt: _date(j['lastOrderedAt']),
+    lastUnitCostMinor: _int(j['lastUnitCostMinor']),
   );
 }
 

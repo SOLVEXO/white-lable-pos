@@ -2,15 +2,34 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/store_location_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/controllers/inv_common.dart';
 
 /// Stock list: debounced search, All / Low / Out filter, infinite scroll. [lowOnly] is the "Low stock" screen — the same list, pre-filtered.
 class InvStockListController extends GetxController {
-  InvStockListController({PosRepository? repository, String? storeId, this.lowOnly = false, this.initialFilter = 'all', this.pageSize = 30, this.debounce = const Duration(milliseconds: 350)})
+  InvStockListController({PosRepository? repository, String? storeId, this.lowOnly = false, this.initialFilter = 'all', this.pageSize = 30, this.debounce = const Duration(milliseconds: 350), Future<List<StoreLocationModel>> Function(String storeId)? locations})
     : _repo = repository ?? PosRepository(),
-      _storeIdOverride = storeId;
+      _storeIdOverride = storeId,
+      _locations = locations;
   final PosRepository _repo;
+  final Future<List<StoreLocationModel>> Function(String storeId)? _locations;
+
+  /// G5.1: the store's locations (the location filter is shown only when there are some) and the one picked (null = all locations)
+  final RxList<StoreLocationModel> locations = <StoreLocationModel>[].obs;
+  final RxnString locationId = RxnString();
+  void setLocation(String? id) {
+    if (locationId.value == id) return;
+    locationId.value = id;
+    reload();
+  }
+  Future<void> _loadLocations() async {
+    try {
+      final sid = await invStoreId(_storeIdOverride);
+      final all = _locations != null ? await _locations(sid) : (await _repo.getStoreLocations(sid) ?? const <StoreLocationModel>[]);
+      locations.assignAll(all.where((l) => l.status != 'inactive'));
+    } catch (_) {/* the filter is a convenience; the list works without it */}
+  }
   final String? _storeIdOverride;
   final bool lowOnly;
   /// the chip selected when the screen opens (the Home "Expiring soon" row opens it on `expiring`)
@@ -41,6 +60,7 @@ class InvStockListController extends GetxController {
     super.onInit();
     filter.value = lowOnly ? 'low' : initialFilter;
     reload();
+    if (!lowOnly) _loadLocations();
   }
 
   @override
@@ -69,7 +89,7 @@ class InvStockListController extends GetxController {
     error.value = null;
     _page = 1;
     storeId = await invStoreId(_storeIdOverride);
-    final r = await _repo.getInventoryStock(storeId, search: query, filter: filter.value, page: 1, limit: pageSize);
+    final r = await _repo.getInventoryStock(storeId, search: query, filter: filter.value, page: 1, limit: pageSize, locationId: locationId.value);
     if (ticket != _ticket) return;
     if (r == null) {
       items.clear();
@@ -90,7 +110,7 @@ class InvStockListController extends GetxController {
     final ticket = _ticket;
     loadingMore.value = true;
     try {
-      final r = await _repo.getInventoryStock(storeId, search: query, filter: filter.value, page: _page + 1, limit: pageSize);
+      final r = await _repo.getInventoryStock(storeId, search: query, filter: filter.value, page: _page + 1, limit: pageSize, locationId: locationId.value);
       if (ticket != _ticket || r == null) return;
       _page = r.page;
       items.addAll(r.items);

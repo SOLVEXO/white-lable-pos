@@ -1,13 +1,9 @@
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/common_image_view.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_status_style.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/controllers/seller_stores_controller.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 
 class StoreCard extends StatelessWidget {
@@ -18,22 +14,18 @@ class StoreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppDimen.serviceCountTileRadius),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        color: p.surface,
+        borderRadius: Radii.rLg,
+        border: Border.all(color: p.border),
       ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(Space.s3 + 2),
             child: Row(
               children: [
                 _StoreAvatar(
@@ -41,45 +33,51 @@ class StoreCard extends StatelessWidget {
                   isActive: store.isActive,
                   isprofile: store.logo.isNotEmpty,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: Space.s3),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CustomText(
-                        text: store.name,
-                        fontFamily: AppTextStyles.headingFontFamily,
-                        fontSize: AppFontSize.small2,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.black,
+                      Text(
+                        store.name,
+                        style: t.subtitle.copyWith(
+                          color: p.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
-                      const SizedBox(height: 3),
-                      CustomText(
-                        text: store.category,
-                        fontSize: AppFontSize.tiny,
-                        color: AppColors.grey,
+                      const SizedBox(height: 2),
+                      Text(
+                        store.category,
+                        style: t.caption.copyWith(color: p.textSecondary),
                       ),
                       if (store.posSubscriptionStatus != null) ...[
-                        const SizedBox(height: 5),
+                        const SizedBox(height: Space.s1),
                         _PosSubscriptionBadge(status: store.posSubscriptionStatus!),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                _OpenButton(onTap: onOpen),
+                const SizedBox(width: Space.s2 + 2),
+                AppButton(
+                  label: 'Open',
+                  onPressed: onOpen,
+                  expand: false,
+                ),
               ],
             ),
           ),
           Container(
             height: 1,
-            color: AppColors.lightGrey2,
-            margin: const EdgeInsets.symmetric(horizontal: 14),
+            color: p.border,
+            margin: const EdgeInsets.symmetric(horizontal: Space.s3 + 2),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Space.s3 + 2,
+              vertical: Space.s2 + 2,
+            ),
             child: Row(
               children: [
                 _StatItem(
@@ -87,7 +85,7 @@ class StoreCard extends StatelessWidget {
                   value: '${store.productCount}',
                   label: 'Products',
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: Space.s5),
                 _StatItem(
                   icon: Icons.trending_up_rounded,
                   value: Money.format(store.totalSales),
@@ -119,67 +117,31 @@ class _StoreAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return isprofile
         ? CommonImageView(
             url: store.logo,
             width: 40,
             height: 40,
             fit: BoxFit.cover,
-            radius: BorderRadius.circular(12),
+            radius: BorderRadius.circular(Radii.sm),
           )
         : Container(
             height: 40,
             width: 40,
             decoration: BoxDecoration(
-              gradient: isActive
-                  ? AppColors.appbarGradient
-                  : const LinearGradient(
-                      colors: [AppColors.lightGrey2, AppColors.lightGrey4],
-                    ),
-              borderRadius: BorderRadius.circular(12),
+              color: isActive ? p.accentFill : p.fill,
+              borderRadius: Radii.rSm,
             ),
             alignment: Alignment.center,
-            child: CustomText(
-              text: store.name[0],
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.white,
+            child: Text(
+              store.name[0],
+              style: context.type.subtitle.copyWith(
+                color: isActive ? p.onAccentFill : p.textMuted,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           );
-  }
-}
-
-// ── Open button ───────────────────────────────────────────────────────────────
-
-class _OpenButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _OpenButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-        decoration: BoxDecoration(
-          color: AppColors.primaryColor,
-          borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryColor.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: const CustomText(
-          text: 'Open',
-          fontSize: AppFontSize.verySmall,
-          fontWeight: FontWeight.w600,
-          color: AppColors.white,
-        ),
-      ),
-    );
   }
 }
 
@@ -198,23 +160,16 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: AppColors.lightGrey5),
-        const SizedBox(width: 4),
-        CustomText(
-          text: value,
-          fontSize: AppFontSize.verySmall,
-          fontWeight: FontWeight.w600,
-          color: AppColors.black2,
-        ),
+        Icon(icon, size: 14, color: p.textMuted),
+        const SizedBox(width: Space.s1),
+        Text(value, style: t.label.copyWith(color: p.textPrimary)),
         const SizedBox(width: 3),
-        CustomText(
-          text: label,
-          fontSize: AppFontSize.tiny,
-          color: AppColors.grey,
-        ),
+        Text(label, style: t.caption.copyWith(color: p.textSecondary)),
       ],
     );
   }
@@ -228,21 +183,31 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = storeStatusStyle(status);
+    final p = context.palette;
+    // Label comes from the shared mapping; the colour is the token equivalent
+    // of that mapping's legacy colour so it reads in light and dark.
+    final label = storeStatusStyle(status).shortLabel;
+    final color = switch (status) {
+      'active' => p.successFg,
+      'pending' => p.warningFg,
+      'rejected' || 'suspended' => p.dangerFg,
+      _ => p.textMuted,
+    };
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 7,
           height: 7,
-          decoration: BoxDecoration(color: style.color, shape: BoxShape.circle),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 5),
-        CustomText(
-          text: style.shortLabel,
-          fontSize: AppFontSize.tiny,
-          fontWeight: FontWeight.w600,
-          color: style.color,
+        Text(
+          label,
+          style: context.type.caption.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -258,31 +223,34 @@ class _PosSubscriptionBadge extends StatelessWidget {
   final PosSubscriptionStatusValue status;
   const _PosSubscriptionBadge({required this.status});
 
-  (Color, String) get _style {
-    switch (status) {
-      case PosSubscriptionStatusValue.active:
-        return (AppColors.posStatusGreen, 'POS Active');
-      case PosSubscriptionStatusValue.expired:
-        return (AppColors.posStatusRed, 'POS Expired');
-      case PosSubscriptionStatusValue.none:
-        return (AppColors.lightGrey5, 'No POS Plan');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final (color, label) = _style;
+    final p = context.palette;
+    final (bg, fg, label) = switch (status) {
+      PosSubscriptionStatusValue.active => (
+        p.successSoft,
+        p.successFg,
+        'POS Active',
+      ),
+      PosSubscriptionStatusValue.expired => (
+        p.dangerSoft,
+        p.dangerFg,
+        'POS Expired',
+      ),
+      PosSubscriptionStatusValue.none => (p.fill, p.textMuted, 'No POS Plan'),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: bg,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: CustomText(
-        text: label,
-        fontSize: AppFontSize.tiny,
-        fontWeight: FontWeight.w600,
-        color: color,
+      child: Text(
+        label,
+        style: context.type.caption.copyWith(
+          color: fg,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

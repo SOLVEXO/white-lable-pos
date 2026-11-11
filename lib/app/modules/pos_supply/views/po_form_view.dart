@@ -7,6 +7,7 @@ import 'package:solvexo_pos/app/modules/pos_supply/controllers/po_form_controlle
 import 'package:solvexo_pos/app/modules/pos_supply/controllers/supply_common.dart';
 import 'package:solvexo_pos/app/modules/pos_supply/views/product_search_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_supply/views/supply_widgets.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_scan_camera_view.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 
 /// One editable line: quantity stepper + unit cost in major units. Owns its text controller; the Obx lives in this widget.
@@ -178,6 +179,9 @@ class _PoFormViewState extends State<PoFormView> {
             for (final l in c.lines) _PoFormLineCard(key: ObjectKey(l), line: l, controller: c),
             const SizedBox(height: Space.s2),
             AppButton(key: const Key('poAddProduct'), label: 'Add product', variant: AppButtonVariant.secondary, icon: Icons.add_rounded, onPressed: _addProduct),
+            const SizedBox(height: Space.s2),
+            // G5.1: scan item after item onto the order
+            AppButton(key: const Key('poScanAdd'), label: 'Scan to add', variant: AppButtonVariant.ghost, icon: Icons.qr_code_scanner_rounded, onPressed: () => Get.to<String>(() => PosScanCameraView(title: 'Scan to add', onCode: c.addByCode))),
             if (money != null)
               Padding(
                 padding: const EdgeInsets.only(top: Space.s3),

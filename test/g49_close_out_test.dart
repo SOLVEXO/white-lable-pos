@@ -73,11 +73,12 @@ void main() {
       expect(cached.withPricing(taxRate: 0.1, settingsVersion: 2).receiptLinkBase, _base);
     });
 
-    test('a sale prints the offline-built QR — even when the token link is known; the token link only for a sale without a client key', () {
+    test('a sale prints the offline-built QR — even when the token link is known; G5.1: never any other link (no client key or no base → no QR)', () {
       final s = _settings(receipt: {'showQr': true});
       expect(ReceiptData.fromSale(_sale(), s, receiptUrl: 'https://api.solvexo.app/r/tok').qrPayload, '$_base$_key');
       expect(ReceiptData.fromSale(_sale(), s).qrPayload, '$_base$_key', reason: 'reprint offline: no token link, still a QR');
-      expect(ReceiptData.fromSale(_sale(key: null), s, receiptUrl: 'https://api.solvexo.app/r/tok').qrPayload, 'https://api.solvexo.app/r/tok');
+      expect(ReceiptData.fromSale(_sale(key: null), s, receiptUrl: 'https://api.solvexo.app/r/tok').qrPayload, isNull);
+      expect(ReceiptData.fromSale(_sale(), _settings(receipt: {'showQr': true}, base: null), receiptUrl: 'https://api.solvexo.app/r/tok').qrPayload, isNull, reason: 'no cached base: no QR, never a guessed URL');
       expect(ReceiptData.fromSale(_sale(), _settings(receipt: {'showQr': false})).qrPayload, isNull);
       expect(_sale().clientKey, _key);
     });

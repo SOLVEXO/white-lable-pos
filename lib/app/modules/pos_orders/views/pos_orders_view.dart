@@ -7,6 +7,7 @@ import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_transactions_empt
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_transactions_shimmer.dart';
 import 'package:solvexo_pos/app/modules/pos/widgets/pos_app_bar.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/config/resources/app_text_styles.dart';
 import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:solvexo_pos/utils/dimens.dart';
@@ -128,6 +129,8 @@ class _FilterHeader extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _DateFilterChip(controller: controller),
+          // G5.1: managers filter by cashier / register (store-wide)
+          Obx(() => controller.isManager.value ? Padding(padding: const EdgeInsets.only(top: 8), child: OrdersPeopleFilters(controller: controller)) : const SizedBox.shrink()),
         ],
       ),
     );
@@ -383,5 +386,62 @@ class _DateFilterChip extends StatelessWidget {
         ),
       ),
     ));
+  }
+}
+
+/// G5.1 — the managers' cashier / register filters on Orders (token-styled; store-wide while set).
+class OrdersPeopleFilters extends StatelessWidget {
+  const OrdersPeopleFilters({super.key, required this.controller});
+  final PosOrdersController controller;
+
+  Future<void> _pick(BuildContext context, String title, Future<List<({String id, String name})>> Function() load, ({String id, String name})? current, void Function(({String id, String name})?) set) async {
+    final options = await load();
+    if (!context.mounted) return;
+    final picked = await AppBottomSheet.showGet<({String id, String name})?>(
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(key: const Key('ordersPickAll'), title: const Text('Everyone / all'), trailing: current == null ? const Icon(Icons.check_rounded) : null, onTap: () => Get.back(result: (id: '', name: ''))),
+          for (final o in options)
+            ListTile(key: Key('ordersPick_${o.id}'), title: Text(o.name), trailing: current?.id == o.id ? const Icon(Icons.check_rounded) : null, onTap: () => Get.back(result: o)),
+          if (options.isEmpty) const Padding(padding: EdgeInsets.all(Space.s4), child: Text('Nothing to choose from.')),
+        ],
+      ),
+      title: title,
+    );
+    if (picked == null) return; // dismissed
+    set(picked.id.isEmpty ? null : picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Obx(() {
+      final c = controller.cashierFilter.value;
+      final r = controller.registerFilter.value;
+      return Wrap(
+        spacing: Space.s2,
+        runSpacing: Space.s1,
+        children: [
+          InputChip(
+            key: const Key('ordersCashierFilter'),
+            avatar: Icon(Icons.person_outline_rounded, size: 16, color: p.textSecondary),
+            label: Text(c == null ? 'Cashier: all' : 'Cashier: ${c.name}'),
+            selected: c != null,
+            onPressed: () => _pick(context, 'Cashier', controller.cashierOptions, c, controller.setCashierFilter),
+            onDeleted: c == null ? null : () => controller.setCashierFilter(null),
+          ),
+          InputChip(
+            key: const Key('ordersRegisterFilter'),
+            avatar: Icon(Icons.point_of_sale_rounded, size: 16, color: p.textSecondary),
+            label: Text(r == null ? 'Register: all' : 'Register: ${r.name}'),
+            selected: r != null,
+            onPressed: () => _pick(context, 'Register', controller.registerOptions, r, controller.setRegisterFilter),
+            onDeleted: r == null ? null : () => controller.setRegisterFilter(null),
+          ),
+          if (c != null || r != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Whole store, not only this shift', key: const Key('ordersStoreWide'), style: context.type.caption.copyWith(color: p.textMuted))),
+        ],
+      );
+    });
   }
 }

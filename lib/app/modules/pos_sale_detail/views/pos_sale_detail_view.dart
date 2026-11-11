@@ -57,6 +57,15 @@ class PosSaleDetailView extends StatelessWidget {
                       : Icon(Icons.picture_as_pdf_outlined, color: AppColors.primaryColor, size: 20),
                 ),
               ),
+              // G5.1: share the public receipt link (share sheet)
+              GestureDetector(
+                key: const Key('saleShareLink'),
+                onTap: () => c.shareReceiptLink(),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(Icons.link_rounded, color: AppColors.primaryColor, size: 20),
+                ),
+              ),
               GestureDetector(
                 onTap: c.shareReceipt,
                 child: Padding(

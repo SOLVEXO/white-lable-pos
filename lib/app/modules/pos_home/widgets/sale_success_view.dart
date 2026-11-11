@@ -43,6 +43,12 @@ class _SaleSuccessViewState extends State<SaleSuccessView> with SingleTickerProv
   bool _linkLoading = false;
 
   Future<void> _loadLink() async {
+    // G5.1: the same link the receipt printed (server base + client key) — shown and shared at once, online or offline (it says "syncing" until the sale arrives)
+    final printed = _receipt?.qrPayload;
+    if (printed != null) {
+      setState(() => _link = printed);
+      return;
+    }
     final id = _receipt?.saleId;
     if (id == null || _outcome != SaleOutcome.completed) return;
     setState(() => _linkLoading = true);
@@ -95,7 +101,7 @@ class _SaleSuccessViewState extends State<SaleSuccessView> with SingleTickerProv
     setState(() => _printing = true);
     try {
       // G4.8: the digital-receipt QR when the designer wants it and the link has loaded
-      final error = await Get.find<ThermalPrinterService>().printReceipt(receipt: r.qrWanted && r.qrPayload == null && _link != null ? r.copyWith(qrPayload: _link) : r); // G4.9: the offline-built QR wins
+      final error = await Get.find<ThermalPrinterService>().printReceipt(receipt: r); // G5.1: the QR is only ever the server-provided base + client key (built into the receipt)
       error == null ? AppToast.success('Receipt printed.') : AppToast.error('$error You can also share it as PDF.');
     } finally {
       if (mounted) setState(() => _printing = false);
@@ -311,7 +317,7 @@ class _DigitalReceipt extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final t = context.type;
-    if (offline) {
+    if (offline && link == null) {
       return Text('The digital receipt (QR) is available once this sale syncs.', key: const Key('digitalReceiptOffline'), textAlign: TextAlign.center, style: t.caption.copyWith(color: p.textMuted));
     }
     if (link == null) {
@@ -333,7 +339,7 @@ class _DigitalReceipt extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Digital receipt', style: t.subtitle.copyWith(color: p.textPrimary)),
-                Text('The customer scans this to see their receipt — no personal details on it.', style: t.caption.copyWith(color: p.textSecondary)),
+                Text(offline ? 'The customer can scan it now — it shows "syncing" until this sale reaches the server.' : 'The customer scans this to see their receipt — no personal details on it.', style: t.caption.copyWith(color: p.textSecondary)),
                 TextButton.icon(key: const Key('shareReceiptLink'), onPressed: onShare, icon: const Icon(Icons.link_rounded, size: 18), label: const Text('Share link')),
               ],
             ),

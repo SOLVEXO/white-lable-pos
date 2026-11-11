@@ -7,6 +7,7 @@ import 'package:solvexo_pos/app/modules/pos_supply/controllers/receive_controlle
 import 'package:solvexo_pos/app/modules/pos_supply/controllers/supply_common.dart';
 import 'package:solvexo_pos/app/modules/pos_supply/views/product_search_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_supply/views/supply_widgets.dart';
+import 'package:solvexo_pos/app/modules/pos_home/widgets/pos_scan_camera_view.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 
 /// A date strictly before today (a warning only: the server decides what an expired lot means).
@@ -262,6 +263,11 @@ class _ReceiveViewState extends State<ReceiveView> {
           ),
         for (final l in c.lines) ReceiveLineCard(key: ObjectKey(l), line: l, controller: c),
         if (c.direct) AppButton(key: const Key('recvAddProduct'), label: 'Add product', variant: AppButtonVariant.secondary, icon: Icons.add_rounded, onPressed: _addProduct),
+        // G5.1: count what arrived by scanning each item
+        Padding(
+          padding: const EdgeInsets.only(top: Space.s2),
+          child: AppButton(key: const Key('recvScan'), label: 'Scan to receive', variant: AppButtonVariant.ghost, icon: Icons.qr_code_scanner_rounded, onPressed: () => Get.to<String>(() => PosScanCameraView(title: 'Scan to receive', onCode: c.addByCode))),
+        ),
         const InvSectionTitle('Supplier invoice (optional)'),
         AppTextField(key: const Key('recvInvoice'), label: 'Invoice number', controller: _invoice, mono: true, onChanged: (s) => c.invoiceNumber.value = s),
         const SizedBox(height: Space.s2),

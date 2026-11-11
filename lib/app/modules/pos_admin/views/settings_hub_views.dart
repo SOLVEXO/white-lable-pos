@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_hub_widgets.dart';
 import 'package:solvexo_pos/app/modules/pos_admin/controllers/store_settings_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_admin/views/about_help_views.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/views/inv_widgets.dart';
 import 'package:solvexo_pos/app/modules/pos_reports/controllers/reports_common.dart';
 import 'package:solvexo_pos/app/modules/pos_reports/views/report_widgets.dart';
@@ -74,6 +75,7 @@ class _SettingsHubViewState extends State<SettingsHubView> {
               onTap: () => Get.to(() => ReceiptDesignerView(controller: c)),
             ),
             HubRow(icon: Icons.print_outlined, title: 'Printer, drawer & sound', subtitle: 'This device', onTap: () => Get.toNamed(Routes.posSettings)),
+            HubRow(key: const Key('hubHardware'), icon: Icons.build_circle_outlined, title: 'Hardware check', subtitle: 'Test page, cash drawer, barcode scanner', onTap: () => Get.to(() => const HardwareCheckView())),
           ]),
           HubSection('Team & security', [
             HubRow(icon: Icons.admin_panel_settings_outlined, title: 'Roles & permissions', subtitle: 'Who may do what, and who approves', onTap: () => Get.toNamed(Routes.posRoles)),
@@ -98,6 +100,10 @@ class _SettingsHubViewState extends State<SettingsHubView> {
           HubSection('Data', [
             HubRow(key: const Key('hubSync'), icon: Icons.cloud_sync_outlined, title: 'Backup & sync', subtitle: 'What is on this device, devices, the last audit seal', onTap: () => Get.to(() => BackupSyncView(controller: c))),
             HubRow(icon: Icons.sync_problem_rounded, title: 'Needs attention', subtitle: 'Offline sales the server did not accept', onTap: () => Get.toNamed(Routes.posNeedsAttention)),
+          ]),
+          HubSection('Support', [
+            HubRow(key: const Key('hubHelp'), icon: Icons.help_outline_rounded, title: 'Help', subtitle: 'Short answers for everyday tasks', onTap: () => Get.to(() => const HelpView())),
+            HubRow(key: const Key('hubAbout'), icon: Icons.info_outline_rounded, title: 'About', subtitle: 'Version, store id, environment, licences', onTap: () => Get.to(() => const AboutView())),
           ]),
         ],
       );

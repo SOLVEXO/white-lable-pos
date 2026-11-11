@@ -46,6 +46,24 @@ const expOfCurrency = (field) => ({ $switch: { branches: [{ case: { $in: [{ $toU
 const factor = (expExpr) => ({ $pow: [10, expExpr] });
 const offGrid = (valueExpr, expExpr) => ({ $and: [{ $isNumber: valueExpr }, { $gt: [{ $abs: { $subtract: [{ $multiply: [valueExpr, factor(expExpr)] }, { $round: [{ $multiply: [valueExpr, factor(expExpr)] }, 0] }] } }, 0.000001] }] });
 
+
+// G5.1: the same rules the API applies at boot (solvexo-api/src/common/public-url.check.ts) — the receipt QR origin must be a public https origin.
+// Reported as ok / the reason only; the value itself is not printed.
+function publicUrlProblem(value) {
+  const raw = (value || '').trim();
+  if (!raw) return 'not set (pass API_PUBLIC_URL=<the production API origin> when running this script)';
+  let u; try { u = new URL(raw); } catch (e) { return 'not a valid URL'; }
+  if (u.protocol !== 'https:') return 'not https';
+  let h = u.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  const m = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(h);
+  if (m) { const a = parseInt(m[1], 16), b = parseInt(m[2], 16); h = `${a >> 8}.${a & 255}.${b >> 8}.${b & 255}`; }
+  const priv = /(^localhost$|\.localhost$|\.local$|\.internal$|\.lan$|\.home$|\.corp$)/.test(h) || [/^10\./, /^127\./, /^0\./, /^169\.254\./, /^192\.168\./, /^172\.(1[6-9]|2\d|3[01])\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./].some((r) => r.test(h)) || h === '::1' || h === '::' || /^f[cd]/.test(h) || /^fe[89ab]/.test(h);
+  if (priv) return 'points to a local / private address';
+  if (u.username || u.password) return 'contains credentials';
+  if ((u.pathname && u.pathname !== '/') || u.search || u.hash) return 'not an origin (has a path, query or fragment)';
+  return null;
+}
+
 async function main() {
   const uri = process.env.MONGO_URI;
   if (!uri) { console.error('Set MONGO_URI to a connection string for a READ-ONLY user.'); process.exit(2); }
@@ -164,6 +182,8 @@ async function main() {
       out.g3.storeCreditTransactionsByType = Object.fromEntries((await t.aggregate([{ $group: { _id: '$type', n: { $sum: 1 } } }, { $sort: { _id: 1 } }]).toArray()).map((r) => [r._id, r.n]));
     }
 
+    const pu = publicUrlProblem(process.env.API_PUBLIC_URL);
+    out.g51 = { apiPublicUrl: { ok: pu === null, problem: pu } }; // the API refuses to start outside development when this is not ok
     console.log(JSON.stringify(out, null, 2));
   } finally {
     await client.close();

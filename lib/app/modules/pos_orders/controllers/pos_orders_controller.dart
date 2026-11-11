@@ -31,6 +31,22 @@ class PosOrdersController extends GetxController {
   /// quick refund/void actions to match the backend's actual (if weak) check.
   final RxBool isManager = false.obs;
 
+  /// G5.1 (managers): orders of one cashier and / or one register — store-wide (not only this shift) while either is set
+  final Rxn<({String id, String name})> cashierFilter = Rxn<({String id, String name})>();
+  final Rxn<({String id, String name})> registerFilter = Rxn<({String id, String name})>();
+  Future<List<({String id, String name})>> cashierOptions() async =>
+      [for (final e in await _posRepo.getEmployees(_storeId)) (id: e.id, name: e.name)]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  Future<List<({String id, String name})>> registerOptions() async => [for (final r in await _posRepo.listRegisters(_storeId)) (id: r.id, name: r.name)];
+  void setCashierFilter(({String id, String name})? v) {
+    cashierFilter.value = v;
+    loadSales();
+  }
+  void setRegisterFilter(({String id, String name})? v) {
+    registerFilter.value = v;
+    loadSales();
+  }
+  bool get _storeWide => cashierFilter.value != null || registerFilter.value != null;
+
   /// The store / shift / currency are read once; a search typed before they are in must wait for them (an empty store id was a 500).
   late final Future<void> _ready = _loadContext();
 
@@ -103,7 +119,9 @@ class PosOrdersController extends GetxController {
       }
       final result = await _posRepo.getSales(
         storeId: _storeId,
-        sessionId: _sessionId.isEmpty ? null : _sessionId,
+        sessionId: _sessionId.isEmpty || _storeWide ? null : _sessionId,
+        employeeId: cashierFilter.value?.id,
+        registerId: registerFilter.value?.id,
         page: _page,
         from: _fmtDate(fromDate.value),
         to: _fmtDate(toDate.value),
@@ -123,7 +141,9 @@ class PosOrdersController extends GetxController {
     try {
       final result = await _posRepo.getSales(
         storeId: _storeId,
-        sessionId: _sessionId.isEmpty ? null : _sessionId,
+        sessionId: _sessionId.isEmpty || _storeWide ? null : _sessionId,
+        employeeId: cashierFilter.value?.id,
+        registerId: registerFilter.value?.id,
         page: _page + 1,
         from: _fmtDate(fromDate.value),
         to: _fmtDate(toDate.value),

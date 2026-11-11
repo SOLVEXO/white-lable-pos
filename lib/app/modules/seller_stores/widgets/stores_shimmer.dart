@@ -1,107 +1,124 @@
-import 'package:solvexo_pos/app/components/skeleton.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 
 class StoresShimmer extends StatelessWidget {
   const StoresShimmer({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final topPad = MediaQuery.of(context).padding.top;
-    return Shimmer.fromColors(
-      baseColor: AppColors.shimmerBase,
-      highlightColor: AppColors.shimmerHighlight,
-      child: SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        child: Column(
-          children: [
-            // Hero skeleton
-            Container(
-              color: AppColors.lightGrey2,
-              padding: EdgeInsets.fromLTRB(20, topPad + 12, 20, 48),
-              child: const Column(
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          // Hero skeleton
+          Container(
+            color: p.accentFill,
+            padding: EdgeInsets.fromLTRB(
+              Space.s5,
+              topPad + Space.s3,
+              Space.s5,
+              Space.s12,
+            ),
+            child: const SkeletonShimmer(
+              child: Column(
                 children: [
                   Align(
                     alignment: Alignment.centerRight,
-                    child: Skeleton(width: 36, height: 36, cornerRadius: 10),
+                    child: SkeletonBox(width: 36, height: 36),
                   ),
-                  SizedBox(height: 20),
-                  Skeleton(width: 80, height: 80, cornerRadius: 40),
-                  SizedBox(height: 12),
-                  Skeleton(height: 18, width: 140),
+                  SizedBox(height: Space.s5),
+                  SkeletonBox(width: 80, height: 80, radius: 40),
+                  SizedBox(height: Space.s3),
+                  SkeletonBox(height: 18, width: 140),
                   SizedBox(height: 6),
-                  Skeleton(height: 12, width: 180),
-                  SizedBox(height: 12),
-                  Skeleton(height: 24, width: 120, cornerRadius: 20),
-                  SizedBox(height: 28),
-                  Skeleton(height: 56, width: double.infinity, cornerRadius: 12),
+                  SkeletonBox(height: 12, width: 180),
+                  SizedBox(height: Space.s3),
+                  SkeletonBox(height: 24, width: 120, radius: Radii.full),
+                  SizedBox(height: Space.s6),
+                  SkeletonBox(
+                    height: 56,
+                    width: double.infinity,
+                    radius: Radii.lg,
+                  ),
                 ],
               ),
             ),
-            // Content skeleton
-            Transform.translate(
-              offset: const Offset(0, -24),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          // Content skeleton
+          Transform.translate(
+            offset: const Offset(0, -Space.s6),
+            child: Container(
+              decoration: BoxDecoration(
+                color: p.background,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(Radii.xl),
                 ),
-                padding: const EdgeInsets.all(AppDimen.allPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    const Skeleton(height: 18, width: 120),
-                    const SizedBox(height: 16),
-                    ...List.generate(
-                      2,
-                      (_) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(
-                              AppDimen.serviceCountTileRadius,
-                            ),
-                          ),
+              ),
+              padding: const EdgeInsets.all(Space.s4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: Space.s2),
+                  const SkeletonShimmer(
+                    child: SkeletonBox(height: 18, width: 120),
+                  ),
+                  const SizedBox(height: Space.s4),
+                  ...List.generate(
+                    2,
+                    (_) => Padding(
+                      padding: const EdgeInsets.only(bottom: Space.s3),
+                      child: Container(
+                        padding: const EdgeInsets.all(Space.s3 + 2),
+                        decoration: BoxDecoration(
+                          color: p.surface,
+                          borderRadius: Radii.rLg,
+                          border: Border.all(color: p.border),
+                        ),
+                        child: SkeletonShimmer(
                           child: Column(
                             children: [
-                              Row(
-                                children: const [
-                                  Skeleton(width: 48, height: 48, cornerRadius: 12),
-                                  SizedBox(width: 12),
+                              const Row(
+                                children: [
+                                  SkeletonBox(width: 48, height: 48),
+                                  SizedBox(width: Space.s3),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Skeleton(height: 14, width: double.infinity),
+                                        SkeletonBox(
+                                          height: 14,
+                                          width: double.infinity,
+                                        ),
                                         SizedBox(height: 6),
-                                        Skeleton(height: 11, width: 100),
+                                        SkeletonBox(height: 11, width: 100),
                                       ],
                                     ),
                                   ),
-                                  SizedBox(width: 10),
-                                  Skeleton(height: 36, width: 60, cornerRadius: 8),
+                                  SizedBox(width: Space.s2 + 2),
+                                  SkeletonBox(height: 36, width: 60),
                                 ],
                               ),
-                              const SizedBox(height: 10),
-                              const Divider(height: 1, color: AppColors.lightGrey2),
-                              const SizedBox(height: 10),
-                              const Skeleton(height: 11, width: double.infinity),
+                              const SizedBox(height: Space.s2 + 2),
+                              Divider(height: 1, color: p.border),
+                              const SizedBox(height: Space.s2 + 2),
+                              const SkeletonBox(
+                                height: 11,
+                                width: double.infinity,
+                              ),
                             ],
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

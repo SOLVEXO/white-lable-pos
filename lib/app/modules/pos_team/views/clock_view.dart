@@ -5,6 +5,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_team_models.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/views/inv_widgets.dart';
 import 'package:solvexo_pos/app/modules/pos_supply/views/supply_widgets.dart';
 import 'package:solvexo_pos/app/modules/pos_team/controllers/clock_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_team/views/on_behalf_clock_sheet.dart';
 import 'package:solvexo_pos/app/modules/pos_team/views/team_widgets.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 
@@ -131,6 +132,9 @@ class _TeamClockViewState extends State<TeamClockView> {
             ),
           ),
         SupplyErrorText(c.actionError.value, errorKey: const Key('clockError')),
+        // G5.4: someone else's clock — their PIN or a manager's, online only
+        const SizedBox(height: Space.s2),
+        AppButton(key: const Key('clockOnBehalf'), label: 'Clock someone else in / out', icon: Icons.people_outline_rounded, variant: AppButtonVariant.ghost, onPressed: c.busy.value ? null : () => OnBehalfClockSheet.open(c)),
         if (waiting.isNotEmpty) ...[
           const InvSectionTitle('Waiting to sync'),
           for (final w in waiting)

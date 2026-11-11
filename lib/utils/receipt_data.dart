@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart' show ReceiptOptions;
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
@@ -52,6 +53,15 @@ String? offlineReceiptLink(PosSettingsModel? settings, String? clientKey) {
   final base = settings?.receiptLinkBase;
   if (base == null || base.isEmpty || clientKey == null || !RegExp(r'^pos-\d{13,17}-[0-9a-f]{24}$').hasMatch(clientKey)) return null;
   return base.endsWith('/') ? '$base$clientKey' : '$base/$clientKey';
+}
+
+/// G5.1: the QR a receipt PRINTS — only ever the server-provided base (cached with the store settings) + the sale's client key. No base cached →
+/// no QR (logged), never a guessed or hard-coded URL and never another link.
+String? printedReceiptQr(PosSettingsModel? settings, String? clientKey) {
+  if (!(settings?.receiptOptions.showQr ?? true)) return null;
+  final link = offlineReceiptLink(settings, clientKey);
+  if (link == null) debugPrint('receipt QR skipped: ${settings?.receiptLinkBase == null ? 'no receipt link base from the server is cached' : 'the sale has no client key'}');
+  return link;
 }
 
 /// G4.4: the receipt's closing text — the owner's promotion line (receipt designer) above the footer; null when there is neither.
@@ -354,7 +364,8 @@ class ReceiptData {
       saleId: sale.id.isEmpty ? null : sale.id,
       // G4.8 receipt designer switches (defaults: QR on, barcode off, points on)
       // G4.9: the offline-built link first (the same QR online or offline, at checkout and on reprint); the token link only for a sale without a client key
-      qrPayload: (settings?.receiptOptions.showQr ?? true) ? (offlineReceiptLink(settings, clientKey ?? sale.clientKey) ?? ((receiptUrl ?? '').isNotEmpty ? receiptUrl : null)) : null,
+      // G5.1: only the server-provided base + client key (no fallback to any other link — [receiptUrl] is no longer printed)
+      qrPayload: printedReceiptQr(settings, clientKey ?? sale.clientKey),
       qrWanted: settings?.receiptOptions.showQr ?? true,
       barcodeData: (settings?.receiptOptions.showBarcode ?? false) ? receiptBarcode(sale.saleNumber.isNotEmpty ? sale.saleNumber : sale.id) : null,
       // G4.9: the balance after the sale when the server stored it; otherwise what this sale earned / redeemed (G4.8)
@@ -421,7 +432,7 @@ class ReceiptData {
       isCopy: false,
       footer: receiptFooterText(settings, clean),
       offlineNote: offlinePendingNote,
-      qrPayload: (settings?.receiptOptions.showQr ?? true) ? offlineReceiptLink(settings, clientKey) : null,
+      qrPayload: printedReceiptQr(settings, clientKey),
       qrWanted: settings?.receiptOptions.showQr ?? true,
     );
   }

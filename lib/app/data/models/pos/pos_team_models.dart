@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart' show InvCur;
 
 /// G3.6 team: attendance (clock in / out / breaks), corrections, anomalies, the roster and the attendance report. No money anywhere. Times are the
 /// server's ISO times parsed to local time; durations are whole minutes (shown as h:mm).
@@ -430,3 +431,36 @@ String teamWarningMessage(String w) => switch (w) {
   'OVER_60_HOURS_WEEK' => 'Saved, but this person is now rostered for more than 60 hours this week.',
   _ => 'Saved with a notice: $w',
 };
+
+
+/// G5.1 — one team member at a glance (`GET pos/team/profile/:storeId/:employeeId`): last PIN login, clocked in now, sales in minor units.
+class StaffProfile {
+  const StaffProfile({required this.employeeId, required this.name, this.email, this.role = 'cashier', this.status = 'active', this.lastLoginAt, this.clockedIn = false, this.clockedInSince, this.cur, this.today = const (sales: 0, totalMinor: 0), this.last7 = const (sales: 0, totalMinor: 0), this.last30 = const (sales: 0, totalMinor: 0)});
+  final String employeeId, name, role, status;
+  final String? email;
+  final DateTime? lastLoginAt, clockedInSince;
+  final bool clockedIn;
+  final InvCur? cur;
+  final ({int sales, int totalMinor}) today, last7, last30;
+
+  static ({int sales, int totalMinor}) _w(dynamic j) => j is Map ? (sales: (j['sales'] as num?)?.toInt() ?? 0, totalMinor: (j['totalMinor'] as num?)?.toInt() ?? 0) : (sales: 0, totalMinor: 0);
+
+  factory StaffProfile.fromJson(Map<String, dynamic> j) {
+    final st = j['state'] is Map ? (j['state'] as Map).cast<String, dynamic>() : const <String, dynamic>{};
+    final s = j['sales'] is Map ? (j['sales'] as Map).cast<String, dynamic>() : const <String, dynamic>{};
+    return StaffProfile(
+      employeeId: '${j['employeeId'] ?? ''}',
+      name: j['name'] as String? ?? '',
+      email: j['email'] as String?,
+      role: j['role'] as String? ?? 'cashier',
+      status: j['status'] as String? ?? 'active',
+      lastLoginAt: DateTime.tryParse('${j['lastLoginAt'] ?? ''}')?.toLocal(),
+      clockedIn: st['clockedIn'] == true,
+      clockedInSince: DateTime.tryParse('${st['since'] ?? ''}')?.toLocal(),
+      cur: InvCur.fromJson(j),
+      today: _w(s['today']),
+      last7: _w(s['last7Days']),
+      last30: _w(s['last30Days']),
+    );
+  }
+}

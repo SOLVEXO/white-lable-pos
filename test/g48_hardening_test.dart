@@ -57,6 +57,7 @@ PosSaleModel _sale({int earned = 12, int redeemed = 0}) => PosSaleModel.fromJson
   'currency': 'PKR',
   'currencyExponent': 2,
   'loyalty': {'earnedPoints': earned, 'redeemedPoints': redeemed},
+  'idempotencyKey': 'pos-1762851600000000-0123456789abcdef01234567', // G4.9: the client key (the QR is built from it)
 });
 
 void main() {
@@ -109,7 +110,7 @@ void main() {
 
   // ── the receipt ────────────────────────────────────────────────────────────────────────────
   group('receipt: REPRINT #n, QR, barcode, points', () {
-    PosSettingsModel settings(Map<String, dynamic> receipt) => PosSettingsModel.fromJson({'storeId': 'st1', 'taxRate': 0, 'receiptOptions': receipt, 'securityPrefs': {'requirePinForReprint': true}});
+    PosSettingsModel settings(Map<String, dynamic> receipt) => PosSettingsModel.fromJson({'storeId': 'st1', 'taxRate': 0, 'receiptOptions': receipt, 'securityPrefs': {'requirePinForReprint': true}, 'receiptLinkBase': 'https://solvexo.app/r/s/karachi-mart/'});
 
     test('the settings carry the security rules (cached for offline)', () {
       final s = settings({});
@@ -119,9 +120,10 @@ void main() {
 
     test('switches on: the QR is the digital-receipt link, the barcode the receipt number, points of the sale; off: none', () {
       final on = ReceiptData.fromSale(_sale(redeemed: 5), settings({'showQr': true, 'showBarcode': true, 'showLoyaltyBalance': true}), receiptUrl: 'https://solvexo.app/r/abc');
-      expect([on.qrPayload, on.barcodeData, on.pointsEarned, on.pointsRedeemed, on.qrWanted], ['https://solvexo.app/r/abc', 'S-1042', 12, 5, true]);
+      // G5.1: the printed QR is only the server base + the client key (the token link [receiptUrl] is no longer printed)
+      expect([on.qrPayload, on.barcodeData, on.pointsEarned, on.pointsRedeemed, on.qrWanted], ['https://solvexo.app/r/s/karachi-mart/pos-1762851600000000-0123456789abcdef01234567', 'S-1042', 12, 5, true]);
       final noUrl = ReceiptData.fromSale(_sale(), settings({'showQr': true}));
-      expect([noUrl.qrPayload, noUrl.qrWanted], [null, true], reason: 'the link may arrive later (the success screen loads it)');
+      expect([noUrl.qrPayload, noUrl.qrWanted], ['https://solvexo.app/r/s/karachi-mart/pos-1762851600000000-0123456789abcdef01234567', true], reason: 'G4.9: built offline, no token link needed');
       final off = ReceiptData.fromSale(_sale(), settings({'showQr': false, 'showBarcode': false, 'showLoyaltyBalance': false}), receiptUrl: 'https://x');
       expect([off.qrPayload, off.barcodeData, off.pointsEarned], [null, null, null]);
       expect(receiptBarcode('S-1042\u{1F600}'), 'S-1042');

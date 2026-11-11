@@ -114,6 +114,17 @@ class PoFormController extends GetxController {
     );
   }
 
+  /// G5.1 scan-to-add: the scanned barcode / SKU becomes a line (or one more of it). Returns the line to show under the camera.
+  Future<String> addByCode(String code) async {
+    final rows = await _repo.lookupInventory(await supplyStoreId(_storeIdOverride), code);
+    if (rows == null) return 'Could not look up $code — check the connection.';
+    if (rows.isEmpty) return 'Not found: $code';
+    final row = rows.first;
+    addProduct(row);
+    final n = lines.firstWhereOrNull((l) => l.variantId == row.variantId)?.qty.value ?? 1;
+    return 'Added ${row.productName}${row.optionsLabel.isEmpty ? '' : ' (${row.optionsLabel})'} — $n';
+  }
+
   void removeLine(PoFormLine l) => lines.remove(l);
 
   /// The unit cost of a line in minor units, or null when the text is not a valid amount for the currency (0 is allowed).

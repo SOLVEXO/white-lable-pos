@@ -1,3 +1,5 @@
+import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
+import 'package:solvexo_pos/app/components/app_image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -42,7 +44,11 @@ class _CashMovementSheetState extends State<CashMovementSheet> {
   }
 
   Future<void> _save() async {
-    if (await c.submit() && mounted) Get.back<CashOutcome>(result: c.outcome.value);
+    if (await c.submit() && mounted) {
+      final notice = c.photoNotice.value;
+      Get.back<CashOutcome>(result: c.outcome.value);
+      if (notice != null) CustomAppSnackbar.warning(notice);
+    }
   }
 
   @override
@@ -153,6 +159,17 @@ class _CashMovementSheetState extends State<CashMovementSheet> {
                 ),
         ),
         const SizedBox(height: Space.s3),
+        // G5.1: a photo of the slip (optional; uploaded when the movement is recorded online)
+        Obx(
+          () => AppButton(
+            key: const Key('cmPhoto'),
+            label: c.photo.value == null ? 'Add a photo of the slip' : 'Photo added — change',
+            icon: c.photo.value == null ? Icons.add_a_photo_outlined : Icons.check_circle_outline_rounded,
+            variant: AppButtonVariant.ghost,
+            onPressed: () => AppImagePicker.show(onPicked: c.setPhoto, title: 'Slip photo', canRemove: c.photo.value != null, onRemove: () => c.setPhoto(null)),
+          ),
+        ),
+        const SizedBox(height: Space.s2),
         Obx(() => AppButton(key: const Key('cmConfirm'), label: cashOnlineRx().value ? 'Record' : 'Save on this device', loading: c.busy.value, onPressed: c.canSubmit ? _save : null)),
         const SizedBox(height: Space.s2),
       ],

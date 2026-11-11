@@ -82,7 +82,7 @@ class CreditNoteView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: Space.s4),
-                  if (controller.printNotice.value != null) Padding(padding: const EdgeInsets.only(bottom: Space.s2), child: Text(controller.printNotice.value!, key: const Key('printNotice'), style: t.body.copyWith(color: controller.printOk.value ? p.successFg : p.danger))),
+                  if (controller.noticeFor('credit_note:${n.id}') != null) Padding(padding: const EdgeInsets.only(bottom: Space.s2), child: Text(controller.noticeFor('credit_note:${n.id}')!, key: const Key('printNotice'), style: t.body.copyWith(color: controller.printOk.value ? p.successFg : p.danger))),
                   Padding(
                     padding: const EdgeInsets.only(bottom: Space.s3),
                     child: Row(

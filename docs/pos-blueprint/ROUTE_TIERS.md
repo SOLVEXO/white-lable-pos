@@ -4,7 +4,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 
 **Tiers:** `owner` = the owner's own session only · `manager-with-limit` = a manager or the owner (some actions have per-store approval limits) · `cashier` = any PIN-signed employee (approval limits may ask for a manager) · `public` = no PIN session (device, PIN login, public receipt).
 
-**Declared:** 146 routes — owner 26, manager-with-limit 68, cashier 45, public 7. Other GET routes (no cost / settings data): 40.
+**Declared:** 147 routes — owner 26, manager-with-limit 68, cashier 46, public 7. Other GET routes (no cost / settings data): 42.
 
 | Method | Route | Tier | Handler | Guards |
 |---|---|---|---|---|
@@ -15,6 +15,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 | POST | `/api/pos/cash/expenses/:storeId/:id/decision` | manager-with-limit | PosCashController.decide | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | POST | `/api/pos/cash/expenses/:storeId/:id/receipt` | cashier | PosCashController.receipt | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | POST | `/api/pos/cash/movements/:storeId` | cashier | PosCashController.move | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| POST | `/api/pos/cash/movements/:storeId/:requestId/receipt` | cashier | PosCashController.movementReceipt | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | GET | `/api/pos/catalog-admin/categories/:storeId` | cashier | PosCatalogAdminController.categories | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | POST | `/api/pos/catalog-admin/categories/:storeId` | manager-with-limit | PosCatalogAdminController.categoryCreate | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | PATCH | `/api/pos/catalog-admin/categories/:storeId/:id` | manager-with-limit | PosCatalogAdminController.categoryUpdate | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |

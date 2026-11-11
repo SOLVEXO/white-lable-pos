@@ -1,3 +1,6 @@
+import 'package:solvexo_pos/app/modules/pos_cash/views/expense_detail_view.dart' show ReceiptViewer;
+import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
+import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -83,6 +86,9 @@ class DaybookLineTile extends StatelessWidget {
             ],
           ),
           if (tappable) Icon(Icons.chevron_right_rounded, color: p.textMuted),
+          // G5.1: the slip photo of a cash in / out
+          if (line.hasReceipt && line.requestId != null)
+            IconButton(key: Key('daybookPhoto_${line.requestId}'), tooltip: 'Slip photo', icon: Icon(Icons.photo_outlined, color: p.accentFg), onPressed: () => _openPhoto(context, line.requestId!)),
         ],
       ),
     );
@@ -94,6 +100,20 @@ class DaybookLineTile extends StatelessWidget {
           )
         : inner;
   }
+}
+
+Future<void> _openPhoto(BuildContext context, String requestId) async {
+  if (!cashOnline()) {
+    CustomAppSnackbar.warning('Needs internet.');
+    return;
+  }
+  final repo = PosRepository();
+  final link = await repo.getCashMovementReceiptLink(await cashStoreId(null), requestId);
+  if (link == null || link.url.isEmpty) {
+    CustomAppSnackbar.error(cashErrorMessage(repo.lastErrorCode, fallback: 'Could not open the photo. Try again.'));
+    return;
+  }
+  await AppBottomSheet.showGet<void>(ReceiptViewer(key: ValueKey(link.url), link: link), title: 'Slip photo');
 }
 
 /// One shift: header (register, employee, status), every line with its running balance, the summary and, when the server says the lines and the shift's own

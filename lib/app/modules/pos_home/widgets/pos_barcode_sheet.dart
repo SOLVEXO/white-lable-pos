@@ -44,6 +44,20 @@ class _PosBarcodeSheetState extends State<PosBarcodeSheet> {
     }
   }
 
+  /// G5.1 continuous scan: the camera stays open and every item scanned goes into the cart.
+  Future<void> _scanMany() async {
+    Get.back();
+    int units() => widget.c.cartItems.fold<int>(0, (n, i) => n + i.quantity.value);
+    await Get.to<String>(() => PosScanCameraView(
+          title: 'Keep scanning',
+          onCode: (code) async {
+            final before = units();
+            await widget.c.addProductByBarcode(code);
+            return units() > before ? 'Added: ${widget.c.cartItems.isEmpty ? code : widget.c.cartItems.last.displayName}' : 'Not found: $code';
+          },
+        ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -55,6 +69,8 @@ class _PosBarcodeSheetState extends State<PosBarcodeSheet> {
           Text('Point the camera at a barcode, or type it in manually.', style: context.type.body.copyWith(color: p.textSecondary)),
           const SizedBox(height: Space.s4),
           AppButton(key: const Key('scanWithCamera'), label: 'Scan with camera', icon: Icons.qr_code_scanner_rounded, variant: AppButtonVariant.secondary, onPressed: _scan),
+          const SizedBox(height: Space.s2),
+          AppButton(key: const Key('scanContinuous'), label: 'Keep scanning (many items)', icon: Icons.burst_mode_outlined, variant: AppButtonVariant.ghost, onPressed: _scanMany),
           const SizedBox(height: Space.s4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,

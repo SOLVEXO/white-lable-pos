@@ -217,7 +217,11 @@ class ReceiptLink {
 }
 
 class DaybookLine {
-  const DaybookLine({required this.type, required this.label, required this.amountMinor, required this.runningMinor, this.at, this.refType, this.refId, this.employeeName, this.saleId});
+  const DaybookLine({required this.type, required this.label, required this.amountMinor, required this.runningMinor, this.at, this.refType, this.refId, this.employeeName, this.saleId, this.requestId, this.hasReceipt = false});
+
+  /// G5.1: a cash in / out's request id and whether a slip photo is attached
+  final String? requestId;
+  final bool hasReceipt;
   final String type, label;
   final int amountMinor, runningMinor;
   final DateTime? at;
@@ -241,6 +245,8 @@ class DaybookLine {
     refId: _str(j['refId']),
     employeeName: _str(j['employeeName']),
     saleId: _str(j['saleId']),
+    requestId: _str(j['requestId']),
+    hasReceipt: j['hasReceipt'] == true,
   );
 }
 

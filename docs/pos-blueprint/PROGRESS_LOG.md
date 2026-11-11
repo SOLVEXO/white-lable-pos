@@ -28,3 +28,25 @@ Working mode since 2026-11-10: one heavy job at a time (backend gate / full `flu
 | G4.9 app | QR from the offline-built link online and offline, at checkout and on reprint; points balance on the receipt when the server has it; documents screen: "Print original" → ORIGINAL, then REPRINT #n, offline COPY (G4.8 PIN rule); designer preview + QR subtitle updated | app f984c86 + shots | f984c86 green | the documents screen's print notice carries over between invoice and credit note (shared controller) — cosmetic, left for G5.1 |
 | G4.9 real backend | G4.8 flow + 4 G4.9 scenarios (offline QR syncing → receipt, points balance, ORIGINAL → REPRINT #1, traced fields hidden) = 9 pass; core 11 pass; G4 flow 3 pass; widget-level UI e2e updated for the G2.7 permissions step (stale since G2.7) and passes | app 1cbac6e | pass | swap passed 4 GB once after the runs — paused, stack + simulator stopped, resumed at 2.5 GB |
 | G4.9 audit + close-out | `BLUEPRINT_GAP_AUDIT.md` (101 routes: Done 73 · Partial 18 · Missing 3 · Blocked 5 · N/A 2; 21 workflows; rules; targets; phases G5.1–G6; production list); `G4_CLOSEOUT.md` §7; admin API §5–8; runbook §11 | docs | — | — |
+
+## G5.1 scope (copied from `BLUEPRINT_GAP_AUDIT.md` §4, with the blueprint route for each) + G5.4 + receipt-link hardening
+
+| # | Item | Blueprint route (audit §) | Status |
+|---|---|---|---|
+| 1 | About screen: version, build, store id, API environment, licences | about (§2.11) | planned |
+| 2 | Help screen: static content shipped with the app | help (§2.11) | planned |
+| 3 | Store-select restyle with tokens | store-select (§2.1) | planned |
+| 4 | Hardware test pages (printer / drawer / scanner) | hardware (§2.11) | planned |
+| 5 | Stock-list per-location filter | stock-list (§2.5) | planned |
+| 6 | Orders filters by cashier / register | orders (§2.3) | planned |
+| 7 | Role presets (Owner-operated / Small team / Strict) | roles (§2.10) | planned |
+| 8 | Supplier "products supplied" list | supplier-profile (§2.7) | planned |
+| 9 | Scan-to-add on the PO form | new-purchase-order (§2.7) | planned |
+| 10 | Scan-to-receive | receive-stock (§2.7) | planned |
+| 11 | Photo on a cash movement | cash-movement (§2.8) | planned |
+| 12 | Staff-profile stats (last login, sales) | staff-profile (§2.10) | planned |
+| 13 | Continuous-scan mode | scan (§2.2) | planned |
+| 14 | Print notice scoped per document | invoice / credit note (§2.3) | planned |
+| 15 | G5.4: on-behalf clock-in / out needs the member's or a manager's PIN | clock-in (§2.10) | planned |
+| 16 | Receipt-link hardening: `API_PUBLIC_URL` boot validation; base only from the server; no QR without a cached base | receipt (§2.2) | planned |
+| 17 | Share receipt link (share sheet + wa.me) | print-share (§2.2) | planned |

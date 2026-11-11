@@ -4,6 +4,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_audit_log_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/store_location_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_cash_models.dart';
@@ -1079,6 +1080,7 @@ class PosRepository {
     required String storeId,
     String? sessionId,
     String? employeeId,
+    String? registerId, // G5.1
     String? paymentMethod,
     String? status,
     String? from,
@@ -1093,6 +1095,7 @@ class PosRepository {
           'page': page,
           if (sessionId != null && sessionId.isNotEmpty) 'sessionId': sessionId,
           if (employeeId != null && employeeId.isNotEmpty) 'employeeId': employeeId,
+          if (registerId != null && registerId.isNotEmpty) 'registerId': registerId,
           if (paymentMethod != null && paymentMethod.isNotEmpty) 'paymentMethod': paymentMethod,
           if (status != null && status.isNotEmpty) 'status': status,
           if (from != null) 'from': from,
@@ -1796,8 +1799,17 @@ class PosRepository {
   Future<InvOverview?> getInventoryOverview(String storeId) => _invGet('inventoryOverview', _inv(storeId, 'overview'), InvOverview.fromJson);
 
   /// [filter]: all | low | out.
-  Future<InvPage<InvRow>?> getInventoryStock(String storeId, {String search = '', String filter = 'all', int page = 1, int limit = 30}) =>
-      _invGet('inventoryStock', _inv(storeId, 'stock'), _invRows, query: {if (search.trim().isNotEmpty) 'search': search.trim(), 'filter': filter, 'page': page, 'limit': limit});
+  /// G5.1 [locationId]: only what is stocked at that location; each row then carries `locationStock`.
+  Future<InvPage<InvRow>?> getInventoryStock(String storeId, {String search = '', String filter = 'all', int page = 1, int limit = 30, String? locationId}) =>
+      _invGet('inventoryStock', _inv(storeId, 'stock'), _invRows, query: {if (search.trim().isNotEmpty) 'search': search.trim(), 'filter': filter, 'page': page, 'limit': limit, 'locationId': ?locationId});
+
+  /// G5.1: the store's locations, quietly (no toast) — for the stock list's location filter. Null on failure.
+  Future<List<StoreLocationModel>?> getStoreLocations(String storeId) => _invGet<List<StoreLocationModel>>(
+    'storeLocations',
+    ApiConstants.posLocations(storeId),
+    (d) => [for (final e in (d['list'] as List? ?? const [])) if (e is Map) StoreLocationModel.fromJson(e.cast<String, dynamic>())],
+    dataIsList: true,
+  );
 
   Future<InvPage<InvRow>?> getInventoryLowStock(String storeId) => _invGet('inventoryLowStock', _inv(storeId, 'low-stock'), _invRows);
 
@@ -2286,6 +2298,26 @@ class PosRepository {
     );
   }
 
+  /// G5.1: a receipt photo on a CASH MOVEMENT (by its requestId); same rules as an expense photo.
+  Future<({bool success, String? message, String? code, bool retryable})> uploadCashMovementReceipt(String storeId, String requestId, File file) async {
+    lastErrorCode = null;
+    try {
+      final form = FormData.fromMap({'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last)});
+      final res = await _client.post('${_cash(storeId, 'movements')}/${Uri.encodeComponent(requestId)}/receipt', data: form, requiresAuth: true, headers: await _employeeAuthHeaders());
+      return (success: _ok(res), message: null, code: null, retryable: false);
+    } on DioException catch (e) {
+      _logDioError('cashMovementReceiptUpload', e);
+      lastErrorCode = _dioCode(e);
+      return (success: false, message: _dioMessage(e), code: lastErrorCode, retryable: !_isFinalFailure(e));
+    } catch (e) {
+      debugPrint('❌ cashMovementReceiptUpload: $e');
+      return (success: false, message: 'Could not upload the photo.', code: null, retryable: true);
+    }
+  }
+
+  /// G5.1: a 5-minute link to a cash movement's receipt photo.
+  Future<ReceiptLink?> getCashMovementReceiptLink(String storeId, String requestId) => _invGet('cashMovementReceiptLink', '${_cash(storeId, 'movements')}/${Uri.encodeComponent(requestId)}/receipt', ReceiptLink.fromJson);
+
   /// Uploads the receipt photo of an expense (multipart field `file`; the server checks the real file type, max 5 MB by default).
   Future<({bool success, String? message, String? code, bool retryable})> uploadExpenseReceipt(String storeId, String id, File file, {String? employeeToken}) async {
     lastErrorCode = null;
@@ -2318,11 +2350,12 @@ class PosRepository {
     Map<String, dynamic> payload, {
     required String idempotencyKey,
     String? employeeToken,
+    String? approverToken,
   }) async {
     lastErrorCode = null;
     lastErrorReasons = const [];
     try {
-      final headers = {...await _writeHeaders(idempotencyKey), if (employeeToken != null) 'x-pos-employee-token': employeeToken};
+      final headers = {...await _writeHeaders(idempotencyKey), if (employeeToken != null) 'x-pos-employee-token': employeeToken, if (approverToken != null) 'x-pos-approver-token': approverToken};
       final res = method == 'PATCH' ? await _client.patch(url, data: payload, requiresAuth: true, headers: headers) : await _client.post(url, data: payload, requiresAuth: true, headers: headers);
       final data = _data(res);
       return (success: _ok(res), message: res.data is Map ? res.data['message'] as String? : null, code: null, retryable: false, data: data is Map ? data.cast<String, dynamic>() : null, extra: null);
@@ -2338,6 +2371,9 @@ class PosRepository {
     }
   }
 
+  /// G5.1: a team member's profile (managers: anyone; a cashier: themself).
+  Future<StaffProfile?> getStaffProfile(String storeId, String employeeId) => _invGet('teamProfile', '${ApiConstants.apiPrefix}/pos/team/profile/$storeId/$employeeId', StaffProfile.fromJson);
+
   /// The signed-in person: are they clocked in / on a break, their next rostered shifts and the server's time.
   Future<TeamMe?> getTeamMe(String storeId) => _invGet('teamMe', _team(storeId, 'me'), TeamMe.fromJson);
 
@@ -2350,13 +2386,16 @@ class PosRepository {
     required DateTime deviceAt,
     String? note,
     String? employeeToken,
+    String? onBehalfOf, // G5.4: another team member's id — needs [approverToken] = their PIN session or a manager's
+    String? approverToken,
   }) async {
     final r = await _teamWrite('teamClock', 'POST', _team(storeId, 'clock'), {
       'action': action,
       'requestId': requestId,
       'deviceAt': deviceAt.toUtc().toIso8601String(),
       if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
-    }, idempotencyKey: 'clk-$requestId', employeeToken: employeeToken);
+      'employeeId': ?onBehalfOf,
+    }, idempotencyKey: 'clk-$requestId', employeeToken: employeeToken, approverToken: approverToken);
     return (success: r.success, message: r.message, code: r.code, retryable: r.retryable, result: r.data == null ? null : ClockResult.fromJson(r.data!));
   }
 

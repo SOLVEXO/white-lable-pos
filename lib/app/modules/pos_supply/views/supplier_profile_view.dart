@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart' show invMoney;
 import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/views/inv_widgets.dart';
 import 'package:solvexo_pos/app/modules/pos_supply/controllers/supplier_profile_controller.dart';
@@ -136,6 +137,40 @@ class SupplierProfileView extends StatelessWidget {
             ),
           ],
         ),
+        // G5.1: what this supplier supplies (from its purchase orders)
+        const InvSectionTitle('Products supplied'),
+        if (p.supplied.isEmpty)
+          Text('Nothing ordered from this supplier yet.', key: const Key('suppliedEmpty'), style: t.body.copyWith(color: pal.textMuted))
+        else
+          for (final x in p.supplied)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.s2),
+              child: AppCard(
+                key: Key('supplied_${x.variantId}'),
+                radius: Radii.rMd,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(x.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.subtitle.copyWith(color: pal.textPrimary)),
+                          Text([if (x.options.isNotEmpty) x.options.join(' · '), if ((x.sku ?? '').isNotEmpty) x.sku!, '${x.orders} order${x.orders == 1 ? '' : 's'}', if (x.lastOrderedAt != null) 'last ${invDate(x.lastOrderedAt)}'].join(' · '), style: t.caption.copyWith(color: pal.textMuted)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: Space.s3),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('${x.receivedQty} / ${x.orderedQty}', style: t.amountMd.copyWith(color: pal.textPrimary)),
+                        Text(x.lastUnitCostMinor != null && p.cur != null ? 'last cost ${invMoney(x.lastUnitCostMinor!, p.cur!)}' : 'received / ordered', style: t.caption.copyWith(color: pal.textMuted)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
         const InvSectionTitle('Recent purchase orders'),
         if (p.orders.isEmpty)
           Text('No purchase orders yet.', style: t.body.copyWith(color: pal.textMuted))

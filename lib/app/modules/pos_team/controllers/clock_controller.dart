@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/local/pending_team_local_store.dart';
 import 'package:solvexo_pos/app/data/local/pos_team_cache.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_team_models.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/services/pending_team_sync_service.dart';
@@ -191,6 +192,38 @@ class TeamClockController extends GetxController {
   }
 
   /// One tap on a clock button. Returns how it ended (null = not done: see [actionError]).
+  // ── G5.4: clocking someone else ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  /// The team members this till may clock (everyone active but the signed-in person). Empty when the list cannot be loaded.
+  Future<List<PosEmployeeModel>> teamMembers() async {
+    final sid = await teamStoreId(_storeIdOverride);
+    final all = await _repo.getEmployees(sid);
+    return all.where((e) => e.id != employeeId.value && e.status != 'inactive').toList()..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
+
+  /// Clock [member] in / out with [approverToken] (their own PIN session, or a manager's). ONLINE ONLY: offline nobody can check the PIN, so it is refused
+  /// here and never queued. Returns null when done, otherwise the words to show.
+  Future<String?> clockOnBehalf({required PosEmployeeModel member, required String action, required String approverToken}) async {
+    if (isOffline) return 'Clocking someone else needs a connection — their PIN is checked by the server.';
+    final sid = await teamStoreId(_storeIdOverride);
+    busy.value = true;
+    try {
+      final r = await _repo.teamClock(sid, action: action, requestId: _newId(), deviceAt: _clock(), employeeToken: await _employeeToken(), onBehalfOf: member.id, approverToken: approverToken);
+      if (r.success) {
+        notice.value = '${member.name}: ${ClockAction.pastLabel(action).toLowerCase()}.';
+        return null;
+      }
+      return switch (r.code) {
+        'POS_APPROVAL_REQUIRED' => 'That PIN is not ${member.name}\'s or a manager\'s.',
+        'ALREADY_CLOCKED_IN' => '${member.name} is already clocked in.',
+        'NOT_CLOCKED_IN' => '${member.name} is not clocked in.',
+        'EMPLOYEE_INACTIVE' => '${member.name} is deactivated.',
+        _ => r.message ?? 'Could not clock ${member.name}.',
+      };
+    } finally {
+      busy.value = false;
+    }
+  }
+
   Future<ClockOutcome?> perform(String action) async {
     if (busy.value) return null;
     actionError.value = null;

@@ -47,6 +47,25 @@ class InvStockListView extends StatelessWidget {
                 ),
               ),
             ),
+          // G5.1: one location at a time (only when the store has locations)
+          if (!c.lowOnly)
+            Obx(
+              () => c.locations.isEmpty
+                  ? const SizedBox.shrink()
+                  : SizedBox(
+                      height: 44,
+                      child: ListView(
+                        key: const Key('invLocations'),
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: Space.s4),
+                        children: [
+                          Padding(padding: const EdgeInsets.only(right: Space.s2), child: ChoiceChip(key: const Key('invLoc_all'), avatar: const Icon(Icons.store_mall_directory_outlined, size: 16), label: const Text('All locations'), selected: c.locationId.value == null, onSelected: (_) => c.setLocation(null))),
+                          for (final l in c.locations)
+                            Padding(padding: const EdgeInsets.only(right: Space.s2), child: ChoiceChip(key: Key('invLoc_${l.id}'), label: Text(l.name), selected: c.locationId.value == l.id, onSelected: (_) => c.setLocation(l.id))),
+                        ],
+                      ),
+                    ),
+            ),
           // G4.8: the owner hides costs from managers — say so above the list (the rows simply carry no cost)
           Obx(() => c.costsHidden.value ? const Padding(padding: EdgeInsets.symmetric(horizontal: Space.s4), child: CostsHiddenNote(what: 'Costs and stock value')) : const SizedBox.shrink()),
           Expanded(
@@ -153,8 +172,8 @@ class InvStockRowTile extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(row.unlimited ? '∞' : '${row.stock}', style: t.amountMd.copyWith(color: p.textPrimary)),
-                InvStockBadge(row),
+                Text(row.unlimited ? '∞' : '${row.locationStock ?? row.stock}', key: Key('invRowQty_${row.variantId}'), style: t.amountMd.copyWith(color: p.textPrimary)),
+                if (row.locationStock != null && !row.unlimited) Text('of ${row.stock} in store', style: t.caption.copyWith(color: p.textMuted)) else InvStockBadge(row),
               ],
             ),
             Icon(Icons.chevron_right_rounded, color: p.textMuted),

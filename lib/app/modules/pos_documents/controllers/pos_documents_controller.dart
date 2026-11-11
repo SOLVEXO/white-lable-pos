@@ -38,8 +38,7 @@ class PosDocumentsController extends GetxController {
     if (s == null) return null;
     final go = await _gate.record(storeId: s.storeId, documentType: type, documentId: id, requirePinCached: await _requirePin(s.storeId), kind: isPrinted(type, id) ? 'reprint' : 'original');
     if (!go.ok) {
-      printOk.value = false;
-      printNotice.value = go.message;
+      _notice('$type:$id', go.message);
       return null;
     }
     if (go.original || go.number != null) printedIds.add('$type:$id');
@@ -55,6 +54,15 @@ class PosDocumentsController extends GetxController {
   /// Outcome of the last print attempt (null = nothing yet): `printed` or the printer's own message — the PDF share is always the fallback.
   final RxnString printNotice = RxnString();
   final RxBool printOk = false.obs;
+
+  /// G5.1: which document the notice belongs to (`invoice:<saleId>` / `credit_note:<id>`) — a screen shows only its own document's notice
+  final RxnString noticeDoc = RxnString();
+  String? noticeFor(String doc) => noticeDoc.value == doc ? printNotice.value : null;
+  void _notice(String doc, String? msg, {bool ok = false}) {
+    noticeDoc.value = doc;
+    printOk.value = ok;
+    printNotice.value = msg;
+  }
 
   final Rx<PosSaleModel?> sale = Rx(null);
   final Rx<PosSaleDocuments?> documents = Rx(null);
@@ -108,22 +116,20 @@ class PosDocumentsController extends GetxController {
       });
 
   /// Thermal printing (58 / 80 mm per Settings → Receipt Printer). No printer paired → says so and points at the PDF.
-  Future<void> _print(List<DocLine> Function(int cols) build) async {
+  Future<void> _print(String doc, List<DocLine> Function(int cols) build) async {
     if (busy.value) return;
     busy.value = true;
-    printNotice.value = null;
-    printOk.value = false;
+    _notice(doc, null);
     try {
       final pr = _printer;
       if (pr == null || !pr.hasSavedPrinter) {
-        printNotice.value = 'No printer is set up. Go to Settings → Receipt printer, or share the PDF.';
+        _notice(doc, 'No printer is set up. Go to Settings → Receipt printer, or share the PDF.');
         return;
       }
       final err = await pr.printDocument(build);
-      printOk.value = err == null;
-      printNotice.value = err == null ? 'Printed.' : '$err You can also share it as a PDF.';
+      _notice(doc, err == null ? 'Printed.' : '$err You can also share it as a PDF.', ok: err == null);
     } catch (_) {
-      printNotice.value = 'Printing failed. You can share it as a PDF instead.';
+      _notice(doc, 'Printing failed. You can share it as a PDF instead.');
     } finally {
       busy.value = false;
     }
@@ -134,16 +140,16 @@ class PosDocumentsController extends GetxController {
     if (s == null) return;
     final r = await _recordReprint('invoice', s.id);
     if (r == null) return;
-    return _print((cols) => TaxDocumentEscPos.invoice(s, cols: cols, reprintNumber: r.number, original: r.original, copy: r.copy));
+    return _print('invoice:${s.id}', (cols) => TaxDocumentEscPos.invoice(s, cols: cols, reprintNumber: r.number, original: r.original, copy: r.copy));
   }
 
   Future<void> printCreditNote(PosCreditNote n) async {
     final r = await _recordReprint('credit_note', n.id);
     if (r == null) return;
-    return _print((cols) => TaxDocumentEscPos.creditNote(n, cols: cols, reprintNumber: r.number, original: r.original, copy: r.copy));
+    return _print('credit_note:${n.id}', (cols) => TaxDocumentEscPos.creditNote(n, cols: cols, reprintNumber: r.number, original: r.original, copy: r.copy));
   }
 
-  Future<void> printReturnReceipt(PosCreditNote n) => _print((cols) => TaxDocumentEscPos.returnReceipt(n, cols: cols, saleNumber: sale.value?.saleNumber));
+  Future<void> printReturnReceipt(PosCreditNote n) => _print('credit_note:${n.id}', (cols) => TaxDocumentEscPos.returnReceipt(n, cols: cols, saleNumber: sale.value?.saleNumber));
 
   Future<void> _guard(Future<void> Function() f) async {
     if (busy.value) return; // double-tap protection

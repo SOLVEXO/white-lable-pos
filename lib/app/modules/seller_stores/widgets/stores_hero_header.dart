@@ -5,8 +5,8 @@ import 'package:solvexo_pos/app/modules/seller_stores/controllers/seller_stores_
 import 'package:solvexo_pos/app/modules/seller_stores/widgets/stores_profile_section.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/widgets/stores_stats_strip.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_icons.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/utils/custom_alert_dialog_util.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -18,10 +18,16 @@ class StoresHeroHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final topPad = MediaQuery.of(context).padding.top;
     return Container(
-      decoration: BoxDecoration(gradient: AppColors.appbarGradient),
-      padding: EdgeInsets.fromLTRB(20, topPad + 12, 20, 48),
+      color: p.accentFill,
+      padding: EdgeInsets.fromLTRB(
+        Space.s5,
+        topPad + Space.s3,
+        Space.s5,
+        Space.s12,
+      ),
       child: Column(
         children: [
           Row(
@@ -45,14 +51,14 @@ class StoresHeroHeader extends StatelessWidget {
                     },
                   );
                 },
-                color: AppColors.white,
+                color: p.onAccentFill,
                 size: 30,
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: Space.s5),
           StoresProfileSection(controller: controller),
-          const SizedBox(height: 28),
+          const SizedBox(height: Space.s6),
           StoresStatsStrip(controller: controller),
         ],
       ),

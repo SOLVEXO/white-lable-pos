@@ -104,6 +104,25 @@ class PosSaleDetailController extends GetxController {
   ReceiptData _receipt(PosSaleModel s, {bool asciiSafeMoney = false, String? receiptUrl}) =>
       ReceiptData.fromSale(s, _settings, isCopy: true, asciiSafeMoney: asciiSafeMoney, offlineRef: offlineRef.value, receiptUrl: receiptUrl);
 
+  /// G5.1: the public receipt link through the phone's share sheet (WhatsApp, SMS, e-mail … whatever is installed). The offline-built link
+  /// (server base + client key — works even before the sale synced) when the till has the base, otherwise the server's link; null = no link.
+  Future<String?> receiptLink() async {
+    final s = sale.value;
+    if (s == null) return null;
+    final offline = offlineReceiptLink(_settings, s.clientKey);
+    if (offline != null) return offline;
+    return _posRepo.getReceiptLink(s.id).catchError((_) => null);
+  }
+
+  Future<void> shareReceiptLink({Future<void> Function(ShareParams)? share}) async {
+    final link = await receiptLink();
+    if (link == null) {
+      CustomAppSnackbar.warning('No receipt link yet — connect to the internet once so the till can get it.');
+      return;
+    }
+    await (share ?? (p) async => SharePlus.instance.share(p))(ShareParams(text: link, subject: 'Receipt ${sale.value?.saleNumber ?? ''}'));
+  }
+
   void shareReceipt() {
     final s = sale.value;
     if (s == null) return;
@@ -150,9 +169,8 @@ class PosSaleDetailController extends GetxController {
         CustomAppSnackbar.error(go.message ?? 'The reprint was not recorded.');
         return;
       }
-      // G4.8: the designer's QR = the public digital-receipt link (only when online; a reprint offline prints without it)
-      final url = (_settings?.receiptOptions.showQr ?? true) ? await _posRepo.getReceiptLink(s.id).catchError((_) => null) : null;
-      final error = await _printerService.printReceipt(receipt: _receipt(s, asciiSafeMoney: true, receiptUrl: url).copyWith(reprintNumber: go.number));
+      // G5.1: the QR is the server-provided base + the sale's client key (works offline; no base cached → printed without a QR)
+      final error = await _printerService.printReceipt(receipt: _receipt(s, asciiSafeMoney: true).copyWith(reprintNumber: go.number));
       if (error != null) {
         // The receipt is never lost: offer the PDF/share route right away.
         CustomAppSnackbar.error('$error You can also share it as PDF.');

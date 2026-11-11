@@ -118,7 +118,11 @@ class InvRow {
     this.expiredUnits = 0,
     this.nextExpiryAt,
     this.cur,
+    this.locationStock,
   });
+
+  /// G5.1: the quantity at the location the list is filtered by (null = the list is not filtered by a location)
+  final int? locationStock;
 
   final String variantId, productId, productName, sku;
   final String? image, barcode;
@@ -159,6 +163,7 @@ class InvRow {
     expiredUnits: _int(j['expiredUnits']) ?? 0,
     nextExpiryAt: DateTime.tryParse('${j['nextExpiryAt'] ?? ''}')?.toLocal(),
     cur: InvCur.fromJson(j),
+    locationStock: _int(j['locationStock']),
   );
 }
 

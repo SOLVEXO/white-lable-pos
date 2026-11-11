@@ -1,8 +1,5 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/controllers/seller_stores_controller.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:get/get.dart';
@@ -14,13 +11,14 @@ class StoresStatsStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fg = context.palette.onAccentFill;
     return Obx(
       () => Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: Space.s3 + 2),
         decoration: BoxDecoration(
-          color: AppColors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(AppDimen.serviceCountTileRadius),
-          border: Border.all(color: AppColors.white.withOpacity(0.2)),
+          color: fg.withValues(alpha: 0.12),
+          borderRadius: Radii.rLg,
+          border: Border.all(color: fg.withValues(alpha: 0.2)),
         ),
         child: IntrinsicHeight(
           child: Row(
@@ -58,21 +56,17 @@ class _StatCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fg = context.palette.onAccentFill;
+    final t = context.type;
     return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CustomText(
-            text: value,
-            fontSize: AppFontSize.medium,
-            fontWeight: FontWeight.bold,
-            color: AppColors.white,
-          ),
+          Text(value, style: t.amountMd.copyWith(color: fg)),
           const SizedBox(height: 2),
-          CustomText(
-            text: label,
-            fontSize: AppFontSize.tiny,
-            color: AppColors.white.withOpacity(0.75),
+          Text(
+            label,
+            style: t.caption.copyWith(color: fg.withValues(alpha: 0.75)),
           ),
         ],
       ),
@@ -83,6 +77,9 @@ class _StatCell extends StatelessWidget {
 class _VertLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, color: AppColors.white.withOpacity(0.25));
+    return Container(
+      width: 1,
+      color: context.palette.onAccentFill.withValues(alpha: 0.25),
+    );
   }
 }
