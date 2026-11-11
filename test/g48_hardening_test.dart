@@ -34,7 +34,7 @@ import 'support/inventory_fixtures.dart';
 
 class _Repo extends Mock implements PosRepository {}
 
-typedef _Rep = ({bool success, String? code, String? message, int? reprintNumber});
+typedef _Rep = ({bool success, String? code, String? message, int? reprintNumber, String? kind});
 typedef _SetRes = ({bool success, String? code, String? message, StoreSettings? settings});
 
 PosSaleModel _sale({int earned = 12, int redeemed = 0}) => PosSaleModel.fromJson({
@@ -81,25 +81,25 @@ void main() {
     ).thenAnswer((_) async => answer());
 
     test('online: recorded, the number comes back', () async {
-      stub(answer: () => (success: true, code: null, message: null, reprintNumber: 3));
+      stub(answer: () => (success: true, code: null, message: null, reprintNumber: 3, kind: null));
       final go = await ReprintGate(repository: repo, askManager: (_) async => fail('no PIN asked')).record(storeId: 'st1', documentType: 'sale', documentId: 's1', requirePinCached: false);
       expect([go.ok, go.number], [true, 3]);
     });
 
     test('PIN required: a manager approves → recorded with their token; backing out stops it; a cashier\'s PIN is refused in words', () async {
-      stub(answer: () => (success: false, code: 'POS_APPROVAL_REQUIRED', message: 'A manager must approve this reprint', reprintNumber: null));
-      stub(approver: 'mgr-token', answer: () => (success: true, code: null, message: null, reprintNumber: 1));
+      stub(answer: () => (success: false, code: 'POS_APPROVAL_REQUIRED', message: 'A manager must approve this reprint', reprintNumber: null, kind: null));
+      stub(approver: 'mgr-token', answer: () => (success: true, code: null, message: null, reprintNumber: 1, kind: null));
       final go = await ReprintGate(repository: repo, askManager: (_) async => 'mgr-token').record(storeId: 'st1', documentType: 'invoice', documentId: 's1', requirePinCached: true);
       expect([go.ok, go.number], [true, 1]);
       final no = await ReprintGate(repository: repo, askManager: (_) async => null).record(storeId: 'st1', documentType: 'invoice', documentId: 's1', requirePinCached: true);
       expect([no.ok, no.message], [false, 'Reprint cancelled: a manager did not approve it.']);
-      stub(approver: 'cashier-token', answer: () => (success: false, code: 'POS_APPROVAL_REQUIRED', message: 'x', reprintNumber: null));
+      stub(approver: 'cashier-token', answer: () => (success: false, code: 'POS_APPROVAL_REQUIRED', message: 'x', reprintNumber: null, kind: null));
       final bad = await ReprintGate(repository: repo, askManager: (_) async => 'cashier-token').record(storeId: 'st1', documentType: 'invoice', documentId: 's1', requirePinCached: true);
       expect(bad.message, contains('not a manager'));
     });
 
     test('offline: a store that requires a PIN refuses; otherwise the till prints "COPY" (no number)', () async {
-      stub(answer: () => (success: false, code: null, message: null, reprintNumber: null));
+      stub(answer: () => (success: false, code: null, message: null, reprintNumber: null, kind: null));
       final strict = await ReprintGate(repository: repo, askManager: (_) async => 'x').record(storeId: 'st1', documentType: 'sale', documentId: 's1', requirePinCached: true);
       expect([strict.ok, strict.message], [false, contains('internet')]);
       final open = await ReprintGate(repository: repo, askManager: (_) async => 'x').record(storeId: 'st1', documentType: 'sale', documentId: 's1', requirePinCached: false);

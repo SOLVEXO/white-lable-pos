@@ -111,7 +111,7 @@ class TaxInvoiceView extends StatelessWidget {
                   if (c.printNotice.value != null) Padding(padding: const EdgeInsets.only(bottom: Space.s2), child: Text(c.printNotice.value!, key: const Key('printNotice'), style: t.body.copyWith(color: c.printOk.value ? p.successFg : p.danger))),
                   Padding(
                     padding: const EdgeInsets.only(bottom: Space.s3),
-                    child: SizedBox(width: double.infinity, child: AppButton(key: const Key('invoicePrint'), label: 'Print', icon: Icons.print_outlined, variant: AppButtonVariant.secondary, onPressed: c.busy.value ? null : c.printInvoice)),
+                    child: SizedBox(width: double.infinity, child: AppButton(key: const Key('invoicePrint'), label: c.isPrinted('invoice', c.sale.value?.id ?? '') ? 'Reprint' : 'Print original', icon: Icons.print_outlined, variant: AppButtonVariant.secondary, onPressed: c.busy.value ? null : c.printInvoice)),
                   ),
                   Row(
                     children: [

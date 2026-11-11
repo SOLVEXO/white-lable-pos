@@ -88,6 +88,7 @@ class ReceiptPdfBuilder {
             // G4.8 receipt designer: points of this sale, the digital-receipt QR, the receipt-number barcode
             if (data.pointsEarned != null) row('Points earned', '${data.pointsEarned}', size: 9),
             if (data.pointsRedeemed != null) row('Points redeemed', '${data.pointsRedeemed}', size: 9),
+            if (data.pointsBalance != null) row('Points balance', '${data.pointsBalance}', size: 9), // G4.9: after this sale
             if (data.footer != null) ...[
               pw.SizedBox(height: 10),
               pw.Divider(),

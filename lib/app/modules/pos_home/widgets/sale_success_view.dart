@@ -95,7 +95,7 @@ class _SaleSuccessViewState extends State<SaleSuccessView> with SingleTickerProv
     setState(() => _printing = true);
     try {
       // G4.8: the digital-receipt QR when the designer wants it and the link has loaded
-      final error = await Get.find<ThermalPrinterService>().printReceipt(receipt: r.qrWanted && _link != null ? r.copyWith(qrPayload: _link) : r);
+      final error = await Get.find<ThermalPrinterService>().printReceipt(receipt: r.qrWanted && r.qrPayload == null && _link != null ? r.copyWith(qrPayload: _link) : r); // G4.9: the offline-built QR wins
       error == null ? AppToast.success('Receipt printed.') : AppToast.error('$error You can also share it as PDF.');
     } finally {
       if (mounted) setState(() => _printing = false);

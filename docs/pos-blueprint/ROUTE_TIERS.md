@@ -4,7 +4,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 
 **Tiers:** `owner` = the owner's own session only · `manager-with-limit` = a manager or the owner (some actions have per-store approval limits) · `cashier` = any PIN-signed employee (approval limits may ask for a manager) · `public` = no PIN session (device, PIN login, public receipt).
 
-**Declared:** 142 routes — owner 26, manager-with-limit 68, cashier 45, public 3. Other GET routes (no cost / settings data): 40.
+**Declared:** 146 routes — owner 26, manager-with-limit 68, cashier 45, public 7. Other GET routes (no cost / settings data): 40.
 
 | Method | Route | Tier | Handler | Guards |
 |---|---|---|---|---|
@@ -150,3 +150,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 | POST | `/api/pos/team/roster/:storeId` | manager-with-limit | PosTeamController.rosterCreate | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | PATCH | `/api/pos/team/roster/:storeId/:id` | manager-with-limit | PosTeamController.rosterUpdate | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | POST | `/api/pos/team/roster/:storeId/:id/cancel` | manager-with-limit | PosTeamController.rosterCancel | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| GET | `/r/:token` | public | PublicReceiptController.page | — |
+| GET | `/r/:token/credit-note/:number` | public | PublicReceiptController.creditNote | — |
+| GET | `/r/:token/invoice` | public | PublicReceiptController.invoice | — |
+| GET | `/r/s/:store/:key` | public | PublicReceiptController.byClientKey | — |

@@ -36,6 +36,10 @@ class PosSettingsModel {
   final bool requirePinForReprint;
   final bool hideCostsFromManagers;
 
+  /// G4.9: the store's public id and the base of the receipt link a till builds OFFLINE (`<base><sale client key>`) — cached with the settings
+  final String? storePublicId;
+  final String? receiptLinkBase;
+
   const PosSettingsModel({
     required this.storeId,
     required this.taxRate,
@@ -60,6 +64,8 @@ class PosSettingsModel {
     this.receiptOptions = const ReceiptOptions(),
     this.requirePinForReprint = false,
     this.hideCostsFromManagers = false,
+    this.storePublicId,
+    this.receiptLinkBase,
   });
 
   String get taxRatePercentLabel => '${(taxRate * 100).toStringAsFixed(taxRate * 100 % 1 == 0 ? 0 : 1)}%';
@@ -88,6 +94,8 @@ class PosSettingsModel {
         receiptOptions: json['receiptOptions'] is Map ? ReceiptOptions.fromJson((json['receiptOptions'] as Map).cast<String, dynamic>()) : const ReceiptOptions(),
         requirePinForReprint: (json['securityPrefs'] is Map && json['securityPrefs']['requirePinForReprint'] == true) || json['requirePinForReprint'] == true,
         hideCostsFromManagers: (json['securityPrefs'] is Map && json['securityPrefs']['hideCostsFromManagers'] == true) || json['hideCostsFromManagers'] == true,
+        storePublicId: json['storePublicId'] as String?,
+        receiptLinkBase: json['receiptLinkBase'] as String?,
       );
 
   /// The same settings with the pricing fields the server just told us about (a quote answered with a newer tax rate).
@@ -100,6 +108,8 @@ class PosSettingsModel {
         receiptOptions: receiptOptions,
         requirePinForReprint: requirePinForReprint,
         hideCostsFromManagers: hideCostsFromManagers,
+        storePublicId: storePublicId,
+        receiptLinkBase: receiptLinkBase,
       );
 
   /// For the on-device settings cache (round-trips through [fromJson]).
@@ -127,6 +137,8 @@ class PosSettingsModel {
         'receiptOptions': receiptOptions.toJson(),
         'requirePinForReprint': requirePinForReprint,
         'hideCostsFromManagers': hideCostsFromManagers,
+        'storePublicId': storePublicId,
+        'receiptLinkBase': receiptLinkBase,
       };
 
   Map<String, dynamic> toUpdateJson({

@@ -2622,10 +2622,11 @@ class PosRepository {
   // ── G4.8 · reprints ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   /// Records a reprint ([documentType]: sale | invoice | credit_note). With "require PIN to reprint" a cashier's call needs [approverToken] (a manager's
   /// PIN token) — `POS_APPROVAL_REQUIRED` otherwise. Returns the reprint number the print shows ("REPRINT #n").
-  Future<({bool success, String? code, String? message, int? reprintNumber})> recordReprint(String storeId, {required String documentType, required String documentId, String? reason, String? approverToken}) async {
-    final r = await _supplyWrite('reprint', 'POST', '${ApiConstants.apiPrefix}/pos/reprints/$storeId', {'documentType': documentType, 'documentId': documentId, 'reason': ?reason}, approverToken: approverToken);
+  /// G4.9: [kind] (original | reprint) is what the till expects to print; the answer's `kind` is what the server recorded — print THAT.
+  Future<({bool success, String? code, String? message, int? reprintNumber, String? kind})> recordReprint(String storeId, {required String documentType, required String documentId, String? reason, String? approverToken, String? kind}) async {
+    final r = await _supplyWrite('reprint', 'POST', '${ApiConstants.apiPrefix}/pos/reprints/$storeId', {'documentType': documentType, 'documentId': documentId, 'reason': ?reason, 'kind': ?kind}, approverToken: approverToken);
     final n = r.data?['reprintNumber'];
-    return (success: r.success, code: r.code, message: r.message, reprintNumber: n is num ? n.toInt() : null);
+    return (success: r.success, code: r.code, message: r.message, reprintNumber: n is num ? n.toInt() : null, kind: r.data?['kind'] as String?);
   }
 
   // ── G4.6 · transfers, expiry + write-off, low stock → draft PO ───────────────────────────────────────────────────────────────────────────

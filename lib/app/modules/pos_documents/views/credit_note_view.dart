@@ -87,7 +87,7 @@ class CreditNoteView extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: Space.s3),
                     child: Row(
                       children: [
-                        Expanded(child: AppButton(key: const Key('notePrint'), label: 'Print credit note', icon: Icons.print_outlined, variant: AppButtonVariant.secondary, onPressed: controller.busy.value ? null : () => controller.printCreditNote(n))),
+                        Expanded(child: AppButton(key: const Key('notePrint'), label: controller.isPrinted('credit_note', n.id) ? 'Reprint' : 'Print original', icon: Icons.print_outlined, variant: AppButtonVariant.secondary, onPressed: controller.busy.value ? null : () => controller.printCreditNote(n))),
                         const SizedBox(width: Space.s3),
                         Expanded(child: AppButton(key: const Key('noteReturnSlip'), label: 'Return receipt', icon: Icons.receipt_long_outlined, variant: AppButtonVariant.secondary, onPressed: controller.busy.value ? null : () => controller.printReturnReceipt(n))),
                       ],

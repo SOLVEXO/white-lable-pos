@@ -64,7 +64,13 @@ class TaxDocumentEscPos {
 
   static List<DocLine> _fiscalQr(FiscalSlots f) => f.qrPayload == null ? const [] : [const DocLine.blank(), DocLine.qr(f.qrPayload!)];
 
-  static List<DocLine> invoice(PosSaleModel sale, {required int cols, FiscalSlots fiscal = const FiscalSlots(), String? storeName, int? reprintNumber}) {
+  /// G4.8 / G4.9: which print this is — the server's ORIGINAL (the first print), REPRINT #n, or COPY (offline: it could not be recorded).
+  static List<DocLine> _printLabel(int? reprintNumber, {required bool original, required bool copy}) {
+    final t = reprintNumber != null && reprintNumber > 0 ? 'REPRINT #$reprintNumber' : original ? 'ORIGINAL' : copy ? 'COPY' : null;
+    return t == null ? const [] : [DocLine(t, align: PosAlign.center, bold: true)];
+  }
+
+  static List<DocLine> invoice(PosSaleModel sale, {required int cols, FiscalSlots fiscal = const FiscalSlots(), String? storeName, int? reprintNumber, bool original = false, bool copy = false}) {
     final inv = sale.invoice;
     final exp = sale.currencyExponent;
     String m(int minor) => _money(minor, sale.currency, exp);
@@ -74,7 +80,7 @@ class TaxDocumentEscPos {
       ..._seller(cols, name: inv?.sellerName ?? storeName, address: inv?.sellerAddress, ntn: inv?.sellerNtn, strn: inv?.sellerStrn),
       const DocLine.rule(),
       DocLine('TAX INVOICE', align: PosAlign.center, bold: true),
-      if (reprintNumber != null) DocLine('REPRINT #$reprintNumber', align: PosAlign.center, bold: true), // G4.8
+      ..._printLabel(reprintNumber, original: original, copy: copy),
       DocLine(inv?.number ?? sale.saleNumber, align: PosAlign.center, bold: true),
       ..._fiscalNumber(fiscal),
       if (inv?.offlineRef != null) DocLine('Offline ref ${inv!.offlineRef}', align: PosAlign.center),
@@ -97,14 +103,14 @@ class TaxDocumentEscPos {
     ];
   }
 
-  static List<DocLine> creditNote(PosCreditNote n, {required int cols, FiscalSlots fiscal = const FiscalSlots(), String? storeName, int? reprintNumber}) {
+  static List<DocLine> creditNote(PosCreditNote n, {required int cols, FiscalSlots fiscal = const FiscalSlots(), String? storeName, int? reprintNumber, bool original = false, bool copy = false}) {
     String m(int minor) => _money(minor, n.currency, n.exponent);
     final when = n.createdAt == null ? '' : DateFormat('yyyy-MM-dd HH:mm').format(n.createdAt!.toLocal());
     return [
       ..._seller(cols, name: n.sellerName ?? storeName, address: n.sellerAddress, ntn: n.sellerNtn, strn: n.sellerStrn),
       const DocLine.rule(),
       DocLine('CREDIT NOTE', align: PosAlign.center, bold: true),
-      if (reprintNumber != null) DocLine('REPRINT #$reprintNumber', align: PosAlign.center, bold: true), // G4.8
+      ..._printLabel(reprintNumber, original: original, copy: copy),
       DocLine(n.number, align: PosAlign.center, bold: true),
       ..._fiscalNumber(fiscal),
       if (n.invoiceNumber != null) ..._centered('Against invoice ${n.invoiceNumber}', cols),

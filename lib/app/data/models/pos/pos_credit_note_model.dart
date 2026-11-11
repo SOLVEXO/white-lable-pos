@@ -51,6 +51,9 @@ class PosCreditNote {
   final DateTime? backfilledAt;
   final String? backfilledFrom;
 
+  /// G4.9: printed at least once (its original is out) — the next print is a reprint
+  final bool printed;
+
   const PosCreditNote({
     required this.id,
     required this.number,
@@ -75,6 +78,7 @@ class PosCreditNote {
     this.sellerAddress,
     this.backfilledAt,
     this.backfilledFrom,
+    this.printed = false,
   });
 
   factory PosCreditNote.fromJson(Map<String, dynamic> j) {
@@ -103,6 +107,7 @@ class PosCreditNote {
       sellerAddress: seller['address'] as String?,
       backfilledAt: (j['backfill'] is Map && (j['backfill'] as Map)['backfilledAt'] != null) ? DateTime.tryParse((j['backfill'] as Map)['backfilledAt'].toString()) : null,
       backfilledFrom: (j['backfill'] is Map) ? '${(j['backfill'] as Map)['originalType']} ${(j['backfill'] as Map)['originalId']}' : null,
+      printed: j['printed'] == true,
     );
   }
 }
@@ -114,6 +119,9 @@ class PosSaleDocuments {
   final Map<String, dynamic>? invoiceJson;
   final List<PosCreditNote> creditNotes;
   const PosSaleDocuments({required this.saleNumber, required this.status, this.invoiceJson, this.creditNotes = const []});
+
+  /// G4.9: the tax invoice has been printed at least once (its original is out)
+  bool get invoicePrinted => invoiceJson?['printed'] == true;
 
   factory PosSaleDocuments.fromJson(Map<String, dynamic> j) => PosSaleDocuments(
         saleNumber: j['saleNumber'] as String? ?? '',

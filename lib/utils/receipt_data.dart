@@ -46,6 +46,14 @@ String? receiptBarcode(String number) {
   return s.length > 30 ? s.substring(0, 30) : s;
 }
 
+/// G4.9: the receipt link a till can build with no network — the store's link base (from the cached settings) + the sale's client key. The server
+/// answers "receipt is syncing" until the sale arrives, then the receipt. Null when either part is missing or the key is not a till key.
+String? offlineReceiptLink(PosSettingsModel? settings, String? clientKey) {
+  final base = settings?.receiptLinkBase;
+  if (base == null || base.isEmpty || clientKey == null || !RegExp(r'^pos-\d{13,17}-[0-9a-f]{24}$').hasMatch(clientKey)) return null;
+  return base.endsWith('/') ? '$base$clientKey' : '$base/$clientKey';
+}
+
 /// G4.4: the receipt's closing text — the owner's promotion line (receipt designer) above the footer; null when there is neither.
 String? receiptFooterText(PosSettingsModel? settings, String? Function(String?) clean) {
   final parts = [clean(settings?.receiptOptions.promoText), clean(settings?.receiptFooter)].whereType<String>();
@@ -90,6 +98,9 @@ class ReceiptData {
   final bool qrWanted;
   final String? barcodeData;
   final int? pointsEarned, pointsRedeemed;
+
+  /// G4.9: the customer's points balance after the sale (when the server returned it) — printed INSTEAD of earned / redeemed
+  final int? pointsBalance;
   final String? footer;
 
   /// Offline sales (Q7): the receipt of a sale that is still only on this device carries a PROVISIONAL number
@@ -129,6 +140,7 @@ class ReceiptData {
     this.barcodeData,
     this.pointsEarned,
     this.pointsRedeemed,
+    this.pointsBalance,
     this.footer,
     this.offlineNote,
     this.offlineRef,
@@ -166,6 +178,7 @@ class ReceiptData {
         barcodeData: barcodeData,
         pointsEarned: pointsEarned,
         pointsRedeemed: pointsRedeemed,
+        pointsBalance: pointsBalance,
         footer: footer,
         offlineNote: clearOfflineNote ? null : (offlineNote ?? this.offlineNote),
         offlineRef: offlineRef ?? this.offlineRef,
@@ -200,6 +213,7 @@ class ReceiptData {
         if (barcodeData != null) 'barcodeData': barcodeData,
         if (pointsEarned != null) 'pointsEarned': pointsEarned,
         if (pointsRedeemed != null) 'pointsRedeemed': pointsRedeemed,
+        if (pointsBalance != null) 'pointsBalance': pointsBalance,
         if (footer != null) 'footer': footer,
         if (offlineNote != null) 'offlineNote': offlineNote,
         if (offlineRef != null) 'offlineRef': offlineRef,
@@ -233,6 +247,7 @@ class ReceiptData {
         barcodeData: j['barcodeData'] as String?,
         pointsEarned: (j['pointsEarned'] as num?)?.toInt(),
         pointsRedeemed: (j['pointsRedeemed'] as num?)?.toInt(),
+        pointsBalance: (j['pointsBalance'] as num?)?.toInt(),
         footer: j['footer'] as String?,
         offlineNote: j['offlineNote'] as String?,
         offlineRef: j['offlineRef'] as String?,
@@ -252,6 +267,7 @@ class ReceiptData {
     bool asciiSafeMoney = false,
     String? offlineRef,
     String? receiptUrl, // G4.8: the public digital-receipt link — printed as a QR when the designer's switch is on
+    String? clientKey, // G4.9: the sale's client key when the caller has it (defaults to the one the server returned on the sale)
   }) {
     final code = sale.currency;
     final exp = sale.currencyExponent;
@@ -337,11 +353,14 @@ class ReceiptData {
       offlineRef: offlineRef,
       saleId: sale.id.isEmpty ? null : sale.id,
       // G4.8 receipt designer switches (defaults: QR on, barcode off, points on)
-      qrPayload: (settings?.receiptOptions.showQr ?? true) && (receiptUrl ?? '').isNotEmpty ? receiptUrl : null,
+      // G4.9: the offline-built link first (the same QR online or offline, at checkout and on reprint); the token link only for a sale without a client key
+      qrPayload: (settings?.receiptOptions.showQr ?? true) ? (offlineReceiptLink(settings, clientKey ?? sale.clientKey) ?? ((receiptUrl ?? '').isNotEmpty ? receiptUrl : null)) : null,
       qrWanted: settings?.receiptOptions.showQr ?? true,
       barcodeData: (settings?.receiptOptions.showBarcode ?? false) ? receiptBarcode(sale.saleNumber.isNotEmpty ? sale.saleNumber : sale.id) : null,
-      pointsEarned: (settings?.receiptOptions.showLoyaltyBalance ?? true) && (sale.loyalty?.earnedPoints ?? 0) > 0 ? sale.loyalty!.earnedPoints : null,
-      pointsRedeemed: (settings?.receiptOptions.showLoyaltyBalance ?? true) && (sale.loyalty?.redeemedPoints ?? 0) > 0 ? sale.loyalty!.redeemedPoints : null,
+      // G4.9: the balance after the sale when the server stored it; otherwise what this sale earned / redeemed (G4.8)
+      pointsBalance: (settings?.receiptOptions.showLoyaltyBalance ?? true) ? sale.loyaltyBalanceAfterPoints : null,
+      pointsEarned: (settings?.receiptOptions.showLoyaltyBalance ?? true) && sale.loyaltyBalanceAfterPoints == null && (sale.loyalty?.earnedPoints ?? 0) > 0 ? sale.loyalty!.earnedPoints : null,
+      pointsRedeemed: (settings?.receiptOptions.showLoyaltyBalance ?? true) && sale.loyaltyBalanceAfterPoints == null && (sale.loyalty?.redeemedPoints ?? 0) > 0 ? sale.loyalty!.redeemedPoints : null,
     );
   }
 
@@ -366,6 +385,7 @@ class ReceiptData {
     required double change,
     String? cashier,
     String customer = 'Walk-in',
+    String? clientKey, // G4.9: the queued sale's client key → the receipt QR (resolves to "syncing", then the receipt)
   }) {
     String m(num v) => '$currency ${NumberFormat.decimalPatternDigits(locale: 'en_US', decimalDigits: exponent).format(Money.round(v, exponent))}';
     String? clean(String? x) => (x ?? '').trim().isEmpty ? null : x!.trim();
@@ -401,6 +421,8 @@ class ReceiptData {
       isCopy: false,
       footer: receiptFooterText(settings, clean),
       offlineNote: offlinePendingNote,
+      qrPayload: (settings?.receiptOptions.showQr ?? true) ? offlineReceiptLink(settings, clientKey) : null,
+      qrWanted: settings?.receiptOptions.showQr ?? true,
     );
   }
 

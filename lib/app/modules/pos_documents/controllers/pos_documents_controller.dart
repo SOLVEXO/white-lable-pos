@@ -31,18 +31,25 @@ class PosDocumentsController extends GetxController {
   /// the store's "require PIN to reprint" as last cached on this till (for an offline reprint)
   static Future<bool> _cachedRequirePin(String storeId) async => (await SettingsCacheStore.instance.load(storeId))?.settings.requirePinForReprint ?? false;
 
-  /// G4.8: record the reprint first (a manager PIN when required); null = stop (the reason is in [printNotice])
-  Future<({int? number})?> _recordReprint(String type, String id) async {
+  /// G4.8: record the print first (a manager PIN when a REPRINT needs one); null = stop (the reason is in [printNotice]).
+  /// G4.9: a document not printed yet asks for its `original`; the server's answer is printed — ORIGINAL, REPRINT #n, or COPY when offline (unrecorded).
+  Future<({int? number, bool original, bool copy})?> _recordReprint(String type, String id) async {
     final s = sale.value;
     if (s == null) return null;
-    final go = await _gate.record(storeId: s.storeId, documentType: type, documentId: id, requirePinCached: await _requirePin(s.storeId));
+    final go = await _gate.record(storeId: s.storeId, documentType: type, documentId: id, requirePinCached: await _requirePin(s.storeId), kind: isPrinted(type, id) ? 'reprint' : 'original');
     if (!go.ok) {
       printOk.value = false;
       printNotice.value = go.message;
       return null;
     }
-    return (number: go.number);
+    if (go.original || go.number != null) printedIds.add('$type:$id');
+    return (number: go.number, original: go.original, copy: !go.original && go.number == null);
   }
+
+  /// G4.9: documents printed at least once — from the server's documents read-out, plus what this screen printed since it loaded
+  final RxSet<String> printedIds = <String>{}.obs;
+  bool isPrinted(String type, String id) =>
+      printedIds.contains('$type:$id') || (type == 'invoice' ? documents.value?.invoicePrinted == true : creditNotes.any((n) => n.id == id && n.printed));
   ThermalPrinterService? get _printer => _printerOverride ?? (Get.isRegistered<ThermalPrinterService>() ? Get.find<ThermalPrinterService>() : null);
 
   /// Outcome of the last print attempt (null = nothing yet): `printed` or the printer's own message — the PDF share is always the fallback.
@@ -127,13 +134,13 @@ class PosDocumentsController extends GetxController {
     if (s == null) return;
     final r = await _recordReprint('invoice', s.id);
     if (r == null) return;
-    return _print((cols) => TaxDocumentEscPos.invoice(s, cols: cols, reprintNumber: r.number));
+    return _print((cols) => TaxDocumentEscPos.invoice(s, cols: cols, reprintNumber: r.number, original: r.original, copy: r.copy));
   }
 
   Future<void> printCreditNote(PosCreditNote n) async {
     final r = await _recordReprint('credit_note', n.id);
     if (r == null) return;
-    return _print((cols) => TaxDocumentEscPos.creditNote(n, cols: cols, reprintNumber: r.number));
+    return _print((cols) => TaxDocumentEscPos.creditNote(n, cols: cols, reprintNumber: r.number, original: r.original, copy: r.copy));
   }
 
   Future<void> printReturnReceipt(PosCreditNote n) => _print((cols) => TaxDocumentEscPos.returnReceipt(n, cols: cols, saleNumber: sale.value?.saleNumber));

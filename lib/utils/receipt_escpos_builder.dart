@@ -119,6 +119,7 @@ class ReceiptEscPosBuilder {
       // G4.8 receipt designer: the points of this sale, the digital-receipt QR, the receipt-number barcode
       if (data.pointsEarned != null) row('Points earned', '${data.pointsEarned}');
       if (data.pointsRedeemed != null) row('Points redeemed', '${data.pointsRedeemed}');
+      if (data.pointsBalance != null) row('Points balance', '${data.pointsBalance}'); // G4.9: after this sale
 
       if (data.footer != null) {
         bytes.addAll(g.hr());

@@ -196,6 +196,13 @@ class PosSaleModel {
   /// G3.3: points earned / redeemed on this sale (null when the sale had no customer or the store has no loyalty).
   final SaleLoyalty? loyalty;
 
+  /// G4.9: the till's client key for this sale (its idempotency key, made when Charge was first tapped) — with the store's link base it is the
+  /// receipt QR, buildable offline. Null on sales rung up without one.
+  final String? clientKey;
+
+  /// G4.9: the customer's points balance right after this sale, when the server stored it (online customer sales); else the receipt prints earned / redeemed.
+  final int? loyaltyBalanceAfterPoints;
+
   const PosSaleModel({
     required this.id,
     required this.saleNumber,
@@ -234,6 +241,8 @@ class PosSaleModel {
     this.invoice,
     this.heldCouponCode,
     this.loyalty,
+    this.clientKey,
+    this.loyaltyBalanceAfterPoints,
   });
 
   /// The tender lines to show: the stored ones, or — for a sale made before split tender — one synthetic line.
@@ -305,6 +314,8 @@ class PosSaleModel {
         invoice: json['invoice'] is Map ? PosInvoiceInfo.fromJson((json['invoice'] as Map).cast<String, dynamic>()) : null,
         heldCouponCode: json['heldCouponCode'] as String?,
         loyalty: json['loyalty'] is Map ? SaleLoyalty.fromJson((json['loyalty'] as Map).cast<String, dynamic>()) : null,
+        clientKey: json['idempotencyKey'] as String?,
+        loyaltyBalanceAfterPoints: (json['loyaltyBalanceAfterPoints'] as num?)?.toInt(),
     );
   }
 }

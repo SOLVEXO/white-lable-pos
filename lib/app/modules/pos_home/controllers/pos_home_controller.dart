@@ -1341,6 +1341,7 @@ class PosHomeController extends GetxController {
         change: check.change,
         cashier: await AppPreferences.getPosEmployeeName(),
         customer: customerController.text,
+        clientKey: key, // G4.9: the QR resolves to "syncing" until this sale reaches the server, then to its receipt
       );
       await sync.saveOfflineReceipt(key, receipt);
       return receipt;
