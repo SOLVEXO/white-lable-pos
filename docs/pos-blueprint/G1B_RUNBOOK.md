@@ -154,6 +154,15 @@ Order: **API first, then the apps.** Everything is additive; old app builds keep
 4. **Smoke after deploy:** create a supplier and a draft PO; clock in / out as a test employee; record a 1.00 cash-in on an open shift and open the daybook for today — the shift must show "reconciled".
 5. **Rollback:** redeploy the previous API; the new collections stay (harmless, unread). Nothing to restore.
 
+## 10. G4.0 – G4.6 deploy notes (no data migration)
+Order: **API first, then the apps.** Everything is additive; old app builds keep working without the new screens. Details: `G4_CLOSEOUT.md` §4.
+1. **New collections** `posmodifiergroups`, `pospricebooks`, `posauditseals` (unique `storeId + day`) are created on first start. `posauditseals` is append-only (insert-only grant, as for the other ledgers).
+2. **`POS_AUDIT_SEAL_CRON`** (optional, default `20 1 * * *` UTC): nightly seal, one instance (lease `pos:audit-seal`), each store's day in its own zone. The first night seals all past days — quiet window. Verify: `MONGO_URI=… npx ts-node -r tsconfig-paths/register src/scripts/pos-audit-verify.ts <storeId> [from] [to]` (exit 1 = changed).
+3. **Store time zone** (`Store.timezone`, default from the country): reports count days in the store's zone, not the server's — "today" changes for stores off UTC. Tell owners.
+4. **New matrix actions** (catalog.*, settings.permissions.*, settings.store.edit, audit.verify, inventory.transfer.*, inventory.writeoff): defaults apply.
+5. **Smoke:** owner on a till changes auto-lock, previews + saves + resets a permission, sells a product with a modifier, opens / closes a shift counting notes (last-close card), runs Check this period.
+6. **Rollback:** previous API; the new collections stay unread. Nothing to restore.
+
 ## Who does what
 | Step | You | Me |
 |---|---|---|
