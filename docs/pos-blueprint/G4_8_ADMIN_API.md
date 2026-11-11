@@ -79,3 +79,57 @@ Every POS route that writes, or reads cost / settings data, declares a tier: `ow
 A client decides "in force at instant t" as `active && (validFromUtc == null || t ≥ validFromUtc) && (validToUtc == null || t < validToUtc)`, comparing UTC instants (never the device's local midnight). Daylight saving is handled; for example, New York on 8 March 2026 is a 23-hour day.
 
 Errors: `INVALID_DATE` (400) when a store day isn't `YYYY-MM-DD`, or the end isn't after the start.
+
+---
+
+# G4.9 additions
+
+All additive; nothing existing changes shape.
+
+## 5. Cost fields — final classification
+
+The three fields the G4.8 scan caught were traced to every write and read. All three are **purchase-order amounts** (inbound), so all three are **cost**. That means they're hidden from non-owners when "hide costs from managers" is on. None of them is used for a customer amount, so nothing was renamed.
+
+| Field | Where it comes from | Classified |
+|---|---|---|
+| `itemUnitCostMinor` | the PO line unit cost (`items[].unitCost` → twin `items[].unitCostMinor`); an internal helper key, never a response key on its own | cost |
+| `shippingCostMinor` | the shipping the **supplier** charges on a PO (`CreatePurchaseOrderDto.shippingCost`); part of the PO total and landed cost | cost |
+| `taxCostMinor` | the tax on a PO / supplier bill (`CreatePurchaseOrderDto.taxCost`); part of the PO total | cost |
+
+The tax charged to the **customer** is the sale's `taxMinor` (and the line tax). It's a different field and stays visible. The registry records each decision with its reason (`COST_FIELD_DECISIONS` in `cost-visibility.registry.ts`), and a test holds the registry to it.
+
+## 6. Offline-buildable receipt link (public)
+
+```
+GET /r/s/:storePublicId/:clientKey          (no auth; rate-limited 40/min per IP; no-store, noindex, strict CSP)
+```
+- **`storePublicId`:** the store's slug (assigned once, never changed).
+- **`clientKey`:** the sale's client key, which is the idempotency key the till makes when Charge is first tapped (`pos-<µs since epoch>-<24 hex>`). The offline queue replays the sale with the same key, so the link works before and after sync.
+
+Answers:
+
+| Case | Status | Page |
+|---|---|---|
+| malformed id, unknown store, a key older than 30 days or more than a day in the future, a held / discarded sale, a link a manager revoked | 404 | the same "not available" page as every other link |
+| well-formed key, sale not on the server yet | 200 | "Your receipt is syncing" (no sale or store data; refreshes itself every 30 s) |
+| the sale | 200 | the same receipt as `/r/:token` |
+
+The existing token links (`/r/:token`, `/invoice`, `/credit-note/:n`) are unchanged. All four are tier `public` in `ROUTE_TIERS.md`.
+
+**For the till / admin:** `GET /api/pos/settings/:storeId` now also returns `storePublicId` and `receiptLinkBase` (`<API_PUBLIC_URL>/r/s/<slug>/`). The till caches them with the settings and builds the QR offline. **`API_PUBLIC_URL` must be set** in each environment (default `https://api.solvexo.store`).
+
+## 7. Loyalty balance on the sale
+
+`loyaltyBalanceAfterPoints` (integer points) on a sale is set when all of these hold: the sale is made **online**, it has a customer, and the store's loyalty programme is on. It's read from the points ledger inside the sale's own transaction, and also set when a held sale is completed online. Older sales, walk-ins, loyalty-off stores and offline replays don't have it. Returned by `POST /api/pos/sales`, `GET /api/pos/sales/:id` and the complete-held-sale call.
+
+## 8. Original vs reprint
+
+`POST /api/pos/reprints/:storeId` accepts an optional `"kind": "original" | "reprint"`: what the till expects to print. **The server decides**, and the answer says what to print:
+
+- **Tax invoice / credit note:** the **first** print is `kind: "original"`, `reprintNumber: 0`. It needs no PIN even when "require PIN to reprint" is on, and is audited as `document_printed`. Every later print is `kind: "reprint"`, numbered 1, 2, … (audited as `document_reprinted`, PIN rule applies).
+- **Receipt (`sale`):** unchanged; every recorded print is a reprint from #1.
+- **Response adds:** `kind` (recorded) and `requestedKind` (what was asked). `400 PRINT_KIND_INVALID` for any other value.
+- **Event records:** each event in `posreprintevents` now has `kind`. Events from before G4.9 have none and count as reprints. Nothing is backfilled: such a document carries on from its highest number.
+- **Two tills printing a new document at once:** exactly one gets the original; the other gets reprint #1, and the PIN rule applies to it.
+
+`GET /api/pos/sales/:saleId/documents` adds `invoice.printed` and `creditNotes[].printed`. `printed` is true once any print has been recorded, so the next print is a reprint.

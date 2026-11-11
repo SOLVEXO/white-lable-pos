@@ -163,6 +163,15 @@ Order: **API first, then the apps.** Everything is additive; old app builds keep
 5. **Smoke:** owner on a till changes auto-lock, previews + saves + resets a permission, sells a product with a modifier, opens / closes a shift counting notes (last-close card), runs Check this period.
 6. **Rollback:** previous API; the new collections stay unread. Nothing to restore.
 
+## 11. G4.8 – G4.9 deploy notes (no data migration)
+
+1. **New collection** `posreprintevents` (append-only; unique `documentType + documentId + reprintNumber`) is created on first start; give it the insert-only grant like the other ledgers. G4.9 adds an optional `kind` field; older events stay valid, nothing is backfilled.
+2. **`API_PUBLIC_URL`** must be the public origin of this API in every environment (default `https://api.solvexo.store`). The receipt QR a till prints (online **and** offline) is `<API_PUBLIC_URL>/r/s/<store slug>/<client key>`. A wrong value prints QR codes that lead nowhere. The dev stack doesn't set it (its links point at the production origin; the e2e opens them by path).
+3. **The public route `GET /r/s/:store/:key`** must be reachable from the internet like `/r/:token` (same proxy rule), rate-limited by the app (40/min per IP).
+4. **Security settings now enforced:** "hide costs from managers" (one interceptor over every `/api/pos` response) and "require PIN to reprint". Both are off by default. Tell owners where they are (Settings → Security).
+5. **Smoke:** a sale with a customer prints "Points balance"; turn the Wi-Fi off, ring a sale, scan its QR from another phone → "Your receipt is syncing"; Wi-Fi on, wait for sync, scan again → the receipt. Print a tax invoice from the documents screen → "ORIGINAL", again → "REPRINT #1".
+6. **Rollback:** previous API; `posreprintevents` and the new optional fields stay, unread. Printed QR codes of the `/r/s/` form then answer 404 until the API is back on G4.9.
+
 ## Who does what
 | Step | You | Me |
 |---|---|---|
@@ -176,3 +185,5 @@ Order: **API first, then the apps.** Everything is additive; old app builds keep
 | 7 | store-credit switch (see 7, 7a) | on call |
 | 8 | cost-twin backfill on the copy, then production | review counts |
 | 9 | deploy API, then apps; smoke | review |
+| 10 | G4.0–G4.6 notes: grants, cron, tell owners about the time zone | review |
+| 11 | G4.8–G4.9 notes: grant, `API_PUBLIC_URL`, proxy rule for `/r/s/`, smoke | review |

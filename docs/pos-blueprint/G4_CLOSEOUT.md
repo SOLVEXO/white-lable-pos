@@ -116,3 +116,49 @@ API details for the admin panel: [`G4_8_ADMIN_API.md`](G4_8_ADMIN_API.md). Route
 - [ ] CSV import: pick a .csv from Files (iPhone) and Downloads (Android), a 3 MB file is refused, an .xlsx is refused, the row count shows.
 - [ ] A manager with "Hide costs from managers" on: reports, inventory, purchase orders and payables show the notice, never zeros.
 
+
+## 7. G4.9 — G4 close-out fixes + blueprint gap audit
+
+G4.7 (khata) stays parked. API details: [`G4_8_ADMIN_API.md`](G4_8_ADMIN_API.md) §5–8. Deploy notes: `G1B_RUNBOOK.md` §11. Gap audit: [`BLUEPRINT_GAP_AUDIT.md`](BLUEPRINT_GAP_AUDIT.md).
+
+| Item | Backend | App |
+|---|---|---|
+| The three cost fields | Traced to every write / read; **all three are purchase-order amounts → cost** (`itemUnitCostMinor`: PO line unit cost; `shippingCostMinor`: shipping the supplier charges; `taxCostMinor`: tax on the PO / supplier bill). None is used for a customer amount, so nothing renamed. `COST_FIELD_DECISIONS` records the reasons; a test holds the registry to them; the scan finds no unclassified field. | — |
+| Offline-capable receipt link | `GET /r/s/:storePublicId/:clientKey`: the store slug + the sale's idempotency key. "Receipt is syncing" (no data, refreshes) until the sale arrives; the same single 404 for malformed / unknown / stale / revoked; rate-limited; tier `public` (all four `/r` routes are now declared; 146 routes, public 7). Settings return `storePublicId` + `receiptLinkBase`. The token link keeps working. | The QR on every printed receipt is the offline-built link: at checkout online or offline (queued sales too) and on reprint; the token link only for a sale without a client key |
+| Loyalty balance on the sale | `loyaltyBalanceAfterPoints`, from the ledger in the sale's transaction: online customer sales and held sales completed online; absent on walk-ins, loyalty-off stores, offline replays and older sales | "Points balance" printed when present; otherwise earned / redeemed as before; designer preview updated |
+| Original vs reprint | Print events get `kind`. The first print of a tax invoice / credit note is the **original** (number 0, no PIN, audited `document_printed`) from whichever screen; later prints are reprint #n; receipts unchanged; concurrent first prints → one original, one reprint; no backfill (older events continue from their highest number). Documents read-out adds `printed`. | Documents screen: the button says "Print original" until the document is printed, then "Reprint"; prints ORIGINAL / REPRINT #n as the server answers; offline: refused when the PIN is required, otherwise COPY (never ORIGINAL — it could not be recorded) |
+
+**Tests:**
+- **Backend:** `pos.g49.integration.spec.ts` (10). Updated: the registry spec (decisions), the route-tier spec (public links), and the G4.8 reprint test (the first invoice print is now the original).
+- **App:** `g49_close_out_test.dart` (9); updated record shapes in `g48_hardening_test.dart` / `g27_thermal_documents_test.dart`.
+- **CI:** green on both repos.
+
+**Real backend (iOS simulator, one run at a time):**
+- **Extended G4.8 flow:** all 9 pass.
+  - The 5 G4.8 scenarios.
+  - **Offline QR:** an offline sale's printed QR answers "Your receipt is syncing" with nothing about the sale; after the queue syncs, the same QR is the receipt; an unknown key → 404.
+  - **Points balance:** a customer sale stores the balance (equal to the customer's points after the sale) and prints "Points balance"; a reprint from the sale's detail carries it too.
+  - **Original vs reprint:** a new tax invoice printed from the documents screen → ORIGINAL, again → REPRINT #1, and the server's read-out agrees.
+  - **Costs hidden:** a manager with costs hidden gets none of the traced PO fields on orders, a PO detail, receipts or payables; the owner sees them.
+- **G4 flow:** 3 pass. **Core flows:** 11 pass.
+- **Widget-level UI e2e:** passes again. It had been stale since G2.7, waiting for the PIN screen while the app shows the permissions explainer first; the test now taps Continue.
+
+**Screenshots (phone, light + dark):** `g4_9_screenshots/phone`:
+- `g49_01_invoice_print_original`;
+- `g49_02_invoice_after_original_reprint`;
+- `g49_03_credit_note_print_original`;
+- `g49_04_receipt_designer_points_balance`.
+
+**Resolved from the G4.8 deferrals:** the offline QR, the points balance, and the documents-screen original-vs-reprint rule.
+
+**Open / deferred:**
+- **The digital-receipt link's host comes from `API_PUBLIC_URL`.** On the dev stack it isn't set, so the printed links show the production origin (the e2e opens them by path). It must be right in every real environment (runbook §11).
+- **A manager revoking a sale's token link also stops its `/r/s/` link.** It stays stopped: a new token link can be made, but the printed offline QR can't be re-issued.
+- **The documents screen shares one print notice** between the invoice and its credit notes ("Printed." carries over). Cosmetic; G5.1.
+- **The syncing page and the client-key link** were checked on the simulator only; scanning a printed QR from a real phone is on the checklist.
+- **Production:** not deployed. No new collection; `posreprintevents` gets an optional `kind`.
+
+**Real-device checklist (additions):**
+- [ ] Airplane mode: ring a sale, print it, scan its QR with another phone → "Your receipt is syncing"; back online, wait for sync, scan again → the receipt.
+- [ ] A customer sale prints "Points balance" with the customer's real balance; a walk-in prints no points.
+- [ ] From the documents screen: a new tax invoice prints "ORIGINAL", again "REPRINT #1"; a credit note likewise; offline with "PIN to reprint" on, refused in words.
