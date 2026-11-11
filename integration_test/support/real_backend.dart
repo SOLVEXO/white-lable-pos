@@ -42,6 +42,10 @@ class Control {
 
   static Future<void> expirePlan() => call('/expire-plan');
   static Future<void> restorePlan() => call('/restore-plan');
+
+  /// G4.8: change one record of the latest sealed day in Mongo (the integrity check must flag it) / put it back exactly.
+  static Future<Map<String, dynamic>> tamperSeal() => call('/tamper-seal');
+  static Future<Map<String, dynamic>> untamperSeal() => call('/untamper-seal');
   static Future<void> stopApi() => call('/api/stop');
   static Future<void> startApi() => call('/api/start');
   static Future<Map<String, dynamic>> throwawayOwner() => call('/throwaway-owner');

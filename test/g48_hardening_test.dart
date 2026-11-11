@@ -201,7 +201,7 @@ void main() {
         registerFallbackValue(const ReportQuery(from: '', to: ''));
         registerFallbackValue(ReportKind.profit);
         final j = profitJson()..['costsHidden'] = true;
-        (j['totals'] as Map).removeWhere((k, _) => ['costOfGoodsSoldMinor', 'grossMarginMinor', 'marginPercent', 'afterExpensesMinor', 'costCoveragePercent', 'costUnknownNetMinor'].contains(k));
+        (j['totals'] as Map).removeWhere((k, _) => ['costOfGoodsSoldMinor', 'grossMarginMinor', 'marginPercent', 'afterExpensesMinor', 'costCoveragePercent', 'costUnknownNetMinor', 'supplierPaymentsMinor', 'supplierPaymentsNote'].contains(k));
         when(() => repo.getBizReport('st1', any(), any(), sort: any(named: 'sort'), limit: any(named: 'limit'))).thenAnswer((_) async => parseBizReport(ReportKind.profit, j));
         final c = Get.put(ReportController(kind: ReportKind.profit, repository: repo, storeId: 'st1', clock: () => DateTime(2026, 11, 11, 12), canManage: true, storeName: () async => 'Dev Store'), tag: 'p$dark');
         await pump(t, ReportView(kind: ReportKind.profit, controller: c), dark: dark);

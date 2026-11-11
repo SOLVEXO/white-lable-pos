@@ -203,7 +203,7 @@ class _Profit extends StatelessWidget {
             icon: Icons.warning_amber_rounded,
             warn: true,
           ),
-        if (t.supplierPaymentsNote != null) ReportInfo(key: const Key('profitSupplierNote'), '${t.supplierPaymentsNote!} Supplier payments in this period: ${m(t.supplierPaymentsMinor)}.'),
+        if (t.supplierPaymentsNote != null && !r.head.costsHidden) ReportInfo(key: const Key('profitSupplierNote'), '${t.supplierPaymentsNote!} Supplier payments in this period: ${m(t.supplierPaymentsMinor)}.'),
         if (t.expensesByCategoryMinor.isNotEmpty) ...[
           const InvSectionTitle('Expenses by category'),
           for (final e in t.expensesByCategoryMinor.entries) ReportRow(title: '${e.key[0].toUpperCase()}${e.key.substring(1).replaceAll('_', ' ')}', value: m(e.value)),

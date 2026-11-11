@@ -1,6 +1,6 @@
 // DEV ONLY test-control sidecar for integration_test/real_backend_*. The iOS-simulator app cannot run shell commands, so
 // the e2e asks this tiny localhost-only server (127.0.0.1:3199) to do the things a human would do on the dev stack:
-// flip the main store's POS plan, stop/start the local API (real "server unreachable"), mint a throwaway owner, read the
+// flip the main store's POS plan, stop/start the local API (real "server unreachable"), mint a throwaway owner, tamper / restore a sealed record, read the
 // latest dev OTP. It only drives ../solvexo-api/dev (the isolated dev stack) and refuses anything but loopback.
 import http from 'node:http';
 import { execFile, spawnSync } from 'node:child_process';
@@ -46,6 +46,12 @@ async function handle(path, q) {
       const lines = existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n').reverse() : [];
       for (const l of lines) { try { const m = JSON.parse(l); if (!q.get('to') || m.to === q.get('to')) return { otp: m.otp }; } catch {} }
       return { otp: null };
+    }
+    // G4.8: one record of the latest sealed day changed in Mongo (the app's integrity check must flag it), then put back exactly
+    case '/tamper-seal': case '/untamper-seal': {
+      const r = await sh('node_modules/.bin/ts-node', ['--transpile-only', 'dev/seed.ts', `--${path.slice(1)}`]);
+      if (r.err) throw new Error(r.errOut.slice(-400));
+      return JSON.parse(lastLine(r.out) ?? '{}');
     }
     default: return null;
   }

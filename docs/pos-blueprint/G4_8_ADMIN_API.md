@@ -14,7 +14,7 @@ Response: the full settings (`security.hideCostsFromManagers`). Every change is 
 
 **Effect.** When the setting is on and the caller is **not the owner**, every `/api/pos/...` response has its cost fields removed, and `data.costsHidden: true` is added. Report responses (`/api/pos/reports/...`) always carry `costsHidden: true` while the setting applies, even when nothing was removed. Revenue, quantities and sale totals stay.
 
-Removed everywhere: `costPrice(Minor)`, `cost(Minor)`, `unitCost(Minor)`, `wac`, `averageCost(Minor)`, `stockValue(Minor)`, `stockAdjustValueMinor`, `expiredValue`, `totalValue`, `variantsWithoutCost`, `grossMargin(Minor)`, `margin`, `marginPercent`, `profit`, `grossProfit(Minor)`, `afterExpenses(Minor)`, `costOfGoodsSoldMinor`, `cogs(Minor)`, `netWithCostMinor`, `netNoCostMinor`, `costUnknownNetMinor`, `costCoveragePercent`, `shippingCostMinor`, `taxCostMinor`, `itemUnitCostMinor`.
+Removed everywhere: `costPrice(Minor)`, `cost(Minor)`, `unitCost(Minor)`, `wac`, `averageCost(Minor)`, `stockValue(Minor)`, `stockAdjustValueMinor`, `expiredValue`, `totalValue`, `variantsWithoutCost`, `grossMargin(Minor)`, `margin`, `marginPercent`, `profit`, `grossProfit(Minor)`, `afterExpenses(Minor)`, `costOfGoodsSoldMinor`, `cogs(Minor)`, `netWithCostMinor`, `netNoCostMinor`, `costUnknownNetMinor`, `costCoveragePercent`, `shippingCostMinor`, `taxCostMinor`, `itemUnitCostMinor`, and in reports the payables `supplierPaymentsMinor` / `supplierPaymentsNote`.
 
 Removed on some routes only:
 - **`/api/pos/inventory/...`:** `value`, `valueMinor` (stock value at cost).

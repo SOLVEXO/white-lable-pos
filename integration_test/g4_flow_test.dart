@@ -203,13 +203,18 @@ void main() {
     expect(ex.showsValue, isTrue, reason: 'a manager sees the value at cost');
     // transfers list answers
     expect(await t.repo.getTransfers(storeId), isNotNull, reason: 'transfers: ${t.repo.lastErrorCode}');
-    // low stock → a draft PO (or the server's NOTHING_LOW in words when no supplier's items are low)
+    // low stock → a DRAFT purchase order: the seeded croissant (stock 2, reorder point 5) is bought from "Dev Bakery Supplier" (G4.8 seed)
     final sups = (await t.repo.getSuppliers(storeId))?.suppliers ?? const [];
-    if (sups.isNotEmpty) {
-      final d = await t.repo.draftPoFromLowStock(storeId, sups.first.id);
-      expect(d.success || d.code == 'NOTHING_LOW', isTrue, reason: 'draft PO: ${d.code} ${d.message}');
-      if (d.success) expect(d.order!.status, 'draft');
-      print('draft PO: ${d.success ? d.order!.poNumber : d.message}');
+    final bakery = sups.firstWhere((x) => x.name == 'Dev Bakery Supplier', orElse: () => throw StateError('run npm run dev:seed (G4.8 supplier missing)'));
+    final d = await t.repo.draftPoFromLowStock(storeId, bakery.id);
+    expect(d.success, isTrue, reason: 'draft PO: ${d.code} ${d.message}');
+    expect(d.order!.status, 'draft');
+    print('draft PO: ${d.order!.poNumber}');
+    // a supplier with nothing low is told so in words
+    final other = sups.where((x) => x.id != bakery.id).toList();
+    if (other.isNotEmpty) {
+      final none = await t.repo.draftPoFromLowStock(storeId, other.first.id);
+      expect(none.success || none.code == 'NOTHING_LOW', isTrue);
     }
     await t.dispose();
   });
