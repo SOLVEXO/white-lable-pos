@@ -636,7 +636,7 @@ class PosSettingsController extends GetxController {
               hintText: '0.00',
               isborder: true,
               fillColor: AppColors.background,
-              prefixIcon: const CustomText(text: '\$', fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
+              prefixIcon: CustomText(text: Money.symbol(), fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
             ),
             // G4.6: count the drawer note by note (the server checks the notes add up to the amount)
             if (denominationsFor(Money.currency) != null)
@@ -665,7 +665,7 @@ class PosSettingsController extends GetxController {
               hintText: 'Leave empty to skip',
               isborder: true,
               fillColor: AppColors.background,
-              prefixIcon: const CustomText(text: '\$', fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
+              prefixIcon: CustomText(text: Money.symbol(), fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
             ),
             if (report != null)
               ValueListenableBuilder<TextEditingValue>(

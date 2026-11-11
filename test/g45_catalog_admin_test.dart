@@ -788,6 +788,12 @@ void main() {
       expect(find.text('The file is too large (2 MB at most).'), findsOneWidget);
     });
 
+    testWidgets('no file picker by default (file_picker is approved for KYB only): paste the text', (t) async {
+      await pump(t, CsvImportView(controller: ctl()));
+      expect(find.byKey(const Key('importPick')), findsNothing);
+      expect(find.byKey(const Key('importText')), findsOneWidget);
+    });
+
     testWidgets('offline: the screen says so and an import needs internet', (t) async {
       offline();
       await pump(t, CsvImportView(controller: ctl()));

@@ -1,6 +1,4 @@
-import 'dart:convert';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_catalog_admin_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
@@ -202,19 +200,13 @@ class NewProductController extends CatalogAdminController {
 // ── CSV import ──────────────────────────────────────────────────────────────
 typedef CsvFilePicker = Future<({String name, String text})?> Function();
 
-/// Reads a .csv file the user picks as text (nothing is kept; the text goes in the import body).
-Future<({String name, String text})?> pickCsvFile() async {
-  final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: const ['csv'], withData: true);
-  final f = r?.files.single;
-  final bytes = f?.bytes;
-  if (f == null || bytes == null) return null;
-  return (name: f.name, text: utf8.decode(bytes, allowMalformed: true));
-}
-
 /// G4.5 CSV import of products or categories (the dashboard's importer: same columns, same report). There is nothing to read first.
 class CsvImportController extends CatalogAdminController {
-  CsvImportController({super.repository, super.storeId, CsvFilePicker? filePicker}) : _picker = filePicker ?? pickCsvFile;
-  final CsvFilePicker _picker;
+  /// [filePicker]: attaching a .csv file is NOT offered by default — file_picker is approved for KYB documents only (store_release_test);
+  /// until the owner approves it for imports, the CSV text is pasted. A picker can be injected (tests, or once approved).
+  CsvImportController({super.repository, super.storeId, CsvFilePicker? filePicker}) : _picker = filePicker;
+  final CsvFilePicker? _picker;
+  bool get canPickFile => _picker != null;
 
   final RxString kind = 'products'.obs;
   final RxString csv = ''.obs;
@@ -245,7 +237,7 @@ class CsvImportController extends CatalogAdminController {
   Future<void> pickFile() async {
     clearMessages();
     try {
-      final f = await _picker();
+      final f = await _picker?.call();
       if (f == null) return;
       csv.value = f.text;
       fileName.value = f.name;

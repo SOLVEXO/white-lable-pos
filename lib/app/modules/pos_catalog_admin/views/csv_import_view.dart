@@ -73,16 +73,18 @@ class _CsvImportViewState extends State<CsvImportView> with CatOwnedController<C
           const SizedBox(height: Space.s2),
           Row(
             children: [
-              Expanded(
-                child: AppButton(
-                  key: const Key('importPick'),
-                  label: 'Choose a .csv file',
-                  icon: Icons.attach_file_rounded,
-                  variant: AppButtonVariant.secondary,
-                  onPressed: c.busy.value ? null : c.pickFile,
+              if (c.canPickFile) ...[
+                Expanded(
+                  child: AppButton(
+                    key: const Key('importPick'),
+                    label: 'Choose a .csv file',
+                    icon: Icons.attach_file_rounded,
+                    variant: AppButtonVariant.secondary,
+                    onPressed: c.busy.value ? null : c.pickFile,
+                  ),
                 ),
-              ),
-              const SizedBox(width: Space.s2),
+                const SizedBox(width: Space.s2),
+              ],
               Expanded(
                 child: AppButton(key: const Key('importSubmit'), label: 'Import', icon: Icons.upload_rounded, loading: c.busy.value, onPressed: c.busy.value ? null : c.submit),
               ),

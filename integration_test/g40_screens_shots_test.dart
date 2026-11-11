@@ -202,8 +202,19 @@ Map<String, dynamic> _salesWeek({bool compare = false, String from = '2026-11-02
     for (var i = 0; i < 7; i++) {'day': dayKey(DateTime(start.year, start.month, start.day + i)), 'transactions': 20 + i * 3, 'totalMinor': (shape[i] * 100 * scale).round()},
   ];
   j['period'] = {'from': from, 'to': to, 'days': 7};
+  // totals that agree with the days (net = Σ days; gross incl. 18% tax)
+  int sum(double k) => [for (final v in shape) (v * 100 * k).round()].fold(0, (a, b) => a + b);
+  j['totals'] = salesTotalsJson(tx: 203, net: sum(scale), gross: (sum(scale) * 1.18).round());
   if (compare) {
-    (j['previous'] as Map)['period'] = {'from': '2026-10-26', 'to': '2026-11-01'};
+    final prevStart = DateTime(2026, 10, 26);
+    j['previous'] = {
+      'period': {'from': '2026-10-26', 'to': '2026-11-01'},
+      'totals': salesTotalsJson(tx: 142, net: sum(0.7), gross: (sum(0.7) * 1.18).round()),
+      // the previous period's days come with the report (the dashed line)
+      'byDay': [
+        for (var i = 0; i < 7; i++) {'day': dayKey(DateTime(prevStart.year, prevStart.month, prevStart.day + i)), 'transactions': 14 + i * 2, 'totalMinor': (shape[i] * 70 * scale).round()},
+      ],
+    };
   }
   return j;
 }

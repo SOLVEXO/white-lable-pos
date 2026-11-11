@@ -98,11 +98,14 @@ class PosOpenRegisterView extends StatelessWidget {
                 fillColor: kPinSurface,
                 prefixIcon: Padding(
                   padding: const EdgeInsets.only(left: 14, right: 8),
-                  child: CustomText(
-                    text: '\$',
-                    fontSize: AppFontSize.medium,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryColor,
+                  // the store's currency (known once the last close is read), not a fixed \$
+                  child: Obx(
+                    () => CustomText(
+                      text: Money.symbol(c.currency),
+                      fontSize: AppFontSize.medium,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryColor,
+                    ),
                   ),
                 ),
               ),
