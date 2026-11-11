@@ -33,20 +33,23 @@ Working mode since 2026-11-10: one heavy job at a time (backend gate / full `flu
 
 | # | Item | Blueprint route (audit §) | Status |
 |---|---|---|---|
-| 1 | About screen: version, build, store id, API environment, licences | about (§2.11) | planned |
-| 2 | Help screen: static content shipped with the app | help (§2.11) | planned |
-| 3 | Store-select restyle with tokens | store-select (§2.1) | planned |
-| 4 | Hardware test pages (printer / drawer / scanner) | hardware (§2.11) | planned |
-| 5 | Stock-list per-location filter | stock-list (§2.5) | planned |
-| 6 | Orders filters by cashier / register | orders (§2.3) | planned |
-| 7 | Role presets (Owner-operated / Small team / Strict) | roles (§2.10) | planned |
-| 8 | Supplier "products supplied" list | supplier-profile (§2.7) | planned |
-| 9 | Scan-to-add on the PO form | new-purchase-order (§2.7) | planned |
-| 10 | Scan-to-receive | receive-stock (§2.7) | planned |
-| 11 | Photo on a cash movement | cash-movement (§2.8) | planned |
-| 12 | Staff-profile stats (last login, sales) | staff-profile (§2.10) | planned |
-| 13 | Continuous-scan mode | scan (§2.2) | planned |
-| 14 | Print notice scoped per document | invoice / credit note (§2.3) | planned |
-| 15 | G5.4: on-behalf clock-in / out needs the member's or a manager's PIN | clock-in (§2.10) | planned |
-| 16 | Receipt-link hardening: `API_PUBLIC_URL` boot validation; base only from the server; no QR without a cached base | receipt (§2.2) | planned |
-| 17 | Share receipt link (share sheet + wa.me) | print-share (§2.2) | planned |
+| 1 | About screen: version, build, store id, API environment, licences | about (§2.11) | done |
+| 2 | Help screen: static content shipped with the app | help (§2.11) | done |
+| 3 | Store-select restyle with tokens | store-select (§2.1) | done |
+| 4 | Hardware test pages (printer / drawer / scanner) | hardware (§2.11) | done |
+| 5 | Stock-list per-location filter | stock-list (§2.5) | done |
+| 6 | Orders filters by cashier / register | orders (§2.3) | done |
+| 7 | Role presets (Owner-operated / Small team / Strict) | roles (§2.10) | **deferred** — preset contents are a decision for Sir Atiq |
+| 8 | Supplier "products supplied" list | supplier-profile (§2.7) | done |
+| 9 | Scan-to-add on the PO form | new-purchase-order (§2.7) | done |
+| 10 | Scan-to-receive | receive-stock (§2.7) | done |
+| 11 | Photo on a cash movement | cash-movement (§2.8) | done (online; an offline movement queues without its photo) |
+| 12 | Staff-profile stats (last login, sales) | staff-profile (§2.10) | done |
+| 13 | Continuous-scan mode | scan (§2.2) | done |
+| 14 | Print notice scoped per document | invoice / credit note (§2.3) | done |
+| 15 | G5.4: on-behalf clock-in / out needs the member's or a manager's PIN | clock-in (§2.10) | done (offline refused in the app; late events need a token valid at the time) |
+| 16 | Receipt-link hardening: `API_PUBLIC_URL` boot validation; base only from the server; no QR without a cached base | receipt (§2.2) | done |
+| 17 | Share receipt link (share sheet + wa.me) | print-share (§2.2) | done (share sheet); WhatsApp to a number **deferred** — needs url_launcher |
+
+| G5.1 backend | API_PUBLIC_URL boot check (+ preflight, runbook); on-behalf clocking (member / manager PIN, audited in the same transaction); stock by location + `inventory/locations`; orders by register; supplier products supplied (`lastUnitCostMinor` = cost); staff profile; `team/members`; cash-movement photo (`poscashattachments`) | api 7df5d4a, (members), d7a07c4 | see CI | the owner-session employees / locations lists refuse device tokens: two POS reads added |
+| G5.1 app | QR only from the server base; per-document print notice; clock someone else; About / Help / Hardware check; store-select restyle (sub-agent, reviewed); stock by location; orders filters; products supplied; continuous scan, scan-to-add / receive; slip photo; staff profile; share link; `clearPreference` serialized (keychain race) | app bd9cccd, b1037f2 + follow-ups | see CI | two mocked simulator flows stay known-failing (un-mockable getProfile 401) |

@@ -133,3 +133,23 @@ The existing token links (`/r/:token`, `/invoice`, `/credit-note/:n`) are unchan
 - **Two tills printing a new document at once:** exactly one gets the original; the other gets reprint #1, and the PIN rule applies to it.
 
 `GET /api/pos/sales/:saleId/documents` adds `invoice.printed` and `creditNotes[].printed`. `printed` is true once any print has been recorded, so the next print is a reprint.
+
+---
+
+# G5.1 additions
+
+All additive; nothing existing changes shape.
+
+| Route | Who | What |
+|---|---|---|
+| `POST /api/pos/team/clock/:storeId` (existing) | any PIN session | **New optional `employeeId`**: clock ANOTHER team member. It needs `x-pos-approver-token`, which is either that member's own PIN session or a manager's. Without one: `403 POS_APPROVAL_REQUIRED` (`approver: "member_or_manager"`, `reasons: ["on_behalf_clock"]`, audited `pos_approval_missing`). The event records `actorId`, `onBehalf: true`, `approvedBy` and `approval` (`member_pin` / `manager_pin`), and the audit row `attendance_clocked_on_behalf` (actor = `employeeId`, subject = `targetId`) is written in the same transaction. A late (offline-queued) event needs a token that was valid when it happened. Also `EMPLOYEE_NOT_FOUND` (404) and `EMPLOYEE_INACTIVE` (409). Matrix action `team.attendance.onBehalf` (all roles; the PIN is the control). |
+| `GET /api/pos/team/members/:storeId` | any PIN session | The team list a till can read: `{ members: [{ id, name, email, role, status }] }`. No PINs. (`GET /api/pos/employees` is owner-session only and refuses device tokens.) |
+| `GET /api/pos/team/profile/:storeId/:employeeId` | managers for anyone; a cashier for themself | `{ name, email, role, status, lastLoginAt, state: { clockedIn, since }, currency, currencyExponent, timeZone, sales: { today, last7Days, last30Days: { sales, totalMinor } } }`. `lastLoginAt` comes from the `pin_login` audit rows; sales are completed and partly refunded sales they rang up, counted by store days. |
+| `GET /api/pos/inventory/stock/:storeId?locationId=` (existing) | `inventory.view` | **New `locationId`**: only the variants stocked at that location (bins summed). Each row gets `locationStock`; `filter=out` means none left at that location. `400 LOCATION_INVALID` for an unknown id. |
+| `GET /api/pos/inventory/locations/:storeId` | `inventory.view` | `{ locations: [{ id, name, status }] }`, for the filter (the owner-session locations route refuses device tokens). |
+| `GET /api/pos/sales?registerId=` (existing) | as before | **New `registerId`** filter (`employeeId` already existed). |
+| `GET /api/pos/supply/suppliers/:storeId/:id` (existing) | `supply.view` | **New `productsSupplied`**: `[{ variantId, productId, name, sku, options, orderedQty, receivedQty, orders, lastOrderedAt, lastUnitCostMinor }]`, from its purchase orders (cancelled ones excluded), newest first, at most 50. `lastUnitCostMinor` is a **cost** field: removed for a manager when the owner hides costs. |
+| `POST /api/pos/cash/movements/:storeId/:requestId/receipt` | the person who recorded it, or a manager | Multipart `file` (JPEG / PNG / PDF by content, size limit as for expense receipts). Append-only row in `poscashattachments`, written with the audit row `cash_movement_receipt_attached` in one transaction. Errors `MOVEMENT_NOT_FOUND`, `FILE_TYPE`, `FILE_TOO_LARGE`. |
+| `GET /api/pos/cash/movements/:storeId/:requestId/receipt` | same | A 5-minute link (`Cache-Control: no-store`), audited `cash_movement_receipt_viewed`. The daybook flags cash in / out lines with `requestId` + `hasReceipt`. |
+
+**Boot check:** outside development the API refuses to start without a valid public https `API_PUBLIC_URL` (see `G1B_RUNBOOK.md` §11). **Not built:** role presets (their contents are a decision for Sir Atiq).

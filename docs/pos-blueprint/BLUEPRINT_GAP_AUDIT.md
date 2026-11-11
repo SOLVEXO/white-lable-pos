@@ -1,6 +1,6 @@
-# Blueprint gap audit — after G4.9
+# Blueprint gap audit — after G5.1
 
-Date: 2026-11-11. Documents only; no code changed for this audit.
+Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Documents only; no code changed for this audit.
 
 **Blueprint:** Sir Atiq's package, `Solvexo_POS_UI_Developer_Package`. It contains the README, `DEVELOPMENT_ROADMAP.md` (3 phases, 10 engineering rules, 6 acceptance targets), `app/index.html` (101 routes), the design tokens and the brand assets.
 
@@ -18,25 +18,27 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 
 ## 1. Summary
 
-**101 routes:** Done 73 · Partial 18 · Missing 3 · Blocked 5 · out of scope 2.
+**101 routes:** Done 85 · Partial 7 · Missing 1 · Blocked 6 · out of scope 2.
 
 | Area | Routes | Done | Partial | Missing | Blocked | Out of scope |
 |---|---|---|---|---|---|---|
-| 1. Launch & access | 9 | 6 | 1 | 0 | 0 | 2 |
-| 2. Sell & checkout | 22 | 17 | 4 | 0 | 1 | 0 |
-| 3. Orders & returns | 7 | 5 | 1 | 0 | 1 | 0 |
+| 1. Launch & access | 9 | 7 | 0 | 0 | 0 | 2 |
+| 2. Sell & checkout | 22 | 18 | 3 | 0 | 1 | 0 |
+| 3. Orders & returns | 7 | 6 | 0 | 0 | 1 | 0 |
 | 4. Products & pricing | 7 | 5 | 2 | 0 | 0 | 0 |
-| 5. Inventory | 11 | 10 | 1 | 0 | 0 | 0 |
+| 5. Inventory | 11 | 11 | 0 | 0 | 0 | 0 |
 | 6. Customers | 5 | 4 | 0 | 0 | 1 | 0 |
-| 7. Supply & purchasing | 7 | 4 | 3 | 0 | 0 | 0 |
-| 8. Cash & expenses | 5 | 3 | 2 | 0 | 0 | 0 |
+| 7. Supply & purchasing | 7 | 6 | 1 | 0 | 0 | 0 |
+| 8. Cash & expenses | 5 | 4 | 1 | 0 | 0 | 0 |
 | 9. Reports | 9 | 9 | 0 | 0 | 0 | 0 |
-| 10. Team & shifts | 6 | 3 | 3 | 0 | 0 | 0 |
-| 11. Settings | 13 | 7 | 1 | 3 | 2 | 0 |
+| 10. Team & shifts | 6 | 5 | 0 | 0 | 1 | 0 |
+| 11. Settings | 13 | 10 | 0 | 1 | 2 | 0 |
 
-**Blocked, by blocker:** card provider 1 (card-payment) · FBR 1 (tax invoice fiscal block) · khata confirmation 1 (customer credit) · Raast provider 1 (payments setup) · logo masters 1 (receipt settings; also the logo part of the receipt route, counted Partial).
+**Blocked, by blocker:** card provider 1 · FBR 1 · khata confirmation 1 · Raast provider 1 · logo masters 1 · Sir Atiq decision on role presets 1.
 
-**Workflows (21 roadmap items):** Done 11 · Partial 8 · Blocked 2. **Engineering rules (10):** Done 8 · Partial 1 (minor-unit reads wait for the G1b flip) · Blocked 1 (gateway-confirmed payments). **Acceptance targets (6):** Done 4 · Partial 2 (need real hardware / a real cashier).
+**After G4.9 → after G5.1:** Done 73 → 85 · Partial 18 → 7 · Missing 3 → 1 · Blocked 5 → 6 (role presets moved to Blocked: decision).
+
+**Workflows (21 roadmap items):** Done 14 · Partial 4 · Blocked 3. **Engineering rules (10):** Done 8 · Partial 1 · Blocked 1. **Acceptance targets (6):** Done 4 · Partial 2.
 
 ## 2. Screen matrix — all 101 blueprint routes
 
@@ -49,7 +51,7 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 | login (mobile + password) | /pos/login (email + password) | **N/A** | Out of scope by decision (rule 2): email login kept | — |
 | otp | — | **N/A** | Out of scope by decision (rule 2) | — |
 | pin | /pos/pin-login | Done | — | — |
-| store-select | /seller/stores | **Partial** | Works; still the legacy layout — restyle with tokens | S |
+| store-select | /seller/stores (restyled with tokens — G5.1) | Done | — | — |
 | device-setup | /pos/device-setup | Done | — | — |
 | permissions | /pos/permissions (G2.7) | Done | — | — |
 | open-shift | /pos/open-register (notes & coins, last close — G4.6) | Done | — | — |
@@ -61,7 +63,7 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 | pos (smart checkout) | /pos/home Sale tab | Done | — | — |
 | category-view | category chips on Sale | Done | — | — |
 | product-search | search on Sale (+ recent searches) | Done | — | — |
-| scan | camera + HID scanner + torch | **Partial** | Continuous-scan mode not built; camera never run on a real device | S |
+| scan | camera + HID scanner + torch + continuous scan (G5.1) | Done | — | — |
 | product-detail | variant / option sheet | **Partial** | No product page (image, stock by location, details) — only the picker sheet | M |
 | variants (& modifiers) | option sheet + modifier groups (G4.5) | Done | — | — |
 | custom-item | custom item with manager limit (G2.4) | Done | — | — |
@@ -78,14 +80,14 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 | credit-payment (store credit) | store-credit tender (G3.3) | Done | — | — |
 | payment-success | sale success view | Done | — | — |
 | receipt | thermal / PDF receipt (QR offline-built, barcode, points balance — G4.8/G4.9) | **Partial** — blocked part: logo masters (logo part only) | Logo printing waits for the masters; e-mail / SMS / WhatsApp delivery not built | M |
-| print-share | print + share sheet | **Partial** | E-mail / SMS / WhatsApp sending not built (needs a provider decision) | M |
+| print-share | print + share sheet + share the receipt link (G5.1) | **Partial** | WhatsApp straight to the customer's number needs url_launcher (new package — ask); e-mail / SMS sending needs a provider | S |
 | offline | queue, banner, Needs attention, encrypted queue | Done | — | — |
 
 ### 2.3 Orders & returns (7)
 
 | Route | App screen | Status | What is left | Size |
 |---|---|---|---|---|
-| orders | /pos/orders (search by receipt / OFF number) | **Partial** | Filters by cashier / register not built | S |
+| orders | /pos/orders (search by receipt / OFF number; cashier / register filters — G5.1) | Done | — | — |
 | order-detail | /pos/sale-detail | Done | — | — |
 | invoice (tax invoice) | /pos/tax-invoice + thermal + ORIGINAL / REPRINT (G4.9) | **Blocked** (FBR) | Invoice done; FBR invoice number / QR block reserved, not filled | L |
 | return-start | /pos/return | Done | — | — |
@@ -110,7 +112,7 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 | Route | App screen | Status | What is left | Size |
 |---|---|---|---|---|
 | inventory-overview | /pos/stock | Done | — | — |
-| stock-list | /pos/stock/list | **Partial** | Per-location filter not built (low / out / expiring filters exist) | S |
+| stock-list | /pos/stock/list (+ per-location filter — G5.1) | Done | — | — |
 | stock-detail | /pos/stock/item (lots, expiry) | Done | — | — |
 | stock-count | /pos/stock/count + variance review | Done | — | — |
 | stock-count-scan | scan in count | Done | — | — |
@@ -136,11 +138,11 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 | Route | App screen | Status | What is left | Size |
 |---|---|---|---|---|
 | suppliers | /pos/supply/suppliers | Done | — | — |
-| supplier-profile | /pos/supply/supplier | **Partial** | "Products supplied" list not shown | S |
+| supplier-profile | /pos/supply/supplier (+ products supplied — G5.1) | Done | — | — |
 | purchase-orders | /pos/supply/orders | Done | — | — |
 | purchase-order-detail | /pos/supply/order | Done | — | — |
-| new-purchase-order | /pos/supply/order-form | **Partial** | Scan-to-add a line not built | S |
-| receive-stock | /pos/supply/receive (partial, lots, no-PO) | **Partial** | Scan-to-receive not built; serial-tracked items are dashboard-only | S |
+| new-purchase-order | /pos/supply/order-form (+ scan to add — G5.1) | Done | — | — |
+| receive-stock | /pos/supply/receive (partial, lots, no-PO, scan to receive — G5.1) | **Partial** | Serial-tracked items are dashboard-only | S |
 | supplier-payment | payables + ledger + payment | Done | — | — |
 
 ### 2.8 Cash & expenses (5)
@@ -150,7 +152,7 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 | expenses | /pos/cash/expenses | Done | — | — |
 | add-expense | with receipt photo | Done | — | — |
 | expense-detail | /pos/cash/expense (approve / reject) | **Partial** | PDF receipts open only on the web (an in-app PDF viewer needs a package — ask first) | S |
-| cash-movement | /pos/cash (categories) | **Partial** | No receipt photo on a cash movement | S |
+| cash-movement | /pos/cash (categories, slip photo — G5.1) | Done | — | — |
 | daybook | /pos/cash/daybook (print, PDF) | Done | — | — |
 
 ### 2.9 Reports (9)
@@ -172,11 +174,11 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 | Route | App screen | Status | What is left | Size |
 |---|---|---|---|---|
 | staff | /pos/team/roster, /seller/pos-management | Done | — | — |
-| staff-profile | team record + cashier report | **Partial** | Last login and per-person sales stats not on the profile itself (they are in the cashier report) | S |
-| roles | /pos/roles (editable matrix, per-store limits — G4.2) | **Partial** | Presets (Owner-operated / Small team / Strict) not built; reset to defaults only | S |
+| staff-profile | team members → profile (last login, clocked in, sales — G5.1) | Done | — | — |
+| roles | /pos/roles (editable matrix, per-store limits — G4.2) | **Blocked** (Sir Atiq decision (preset contents)) | Presets (Owner-operated / Small team / Strict) — what each allows is not defined | S |
 | attendance | /pos/team/attendance + corrections + report | Done | — | — |
 | shift-summary | /pos/session-report, history | Done | — | — |
-| clock-in | /pos/team/clock + Home card | **Partial** | Quick PIN re-auth for clocking someone else in not built (needs a PIN-login API change) | M |
+| clock-in | /pos/team/clock + Home card; clock someone else with their PIN or a manager's (G5.4) | Done | — | — |
 
 ### 2.11 Settings (13)
 
@@ -189,12 +191,12 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 | tax-settings | /pos/tax-profile | Done | — | — |
 | receipt-settings | receipt designer | **Blocked** (logo masters) | Every switch prints except the logo | S |
 | notifications | /pos/settings/notifications | Done | — | — |
-| hardware | printer & sound | **Partial** | Test pages per device (printer / drawer / scanner) not built | S |
+| hardware | printer & sound + Hardware check (test page, drawer, scanner — G5.1) | Done | — | — |
 | integrations | — | **Missing** | Accounting export, API keys — not designed beyond the template | L |
 | security | /pos/settings/security (auto-lock, PIN to reprint, hide costs) | Done | — | — |
 | backup-sync | /pos/settings/backup-sync + Needs attention | Done | — | — |
-| help | — | **Missing** | Help / support page (links, contact, version) | S |
-| about | — | **Missing** | About Solvexo (version, licences, legal links) | S |
+| help | Help (static, shipped with the app — G5.1) | Done | — | — |
+| about | About (version, build, store id, environment, licences — G5.1) | Done | — | — |
 
 ## 3. Workflows — roadmap phases
 
@@ -202,27 +204,27 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 |---|---|---|---|---|
 | 1.1 | Authentication, PIN and store / register selection | Done | (store-select restyle: §2.1) | — |
 | 1.2 | Opening shift and cash float | Done | notes & coins, last close (G4.6) | — |
-| 1.3 | Product search and barcode entry | **Partial** | continuous-scan mode; camera + barcode latency on real hardware | S |
+| 1.3 | Product search and barcode entry | Done | continuous scan (G5.1); latency on real hardware is an acceptance measurement (§3) | — |
 | 1.4 | Cart, taxes, discounts and customer attachment | Done | server-priced, per-line tax, coupons, price books, modifiers | — |
 | 1.5 | Cash and card payments | **Blocked** (card provider) | cash, split, store credit, Raast (mock) done; card success is not gateway-confirmed | M |
-| 1.6 | Receipt printing and sharing | **Partial** | logo (blocked: masters); e-mail / SMS / WhatsApp delivery | M |
+| 1.6 | Receipt printing and sharing | **Partial** | link sharing through the share sheet done (G5.1); logo (blocked: masters); WhatsApp to the customer's number (needs url_launcher); e-mail / SMS (needs a provider) | M |
 | 1.7 | Orders, returns and refunds | Done | (orders filters: §2.3) | — |
 | 1.8 | Basic products and stock on hand | Done | | — |
 | 1.9 | Offline sale queue and reliable synchronisation | Done | encrypted queue, idempotent replay, offline receipt link (G4.9); airplane-mode run on a real device pending | — |
 | 2.1 | Stock counts and adjustments | Done | | — |
 | 2.2 | Transfers between locations | Done | | — |
 | 2.3 | Customers, loyalty and credit ledger | **Blocked** (khata confirmation) | customers, loyalty and store credit done; credit on account (khata) = G4.7, parked | L |
-| 2.4 | Suppliers and purchase orders | **Partial** | scan-to-add; products-supplied list | S |
-| 2.5 | Receiving stock | **Partial** | scan-to-receive; serials dashboard-only | S |
-| 2.6 | Expenses and daybook | **Partial** | in-app PDF receipt viewer (package approval); photo on cash movements | S |
-| 2.7 | Staff shifts and attendance | **Partial** | quick PIN re-auth for clock-in | M |
+| 2.4 | Suppliers and purchase orders | Done | scan-to-add, products supplied (G5.1) | — |
+| 2.5 | Receiving stock | **Partial** | scan-to-receive done (G5.1); serials dashboard-only | S |
+| 2.6 | Expenses and daybook | **Partial** | photo on cash movements done (G5.1); in-app PDF receipt viewer (package approval) | S |
+| 2.7 | Staff shifts and attendance | Done | clocking someone else with their PIN or a manager's (G5.4) | — |
 | 3.1 | Sales, profit, tax and payment reports | Done | (FBR-filed tax figures: blocked with FBR) | — |
 | 3.2 | Product and category performance | Done | | — |
 | 3.3 | Cashier performance | Done | | — |
-| 3.4 | Roles and granular permissions | **Partial** | presets | S |
-| 3.5 | Hardware, integrations, audit logs and backup controls | **Partial** | audit log + sealed integrity + backup / sync done; hardware test pages (S) and integrations (L) missing | L |
+| 3.4 | Roles and granular permissions | **Blocked** (Sir Atiq decision) | presets: what each preset allows is not defined | S |
+| 3.5 | Hardware, integrations, audit logs and backup controls | **Partial** | hardware check done (G5.1); integrations (L) missing | L |
 
-**Workflows (21):** Done 11 · Partial 8 · Blocked 2 · Missing 0.
+**Workflows (21):** Done 14 · Partial 4 · Blocked 3 · Missing 0.
 
 ### Non-negotiable engineering rules
 
@@ -254,18 +256,7 @@ Date: 2026-11-11. Documents only; no code changed for this audit.
 
 Ordered by value; each phase is one stop.
 
-**G5.1: Finish the partials (all S).** Item numbers refer to §2:
-- About, Help (§2.11);
-- store-select restyle (§2.1);
-- hardware test pages (§2.11);
-- stock-list location filter (§2.5);
-- orders filters by cashier / register (§2.3);
-- role presets (§2.10);
-- supplier "products supplied", scan-to-add on the PO form, scan-to-receive (§2.7);
-- photo on a cash movement (§2.8);
-- staff-profile stats (§2.10);
-- continuous-scan mode (§2.2);
-- clear a document's print notice when moving to another document.
+**G5.1 + G5.4: done (2026-11-11)** — see `G5_CLOSEOUT.md`. Left from that list: role presets (decision), WhatsApp to a number (url_launcher).
 
 **G5.2: Catalog depth (M).**
 - Product page at the till (image, stock by location);
@@ -275,8 +266,6 @@ Ordered by value; each phase is one stop.
 **G5.3: Receipt delivery and documents (M).**
 - E-mail / SMS / WhatsApp receipts (needs a provider decision: cost per message, templates);
 - in-app PDF viewer (needs package approval).
-
-**G5.4: Clock-in PIN re-auth (M).** A PIN-login variant that clocks a person without switching the till's session.
 
 **G5.5: Integrations (L).** Accounting export (CSV / Xero / QuickBooks?) and API keys. Needs a product decision on scope first.
 

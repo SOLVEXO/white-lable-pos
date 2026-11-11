@@ -162,3 +162,7 @@ G4.7 (khata) stays parked. API details: [`G4_8_ADMIN_API.md`](G4_8_ADMIN_API.md)
 - [ ] Airplane mode: ring a sale, print it, scan its QR with another phone → "Your receipt is syncing"; back online, wait for sync, scan again → the receipt.
 - [ ] A customer sale prints "Points balance" with the customer's real balance; a walk-in prints no points.
 - [ ] From the documents screen: a new tax invoice prints "ORIGINAL", again "REPRINT #1"; a credit note likewise; offline with "PIN to reprint" on, refused in words.
+
+### 7a. Receipt links — recorded decisions and an open question (G5.1)
+- **Revoking a receipt link also disables its offline QR, and printed QRs cannot be re-issued.** When a manager revokes a sale's digital-receipt link, the `/r/s/<store>/<client key>` link printed on the paper receipt stops working at once (the same "not available" page), and it stays stopped. A new token link can be created for sharing, but the QR already on paper carries the old client key and cannot be replaced.
+- **Open question for Sir Atiq: should the 30-day expiry follow the store's return / warranty window?** A client-key link older than 30 days answers "not available" (`CLIENT_LINK_WINDOW_MS`). A store with a longer return or warranty period may want the printed QR to keep working as long as that period lasts. No code change until decided.
