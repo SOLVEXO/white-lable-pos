@@ -5,6 +5,11 @@
 //   · reprint with "PIN to reprint" on: a cashier is refused, a manager's PIN approves, the numbers count up
 //   · a price book from the STORE's tomorrow switches at the store's midnight (UTC boundaries), not the device's
 //   · CSV import from a file (the picker's own read + background decode; the system picker UI itself is not driven)
+// G4.9 additions:
+//   · an offline sale's printed QR (store link base + client key) answers "receipt is syncing" until the queue syncs it, then the receipt
+//   · a customer sale prints the points balance after the sale (stored by the server from the ledger)
+//   · a tax invoice printed first from the documents screen is the ORIGINAL; printed again it is REPRINT #1
+//   · a manager with costs hidden sees no itemUnitCostMinor / shippingCostMinor / taxCostMinor (nor the PO amounts they feed) on supply routes
 // Run:  (solvexo-api) npm run dev:stack:up && npm run dev:seed   then   SIM_DEVICE=<udid> tool/run_real_e2e.sh integration_test/g48_flow_test.dart
 // ignore_for_file: avoid_print
 import 'dart:io';
@@ -26,7 +31,19 @@ import 'package:solvexo_pos/config/app_env.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/sound_util.dart';
 
+import 'package:mocktail/mocktail.dart';
+import 'package:solvexo_pos/app/data/local/idempotency_intent_store.dart';
+import 'package:solvexo_pos/app/data/local/pending_sale_local_store.dart';
+import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
+import 'package:solvexo_pos/app/modules/pos_documents/controllers/pos_documents_controller.dart';
+import 'package:solvexo_pos/utils/receipt_data.dart';
+import 'package:solvexo_pos/utils/receipt_escpos_builder.dart';
+import 'package:solvexo_pos/utils/tax_document_escpos.dart';
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
+
 import 'support/real_backend.dart';
+
+class _Printer extends Mock implements ThermalPrinterService {}
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -239,6 +256,148 @@ void main() {
     expect(r.created + r.updated, greaterThanOrEqualTo(1), reason: 'created ${r.created} updated ${r.updated} failed ${r.failed} ${r.errors}');
     expect((await t.repo.getCatalogCategories(storeId))!.any((x) => x.name == name), isTrue);
     await dir.delete(recursive: true);
+    await t.dispose();
+  });
+
+  // ── G4.9 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /// The public receipt page behind a printed QR (its path on this dev API).
+  Future<({int status, String body})> openQr(String qr) async {
+    final res = await Dio(BaseOptions(validateStatus: (_) => true, responseType: ResponseType.plain)).get('${AppEnv.apiBaseUrl}${Uri.parse(qr).path}');
+    return (status: res.statusCode ?? 0, body: '${res.data}');
+  }
+
+  testWidgets('G4.9 offline sale: the printed QR says "syncing" until the queue sends the sale, then it is the receipt', (tester) async {
+    final t = await till(cashierEmail, cashierPin);
+    final settings = (await t.repo.getPosSettings(storeId))!;
+    expect(settings.receiptLinkBase, isNotNull, reason: 'the settings carry the link base (cached for offline)');
+    await t.closeAnyOpenShift();
+    final session = await t.openShift();
+    final line = await t.line('DEV-LATTE', 1);
+    final key = IdempotencyIntentStore.newKey(); // the key the till makes when Charge is first tapped
+    await Control.stopApi();
+    try {
+      final q = await t.repo.createSale(storeId: storeId, sessionId: session.id, registerId: registerId, employeeId: t.employee!.id, items: [line], clientCreatedAt: DateTime.now(), paymentMethod: 'cash', amountTendered: 10, status: 'completed', idempotencyKey: key);
+      expect(q.queued, isTrue, reason: 'API down → queued on the device');
+      // keep it on the device while the API comes back (as a till that is still offline would), so "syncing" can be seen
+      await PendingSaleLocalStore().recordAttempt(key, attempts: 1, nextAttemptAt: DateTime.now().add(const Duration(hours: 1)), errorMessage: 'held by the e2e');
+    } finally {
+      await Control.startApi();
+    }
+    final number = await t.sync.provisionalNumberFor(key);
+    // the receipt printed at checkout, offline: the QR is built from what the till already had
+    final receipt = ReceiptData.forOfflineSale(
+      provisionalNumber: number!, madeAt: DateTime.now(), settings: settings, currency: settings.currency, exponent: settings.currencyExponent,
+      items: [(name: 'Latte', qty: 1, unitPrice: 4.0)], subtotal: 4, discount: 0, tax: 0, total: 4, payments: [(method: 'cash', amount: 4.0, reference: null)], change: 0, clientKey: key,
+    );
+    expect(receipt.qrPayload, '${settings.receiptLinkBase}$key');
+    final before = await openQr(receipt.qrPayload!);
+    expect([before.status, before.body.contains('Your receipt is syncing')], [200, true], reason: before.body);
+    expect(before.body.contains(number), isFalse, reason: 'nothing about the sale before it arrives');
+    await t.sync.syncNow(ignoreBackoff: true);
+    await eventually(() async => t.sync.unresolvedCount.value == 0, reason: 'queue drained');
+    final after = await openQr(receipt.qrPayload!);
+    expect([after.status, after.body.contains('Your receipt is syncing'), after.body.contains('Paid')], [200, false, true], reason: after.body);
+    print('offline QR ${receipt.qrPayload} → syncing, then the receipt');
+    // unknown key on the same store: the single 404
+    expect((await openQr('${settings.receiptLinkBase}not-a-key')).status, 404);
+    await t.closeAnyOpenShift();
+    await t.dispose();
+  });
+
+  testWidgets('G4.9 customer sale: the receipt prints the points balance after the sale (from the server)', (tester) async {
+    final t = await till(cashierEmail, cashierPin);
+    final settings = (await t.repo.getPosSettings(storeId))!;
+    await t.closeAnyOpenShift();
+    final session = await t.openShift();
+    try {
+      final cust = (await t.repo.searchPosCustomers(storeId, '03004445555'))!.items.firstWhere((c) => c.phone == '03004445555');
+      final sold = await t.repo.createSale(storeId: storeId, sessionId: session.id, registerId: registerId, employeeId: t.employee!.id, items: [await t.line('DEV-REFILL', 4)], paymentMethod: 'card', status: 'completed', customerId: cust.id);
+      expect(sold.success, isTrue, reason: 'sale: ${sold.message}');
+      final s = sold.sale!;
+      final profile = (await t.repo.getCustomerProfile(storeId, cust.id))!;
+      expect(s.loyaltyBalanceAfterPoints, profile.loyaltyPoints, reason: 'the stored balance is the ledger balance after this sale');
+      final r = ReceiptData.fromSale(s, settings, asciiSafeMoney: true);
+      expect([r.pointsBalance, r.pointsEarned], [profile.loyaltyPoints, null]);
+      final text = String.fromCharCodes(await ReceiptEscPosBuilder.build(data: r, paperSize: PaperSize.mm80));
+      expect(text, contains('Points balance'));
+      // reprinted later from the sale's detail: the same balance, and the QR from the sale's client key (no token link needed)
+      final again = ReceiptData.fromSale((await t.repo.getSaleById(s.id))!, settings, asciiSafeMoney: true);
+      expect(again.pointsBalance, profile.loyaltyPoints);
+      print('points balance ${r.pointsBalance} (earned ${s.loyalty?.earnedPoints}); reprint QR ${again.qrPayload}');
+    } finally {
+      await t.closeAnyOpenShift();
+    }
+    await t.dispose();
+  });
+
+  testWidgets('G4.9 documents screen: the first print of a tax invoice is the ORIGINAL; again → REPRINT #1', (tester) async {
+    final t = await till(managerEmail, managerPin);
+    await t.closeAnyOpenShift();
+    final session = await t.openShift();
+    try {
+      final sold = await t.repo.createSale(storeId: storeId, sessionId: session.id, registerId: registerId, employeeId: t.employee!.id, items: [await t.line('DEV-REFILL', 1)], paymentMethod: 'card', status: 'completed');
+      expect(sold.success, isTrue, reason: 'sale: ${sold.message}');
+      final printer = _Printer();
+      late List<DocLine> Function(int) built;
+      when(() => printer.hasSavedPrinter).thenReturn(true);
+      when(() => printer.printDocument(any())).thenAnswer((i) async {
+        built = i.positionalArguments.first as List<DocLine> Function(int);
+        return null;
+      });
+      final c = Get.put(PosDocumentsController(repository: t.repo, saleId: sold.sale!.id, printer: printer), tag: 'docs');
+      await c.load();
+      expect(c.sale.value?.invoice, isNotNull, reason: 'the sale has a tax invoice');
+      expect(c.isPrinted('invoice', sold.sale!.id), isFalse);
+      await c.printInvoice();
+      expect(c.printOk.value, isTrue, reason: '${c.printNotice.value}');
+      final first = TaxDocumentEscPos.render(built(48), 48);
+      expect([first.contains('ORIGINAL'), first.contains('REPRINT')], [true, false]);
+      await c.printInvoice();
+      expect(TaxDocumentEscPos.render(built(48), 48), contains('REPRINT #1'));
+      // the server agrees, from any screen
+      await c.load();
+      expect([c.documents.value!.invoicePrinted, c.documents.value!.invoiceJson!['reprintCount']], [true, 1]);
+    } finally {
+      await t.closeAnyOpenShift();
+    }
+    await t.dispose();
+  });
+
+  testWidgets('G4.9 costs hidden: no itemUnitCostMinor / shippingCostMinor / taxCostMinor — nor the PO amounts they feed — reach a manager', (tester) async {
+    final t = await till(managerEmail, managerPin);
+    const traced = {'itemUnitCostMinor', 'shippingCostMinor', 'taxCostMinor', 'shippingCost', 'taxCost', 'unitCostMinor', 'shippingMinor', 'taxMinor', 'subtotalMinor', 'totalMinor'};
+    List<String> found(dynamic v, [String at = r'$']) {
+      final out = <String>[];
+      if (v is List) {
+        for (var i = 0; i < v.length; i++) {
+          out.addAll(found(v[i], '$at[$i]'));
+        }
+      } else if (v is Map) {
+        for (final e in v.entries) {
+          if (traced.contains('${e.key}')) out.add('$at.${e.key}');
+          out.addAll(found(e.value, '$at.${e.key}'));
+        }
+      }
+      return out;
+    }
+
+    final orders = ((await owner.get('/api/pos/supply/orders/$storeId')).data as Map)['data'];
+    final list = (orders is Map ? orders['orders'] ?? orders['items'] : orders) as List;
+    expect(list, isNotEmpty, reason: 'the dev stack has purchase orders (G4 flow: the draft PO)');
+    final poId = '${(list.first as Map)['id'] ?? (list.first as Map)['_id']}';
+    final ownerPo = ((await owner.get('/api/pos/supply/orders/$storeId/$poId')).data as Map)['data'];
+    expect(found(ownerPo), isNotEmpty, reason: 'the owner sees the PO amounts');
+    await setSecurity(t, {'hideCostsFromManagers': true});
+    try {
+      for (final path in ['/api/pos/supply/orders/$storeId', '/api/pos/supply/orders/$storeId/$poId', '/api/pos/supply/receipts/$storeId', '/api/pos/supply/payables/$storeId']) {
+        final body = await raw(path);
+        expect(found(body['data']), isEmpty, reason: '$path still carries a traced cost field');
+        expect(costKeys(body['data']), isEmpty, reason: path);
+      }
+    } finally {
+      await setSecurity(t, {'hideCostsFromManagers': false});
+    }
     await t.dispose();
   });
 }

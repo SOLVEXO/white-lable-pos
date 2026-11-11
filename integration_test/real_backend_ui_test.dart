@@ -61,6 +61,11 @@ void main() {
     }, what: 'a register to be selected');
     await tester.enterText(find.byKey(const Key('setupName')), 'UI e2e iPhone');
     await tester.tap(find.byKey(const Key('setupConfirm')));
+    // G2.7: after setup the permissions explainer comes first (skippable) — Continue goes on to the PIN login
+    await pumpUntil(tester, () => Get.currentRoute == Routes.posPermissions && find.byKey(const Key('permContinue')).evaluate().isNotEmpty, what: 'the permissions explainer');
+    await tester.ensureVisible(find.byKey(const Key('permContinue')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('permContinue')));
     await pumpUntil(tester, () => Get.currentRoute == Routes.posPinLogin, what: 'the PIN login screen');
     expect(AppPreferences.cachedDeviceMode, isTrue);
     final reg = await AppPreferences.getDeviceRegistration();
