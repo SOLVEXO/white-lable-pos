@@ -211,12 +211,30 @@ class AppPreferences {
 
   /// Clears everything. The offline queue's encryption key is KEPT unless [wipeQueueKey] — wiping it would turn every
   /// unsynced sale on the device into unreadable ciphertext. Only a device reset with an EMPTY queue passes true.
-  static Future<void> clearPreference({bool wipeQueueKey = false}) async {
+  static Future<void> clearPreference({bool wipeQueueKey = false}) {
+    // G5.1: one clear at a time — several requests answered 401 at once each trigger a forced logout, and two interleaved clears raced on the
+    // keychain (both wrote the queue key back: "already exists", -25299, thrown out of sign-out). Found by the simulator flows.
+    final run = _clearing.then((_) => _clearPreference(wipeQueueKey: wipeQueueKey));
+    _clearing = run.catchError((_) {});
+    return run;
+  }
+
+  static Future<void> _clearing = Future<void>.value();
+
+  static Future<void> _clearPreference({bool wipeQueueKey = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final queueKey = wipeQueueKey ? null : await _secureStorage.read(key: AesGcmQueueCipher.storageKey);
     await prefs.clear();
     await _secureStorage.deleteAll();
-    if (queueKey != null) await _secureStorage.write(key: AesGcmQueueCipher.storageKey, value: queueKey);
+    // G5.1: on iOS `deleteAll` can leave an item behind (found on the simulator: the write-back then failed with "already exists", -25299, and
+    // threw out of sign-out). Put the queue key back only if it is not already there, and replace a leftover instead of failing.
+    if (queueKey != null) {
+      final left = await _secureStorage.read(key: AesGcmQueueCipher.storageKey);
+      if (left != queueKey) {
+        if (left != null) await _secureStorage.delete(key: AesGcmQueueCipher.storageKey);
+        await _secureStorage.write(key: AesGcmQueueCipher.storageKey, value: queueKey);
+      }
+    }
     _cachedToken = null;
     _cachedRole = null;
     _cachedHasPosSession = false;

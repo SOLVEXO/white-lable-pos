@@ -72,7 +72,7 @@ void main() {
     final c = qr(t, session.id, key);
     await eventually(() async => c.phase.value == QrPhase.waiting, reason: 'QR shown');
     final created = await intentOf(c.intent.value!.id);
-    expect(created, containsPair('status', anyOf('created', 'presented')));
+    expect(created, containsPair('status', anyOf('created', 'presented', 'pending'))); // 'pending' (provider acknowledged) is a waiting state too
     expect(created['amountMinor'], 1100);
     expect(created['currency'], 'USD');
 
