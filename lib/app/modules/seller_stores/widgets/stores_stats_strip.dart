@@ -4,6 +4,7 @@ import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:solvexo_pos/utils/dimens.dart';
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:get/get.dart';
 
 class StoresStatsStrip extends StatelessWidget {
@@ -32,7 +33,7 @@ class StoresStatsStrip extends StatelessWidget {
               ),
               _VertLine(),
               _StatCell(
-                value: '\$${_fmtRevenue(controller.totalRevenue)}',
+                value: '${Money.symbol()}${_fmtRevenue(controller.totalRevenue)}', // the store's currency symbol
                 label: 'Revenue',
               ),
             ],

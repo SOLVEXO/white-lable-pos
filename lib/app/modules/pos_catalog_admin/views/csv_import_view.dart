@@ -69,7 +69,8 @@ class _CsvImportViewState extends State<CsvImportView> with CatOwnedController<C
             decoration: catField('CSV text', hint: 'Paste the CSV here, header row first'),
             onChanged: c.setText,
           ),
-          if (c.fileName.value != null) CatHint('From ${c.fileName.value}'),
+          if (c.fileName.value != null) CatHint('From ${c.fileName.value}${c.fileRows.value == null ? '' : ' · ${c.fileRows.value} row${c.fileRows.value == 1 ? '' : 's'}'}'),
+          const CatHint('A .csv file up to 2 MB, or paste the text.'),
           const SizedBox(height: Space.s2),
           Row(
             children: [

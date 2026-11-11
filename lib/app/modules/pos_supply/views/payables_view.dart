@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/costs_hidden_note.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
@@ -72,7 +73,14 @@ class PayablesView extends StatelessWidget {
             key: const Key('payablesList'),
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s8),
-            children: [
+            children: data.costsHidden
+                ? [
+                    // G4.8: amounts owed for stock are cost — the owner hides them from managers (names only, never zeros)
+                    const CostsHiddenNote(what: 'Amounts owed to suppliers'),
+                    const InvSectionTitle('Suppliers'),
+                    for (final s in data.suppliers) ListTile(key: Key('payableName_${s.supplierId}'), contentPadding: EdgeInsets.zero, title: Text(s.supplierName)),
+                  ]
+                : [
               AppCard(
                 key: const Key('payablesTotals'),
                 radius: Radii.rMd,

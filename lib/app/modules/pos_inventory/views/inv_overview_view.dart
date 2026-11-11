@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/costs_hidden_note.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_hub_widgets.dart';
@@ -87,6 +88,7 @@ class InvOverviewView extends StatelessWidget {
             );
           },
         ),
+        if (o.costsHidden) const Padding(padding: EdgeInsets.only(top: Space.s2), child: CostsHiddenNote(what: 'Stock value and costs')), // G4.8
         if (o.canManage && (o.variantsWithoutCost ?? 0) > 0)
           Padding(
             padding: const EdgeInsets.only(top: Space.s2),

@@ -247,12 +247,13 @@ void main() {
       expect(File('ios/Runner.xcodeproj/project.pbxproj').readAsStringSync(), contains('PrivacyInfo.xcprivacy in Resources'));
     });
 
-    test('crash reporting present; file_picker is a dependency ONLY because KYB documents may be PDFs (approved G2.4 follow-up) and is used by exactly that code', () {
+    test('crash reporting present; file_picker is a dependency ONLY for KYB PDFs (G2.4) and CSV import (G4.8), and is used by exactly those two files', () {
       final pubspec = File('pubspec.yaml').readAsStringSync();
       expect(pubspec, contains('firebase_crashlytics'));
       expect(pubspec, contains('file_picker'));
       final users = Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart') && f.readAsStringSync().contains("package:file_picker/")).map((f) => f.path).toList();
-      expect(users, ['lib/app/modules/pos_kyb/controllers/pos_kyb_controller.dart']);
+      // G4.8: the owner approved file_picker for CSV import too — exactly this one file
+      expect(users..sort(), ['lib/app/modules/pos_catalog_admin/controllers/csv_file_picker.dart', 'lib/app/modules/pos_kyb/controllers/pos_kyb_controller.dart']);
     });
   });
 }

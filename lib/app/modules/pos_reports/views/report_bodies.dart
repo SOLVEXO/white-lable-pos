@@ -156,25 +156,32 @@ class _Profit extends StatelessWidget {
         ReportStatGrid(
           children: [
             ReportStat(label: 'Net sales (ex tax)', value: m(t.netSalesMinor), change: prev == null ? null : changePercent(t.netSalesMinor, prev.netSalesMinor)),
-            ReportStat(label: 'Cost of goods sold', value: m(t.costOfGoodsSoldMinor)),
-            ReportStat(
-              label: 'Gross margin',
-              value: m(t.grossMarginMinor),
-              valueKey: const Key('profitGross'),
-              note: t.marginPercent == null ? null : '${t.marginPercent!.toStringAsFixed(1)} % of sales with a cost',
-              change: prev == null ? null : changePercent(t.grossMarginMinor, prev.grossMarginMinor),
-            ),
+            if (!r.head.costsHidden) ...[
+              // G4.8: no cost figures at all when the owner hides them from managers (never zeros)
+              ReportStat(label: 'Cost of goods sold', value: m(t.costOfGoodsSoldMinor)),
+              ReportStat(
+                label: 'Gross margin',
+                value: m(t.grossMarginMinor),
+                valueKey: const Key('profitGross'),
+                note: t.marginPercent == null ? null : '${t.marginPercent!.toStringAsFixed(1)} % of sales with a cost',
+                change: prev == null ? null : changePercent(t.grossMarginMinor, prev.grossMarginMinor),
+              ),
+            ],
             ReportStat(label: 'Expenses', value: m(t.expensesMinor), change: prev == null ? null : changePercent(t.expensesMinor, prev.expensesMinor), goodWhenUp: false),
-            ReportStat(
-              label: 'After expenses',
-              value: m(t.afterExpensesMinor),
-              valueKey: const Key('profitAfter'),
-              change: prev == null ? null : changePercent(t.afterExpensesMinor, prev.afterExpensesMinor),
-            ),
-            ReportStat(label: 'Cost coverage', value: t.costCoveragePercent == null ? '—' : '${t.costCoveragePercent!.toStringAsFixed(1)} %', valueKey: const Key('profitCoverage')),
+            if (!r.head.costsHidden) ...[
+              ReportStat(
+                label: 'After expenses',
+                value: m(t.afterExpensesMinor),
+                valueKey: const Key('profitAfter'),
+                change: prev == null ? null : changePercent(t.afterExpensesMinor, prev.afterExpensesMinor),
+              ),
+              ReportStat(label: 'Cost coverage', value: t.costCoveragePercent == null ? '—' : '${t.costCoveragePercent!.toStringAsFixed(1)} %', valueKey: const Key('profitCoverage')),
+            ],
           ],
         ),
+
         const SizedBox(height: Space.s3),
+        if (!r.head.costsHidden) ...[
         Text('What the figures mean', style: context.type.subtitle.copyWith(color: pal.textPrimary)),
         const SizedBox(height: Space.s1),
         Text(
@@ -188,7 +195,8 @@ class _Profit extends StatelessWidget {
           style: context.type.bodySmall.copyWith(color: pal.textSecondary),
         ),
         const SizedBox(height: Space.s3),
-        if (t.partialCoverage)
+        ],
+        if (t.partialCoverage && !r.head.costsHidden)
           ReportInfo(
             key: const Key('profitCoverageNote'),
             'Only ${t.costCoveragePercent!.toStringAsFixed(1)} % of net sales have a known cost. ${m(t.costUnknownNetMinor)} of sales come from items with no cost price, so they are left out of the margin (never guessed). Add cost prices to those products to complete it.',
@@ -220,7 +228,7 @@ class _Products extends StatelessWidget {
           () => Wrap(
             spacing: Space.s2,
             children: [
-              for (final s in const [('net', 'Net sales'), ('qty', 'Quantity'), ('margin', 'Margin')])
+              for (final s in [('net', 'Net sales'), ('qty', 'Quantity'), if (!r.head.costsHidden) ('margin', 'Margin')])
                 ChoiceChip(key: Key('sort_${s.$1}'), label: Text('By ${s.$2.toLowerCase()}'), selected: c.sort.value == s.$1, onSelected: (_) => c.setSort(s.$1)),
             ],
           ),
@@ -236,7 +244,7 @@ class _Products extends StatelessWidget {
               title: x.name,
               subtitle: [if (x.sku != null) x.sku!, '${_q(x.qtySold)} sold', if (x.qtyReturned != 0) '${_q(x.qtyReturned)} returned'].join(' · '),
               value: m(x.netSalesMinor),
-              detail: x.marginPercent == null ? 'Margin unknown (no cost)' : 'Margin ${m(x.grossMarginMinor)} · ${x.marginPercent!.toStringAsFixed(1)} %',
+              detail: r.head.costsHidden ? null : (x.marginPercent == null ? 'Margin unknown (no cost)' : 'Margin ${m(x.grossMarginMinor)} · ${x.marginPercent!.toStringAsFixed(1)} %'),
               onTap: x.variantId == null ? null : () => Get.toNamed(Routes.posStockDetail, arguments: {'variantId': x.variantId, 'role': c.canManage.value ? 'manager' : null}),
             ),
         ],
@@ -270,7 +278,7 @@ class _Categories extends StatelessWidget {
       right: Column(
         children: [
           for (final x in r.categories)
-            ReportRow(title: x.name, subtitle: '${_q(x.qty)} sold', value: m(x.netSalesMinor), detail: x.marginPercent == null ? 'Margin unknown' : 'Margin ${x.marginPercent!.toStringAsFixed(1)} %'),
+            ReportRow(title: x.name, subtitle: '${_q(x.qty)} sold', value: m(x.netSalesMinor), detail: r.head.costsHidden ? null : (x.marginPercent == null ? 'Margin unknown' : 'Margin ${x.marginPercent!.toStringAsFixed(1)} %')),
         ],
       ),
     );

@@ -21,6 +21,9 @@ class InvStockListController extends GetxController {
   final RxList<InvRow> items = <InvRow>[].obs;
   /// the currency of the last page, as the server stated it (null = it did not: money is then not shown)
   final Rxn<InvCur> cur = Rxn<InvCur>();
+
+  /// G4.8: the owner hides costs from this manager
+  final RxBool costsHidden = false.obs;
   final RxBool loading = true.obs;
   final RxBool loadingMore = false.obs;
   final RxnString error = RxnString();
@@ -75,6 +78,7 @@ class InvStockListController extends GetxController {
     } else {
       items.assignAll(r.items);
       cur.value = r.cur;
+      costsHidden.value = r.costsHidden;
       total.value = r.total;
       hasMore.value = r.hasMore;
     }

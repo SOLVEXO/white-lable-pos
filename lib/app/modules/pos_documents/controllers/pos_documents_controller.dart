@@ -8,11 +8,15 @@ import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:solvexo_pos/utils/tax_document_escpos.dart';
 import 'package:solvexo_pos/utils/tax_document_pdf.dart';
+import 'package:solvexo_pos/app/data/services/reprint_gate.dart';
+import 'package:solvexo_pos/app/data/local/pos_local_caches.dart' show SettingsCacheStore;
 
 /// The tax invoice of a sale and its credit notes: load, share as PDF (print from the share sheet) and share the public link.
 class PosDocumentsController extends GetxController {
-  PosDocumentsController({PosRepository? repository, String? saleId, Future<void> Function(ShareParams)? share, ThermalPrinterService? printer})
+  PosDocumentsController({PosRepository? repository, String? saleId, Future<void> Function(ShareParams)? share, ThermalPrinterService? printer, ReprintGate? reprintGate, Future<bool> Function(String storeId)? requirePinCached})
       : _repo = repository ?? PosRepository(),
+        _gateOverride = reprintGate,
+        _requirePin = requirePinCached ?? _cachedRequirePin,
         _printerOverride = printer,
         _saleIdOverride = saleId,
         _share = share ?? ((p) async => SharePlus.instance.share(p));
@@ -20,6 +24,25 @@ class PosDocumentsController extends GetxController {
   final String? _saleIdOverride;
   final Future<void> Function(ShareParams) _share;
   final ThermalPrinterService? _printerOverride;
+  final ReprintGate? _gateOverride;
+  late final ReprintGate _gate = _gateOverride ?? ReprintGate(repository: _repo);
+  final Future<bool> Function(String storeId) _requirePin;
+
+  /// the store's "require PIN to reprint" as last cached on this till (for an offline reprint)
+  static Future<bool> _cachedRequirePin(String storeId) async => (await SettingsCacheStore.instance.load(storeId))?.settings.requirePinForReprint ?? false;
+
+  /// G4.8: record the reprint first (a manager PIN when required); null = stop (the reason is in [printNotice])
+  Future<({int? number})?> _recordReprint(String type, String id) async {
+    final s = sale.value;
+    if (s == null) return null;
+    final go = await _gate.record(storeId: s.storeId, documentType: type, documentId: id, requirePinCached: await _requirePin(s.storeId));
+    if (!go.ok) {
+      printOk.value = false;
+      printNotice.value = go.message;
+      return null;
+    }
+    return (number: go.number);
+  }
   ThermalPrinterService? get _printer => _printerOverride ?? (Get.isRegistered<ThermalPrinterService>() ? Get.find<ThermalPrinterService>() : null);
 
   /// Outcome of the last print attempt (null = nothing yet): `printed` or the printer's own message — the PDF share is always the fallback.
@@ -99,13 +122,19 @@ class PosDocumentsController extends GetxController {
     }
   }
 
-  Future<void> printInvoice() {
+  Future<void> printInvoice() async {
     final s = sale.value;
-    if (s == null) return Future.value();
-    return _print((cols) => TaxDocumentEscPos.invoice(s, cols: cols));
+    if (s == null) return;
+    final r = await _recordReprint('invoice', s.id);
+    if (r == null) return;
+    return _print((cols) => TaxDocumentEscPos.invoice(s, cols: cols, reprintNumber: r.number));
   }
 
-  Future<void> printCreditNote(PosCreditNote n) => _print((cols) => TaxDocumentEscPos.creditNote(n, cols: cols));
+  Future<void> printCreditNote(PosCreditNote n) async {
+    final r = await _recordReprint('credit_note', n.id);
+    if (r == null) return;
+    return _print((cols) => TaxDocumentEscPos.creditNote(n, cols: cols, reprintNumber: r.number));
+  }
 
   Future<void> printReturnReceipt(PosCreditNote n) => _print((cols) => TaxDocumentEscPos.returnReceipt(n, cols: cols, saleNumber: sale.value?.saleNumber));
 

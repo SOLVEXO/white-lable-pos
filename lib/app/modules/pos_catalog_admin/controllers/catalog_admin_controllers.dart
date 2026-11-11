@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/modules/pos_catalog_admin/controllers/csv_file_picker.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_catalog_admin_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
 import 'package:solvexo_pos/app/modules/pos_catalog_admin/controllers/catalog_admin_common.dart';
@@ -198,15 +201,17 @@ class NewProductController extends CatalogAdminController {
 }
 
 // ── CSV import ──────────────────────────────────────────────────────────────
-typedef CsvFilePicker = Future<({String name, String text})?> Function();
+typedef CsvFilePicker = Future<PickedCsv?> Function();
 
 /// G4.5 CSV import of products or categories (the dashboard's importer: same columns, same report). There is nothing to read first.
 class CsvImportController extends CatalogAdminController {
-  /// [filePicker]: attaching a .csv file is NOT offered by default — file_picker is approved for KYB documents only (store_release_test);
-  /// until the owner approves it for imports, the CSV text is pasted. A picker can be injected (tests, or once approved).
-  CsvImportController({super.repository, super.storeId, CsvFilePicker? filePicker}) : _picker = filePicker;
-  final CsvFilePicker? _picker;
-  bool get canPickFile => _picker != null;
+  /// G4.8: a .csv file (owner-approved use of file_picker, in csv_file_picker.dart only) or pasted text — both at most 2 MB.
+  CsvImportController({super.repository, super.storeId, CsvFilePicker? filePicker}) : _picker = filePicker ?? pickCsvFile;
+  final CsvFilePicker _picker;
+  bool get canPickFile => true;
+
+  /// data rows of the picked file (counted off the UI thread)
+  final RxnInt fileRows = RxnInt();
 
   final RxString kind = 'products'.obs;
   final RxString csv = ''.obs;
@@ -232,17 +237,23 @@ class CsvImportController extends CatalogAdminController {
   void setText(String v) {
     csv.value = v;
     fileName.value = null;
+    fileRows.value = null;
   }
 
   Future<void> pickFile() async {
     clearMessages();
     try {
-      final f = await _picker?.call();
+      final f = await _picker();
       if (f == null) return;
       csv.value = f.text;
       fileName.value = f.name;
+      fileRows.value = f.rows;
       revision.value++;
       report.value = null;
+    } on CsvFileTooLarge catch (e) {
+      saveError.value = 'That file is ${(e.bytes / (1024 * 1024)).toStringAsFixed(1)} MB; the limit is 2 MB. Split it into smaller files, or paste part of it.';
+    } on CsvFileNotCsv {
+      saveError.value = 'Choose a .csv file (save the sheet as CSV first).';
     } catch (_) {
       saveError.value = 'Could not read that file. Paste the CSV text instead.';
     }
@@ -250,6 +261,11 @@ class CsvImportController extends CatalogAdminController {
 
   Future<bool> submit() async {
     report.value = null;
+    if (utf8.encode(csv.value).length > csvMaxBytes) {
+      clearMessages();
+      saveError.value = 'The CSV is larger than 2 MB. Split it into smaller imports.';
+      return false;
+    }
     final r = await write('Importing needs an internet connection.', (sid) => repo.importCatalogCsv(sid, kind: kind.value, csv: csv.value));
     if (r.ok && r.data != null) report.value = r.data;
     return r.ok;

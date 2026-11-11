@@ -39,6 +39,13 @@ class ReceiptRefundRow {
 /// Everything a receipt shows, computed ONCE from the sale + store settings — the PDF, the thermal (ESC/POS)
 /// print and the shared text are all rendered from this one object, so they can never disagree. All amounts are
 /// already formatted in the SALE's own currency and decimals (JPY has no cents, KWD has three).
+/// G4.8: what a Code 128 receipt barcode can carry — printable ASCII only, at most 30 characters (null when nothing is left).
+String? receiptBarcode(String number) {
+  final s = number.replaceAll(RegExp(r'[^\x20-\x7E]'), '').trim();
+  if (s.isEmpty) return null;
+  return s.length > 30 ? s.substring(0, 30) : s;
+}
+
 /// G4.4: the receipt's closing text — the owner's promotion line (receipt designer) above the footer; null when there is neither.
 String? receiptFooterText(PosSettingsModel? settings, String? Function(String?) clean) {
   final parts = [clean(settings?.receiptOptions.promoText), clean(settings?.receiptFooter)].whereType<String>();
@@ -72,6 +79,17 @@ class ReceiptData {
 
   /// Printed on every reprint ("COPY") so a copy is never mistaken for the original.
   final bool isCopy;
+
+  /// G4.8: the server's reprint number — printed "REPRINT #n" instead of "COPY" (null = not recorded, e.g. offline)
+  final int? reprintNumber;
+
+  /// G4.8 receipt designer: the QR (the public digital-receipt link, when the till has it), the receipt-number barcode, the points of this sale
+  final String? qrPayload;
+
+  /// the designer's QR switch (the link itself may arrive later: the success screen loads it after the sale)
+  final bool qrWanted;
+  final String? barcodeData;
+  final int? pointsEarned, pointsRedeemed;
   final String? footer;
 
   /// Offline sales (Q7): the receipt of a sale that is still only on this device carries a PROVISIONAL number
@@ -105,6 +123,12 @@ class ReceiptData {
     this.totalRefunded,
     this.banner,
     this.isCopy = true,
+    this.reprintNumber,
+    this.qrPayload,
+    this.qrWanted = false,
+    this.barcodeData,
+    this.pointsEarned,
+    this.pointsRedeemed,
     this.footer,
     this.offlineNote,
     this.offlineRef,
@@ -114,7 +138,7 @@ class ReceiptData {
   /// The note printed on a provisional (not yet synced) receipt.
   static const offlinePendingNote = 'OFFLINE - PENDING SYNC';
 
-  ReceiptData copyWith({String? receiptNumber, bool? isCopy, String? offlineNote, bool clearOfflineNote = false, String? offlineRef}) => ReceiptData(
+  ReceiptData copyWith({String? receiptNumber, bool? isCopy, String? offlineNote, bool clearOfflineNote = false, String? offlineRef, int? reprintNumber, String? qrPayload}) => ReceiptData(
         businessName: businessName,
         header: header,
         address: address,
@@ -136,6 +160,12 @@ class ReceiptData {
         totalRefunded: totalRefunded,
         banner: banner,
         isCopy: isCopy ?? this.isCopy,
+        reprintNumber: reprintNumber ?? this.reprintNumber,
+        qrPayload: qrPayload ?? this.qrPayload,
+        qrWanted: qrWanted,
+        barcodeData: barcodeData,
+        pointsEarned: pointsEarned,
+        pointsRedeemed: pointsRedeemed,
         footer: footer,
         offlineNote: clearOfflineNote ? null : (offlineNote ?? this.offlineNote),
         offlineRef: offlineRef ?? this.offlineRef,
@@ -164,6 +194,12 @@ class ReceiptData {
         if (totalRefunded != null) 'totalRefunded': totalRefunded,
         if (banner != null) 'banner': banner,
         'isCopy': isCopy,
+        if (reprintNumber != null) 'reprintNumber': reprintNumber,
+        if (qrPayload != null) 'qrPayload': qrPayload,
+        if (qrWanted) 'qrWanted': true,
+        if (barcodeData != null) 'barcodeData': barcodeData,
+        if (pointsEarned != null) 'pointsEarned': pointsEarned,
+        if (pointsRedeemed != null) 'pointsRedeemed': pointsRedeemed,
         if (footer != null) 'footer': footer,
         if (offlineNote != null) 'offlineNote': offlineNote,
         if (offlineRef != null) 'offlineRef': offlineRef,
@@ -191,6 +227,12 @@ class ReceiptData {
         totalRefunded: j['totalRefunded'] as String?,
         banner: j['banner'] as String?,
         isCopy: j['isCopy'] as bool? ?? true,
+        reprintNumber: (j['reprintNumber'] as num?)?.toInt(),
+        qrPayload: j['qrPayload'] as String?,
+        qrWanted: j['qrWanted'] == true,
+        barcodeData: j['barcodeData'] as String?,
+        pointsEarned: (j['pointsEarned'] as num?)?.toInt(),
+        pointsRedeemed: (j['pointsRedeemed'] as num?)?.toInt(),
         footer: j['footer'] as String?,
         offlineNote: j['offlineNote'] as String?,
         offlineRef: j['offlineRef'] as String?,
@@ -209,6 +251,7 @@ class ReceiptData {
     bool isCopy = true,
     bool asciiSafeMoney = false,
     String? offlineRef,
+    String? receiptUrl, // G4.8: the public digital-receipt link — printed as a QR when the designer's switch is on
   }) {
     final code = sale.currency;
     final exp = sale.currencyExponent;
@@ -293,6 +336,12 @@ class ReceiptData {
       footer: receiptFooterText(settings, clean),
       offlineRef: offlineRef,
       saleId: sale.id.isEmpty ? null : sale.id,
+      // G4.8 receipt designer switches (defaults: QR on, barcode off, points on)
+      qrPayload: (settings?.receiptOptions.showQr ?? true) && (receiptUrl ?? '').isNotEmpty ? receiptUrl : null,
+      qrWanted: settings?.receiptOptions.showQr ?? true,
+      barcodeData: (settings?.receiptOptions.showBarcode ?? false) ? receiptBarcode(sale.saleNumber.isNotEmpty ? sale.saleNumber : sale.id) : null,
+      pointsEarned: (settings?.receiptOptions.showLoyaltyBalance ?? true) && (sale.loyalty?.earnedPoints ?? 0) > 0 ? sale.loyalty!.earnedPoints : null,
+      pointsRedeemed: (settings?.receiptOptions.showLoyaltyBalance ?? true) && (sale.loyalty?.redeemedPoints ?? 0) > 0 ? sale.loyalty!.redeemedPoints : null,
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/costs_hidden_note.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/views/inv_widgets.dart';
@@ -76,12 +77,13 @@ class _PulseBody extends StatelessWidget {
           style: t.bodySmall.copyWith(color: pal.textSecondary),
         ),
         const SizedBox(height: Space.s3),
+        if (p.head.costsHidden) const CostsHiddenNote(what: 'Margins'),
         ReportStatGrid(
           children: [
             stat('Net sales', 'netSalesMinor', m(a.netSalesMinor), m(b.netSalesMinor)),
             stat('Transactions', 'transactions', '${a.transactions}', '${b.transactions}'),
             stat('Average basket', 'averageBasketMinor', m(a.averageBasketMinor), m(b.averageBasketMinor)),
-            stat('Gross margin', 'grossMarginMinor', m(a.grossMarginMinor), m(b.grossMarginMinor)),
+            if (!p.head.costsHidden) stat('Gross margin', 'grossMarginMinor', m(a.grossMarginMinor), m(b.grossMarginMinor)), // G4.8
             stat('Cash', 'cashMinor', m(a.cashMinor), m(b.cashMinor)),
             stat('Card', 'cardMinor', m(a.cardMinor), m(b.cardMinor)),
             stat('Returns', 'returnsMinor', m(a.returnsMinor), m(b.returnsMinor), goodWhenUp: false),

@@ -102,6 +102,21 @@ void main() {
       expect([for (final l in q.lines) (l.price, l.priced)], [(6.8, true), (4.0, true), (7.5, false)]);
     });
 
+    test('G4.8: in force by the server\'s UTC boundaries (the store\'s midnight), whatever the device zone; the offline copy keeps them', () {
+      // a Karachi store's 12 Nov starts at 2026-11-11T19:00Z — a device in UTC (or anywhere) must switch at that instant, not at its own midnight
+      final b = PriceBook.fromJson({'id': 'k', 'name': 'From 12 Nov', 'validFromUtc': '2026-11-11T19:00:00.000Z', 'validToUtc': '2026-11-15T19:00:00.000Z', 'validFromDay': '2026-11-12', 'timeZone': 'Asia/Karachi'});
+      expect(b.inForceAt(DateTime.utc(2026, 11, 11, 18, 59, 59)), isFalse);
+      expect(b.inForceAt(DateTime.utc(2026, 11, 11, 19)), isTrue, reason: 'the store\'s midnight, although the device\'s date is still 11 Nov');
+      expect(b.inForceAt(DateTime.utc(2026, 11, 11, 19).toLocal()), isTrue, reason: 'a local DateTime of the same instant decides the same');
+      expect(b.inForceAt(DateTime.utc(2026, 11, 15, 19)), isFalse, reason: 'validToUtc is exclusive');
+      expect(b.scheduledAt(DateTime.utc(2026, 11, 11, 12)), isTrue);
+      final cached = PriceBooks.fromJson(PriceBooks(const CatCur('PKR', 2), [b]).toJson()).books.single;
+      expect([cached.validFromUtc, cached.validToUtc, cached.validFromDay], [b.validFromUtc, b.validToUtc, '2026-11-12']);
+      expect(cached.inForceAt(DateTime.utc(2026, 11, 11, 19)), isTrue);
+      // a book saved before G4.8 (instants only) still works
+      expect(PriceBook.fromJson({'id': 'o', 'name': 'old', 'startsAt': '2026-11-11T19:00:00.000Z'}).inForceAt(DateTime.utc(2026, 11, 11, 19)), isTrue);
+    });
+
     test('a price book is offered only in its window', () {
       final b = _books().books;
       expect(b.first.inForceAt(DateTime(2026, 11, 10)), isTrue);

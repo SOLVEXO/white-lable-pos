@@ -32,6 +32,10 @@ class PosSettingsModel {
   /// G4.4: what the owner's receipt designer says to print (defaults = everything, as before)
   final ReceiptOptions receiptOptions;
 
+  /// G4.8: the store's security rules this till applies (cached for offline): a manager PIN to reprint; costs hidden from managers
+  final bool requirePinForReprint;
+  final bool hideCostsFromManagers;
+
   const PosSettingsModel({
     required this.storeId,
     required this.taxRate,
@@ -54,6 +58,8 @@ class PosSettingsModel {
     this.returnApprovalAboveMinor,
     this.returnApprovalAfterDays,
     this.receiptOptions = const ReceiptOptions(),
+    this.requirePinForReprint = false,
+    this.hideCostsFromManagers = false,
   });
 
   String get taxRatePercentLabel => '${(taxRate * 100).toStringAsFixed(taxRate * 100 % 1 == 0 ? 0 : 1)}%';
@@ -80,6 +86,8 @@ class PosSettingsModel {
         returnApprovalAboveMinor: (json['returnApprovalAboveMinor'] as num?)?.toInt(),
         returnApprovalAfterDays: (json['returnApprovalAfterDays'] as num?)?.toInt(),
         receiptOptions: json['receiptOptions'] is Map ? ReceiptOptions.fromJson((json['receiptOptions'] as Map).cast<String, dynamic>()) : const ReceiptOptions(),
+        requirePinForReprint: (json['securityPrefs'] is Map && json['securityPrefs']['requirePinForReprint'] == true) || json['requirePinForReprint'] == true,
+        hideCostsFromManagers: (json['securityPrefs'] is Map && json['securityPrefs']['hideCostsFromManagers'] == true) || json['hideCostsFromManagers'] == true,
       );
 
   /// The same settings with the pricing fields the server just told us about (a quote answered with a newer tax rate).
@@ -90,6 +98,8 @@ class PosSettingsModel {
         taxNtn: taxNtn, taxStrn: taxStrn, taxLegalName: taxLegalName, taxRegisteredAddress: taxRegisteredAddress, defaultTaxCategory: defaultTaxCategory,
         cashierReturnsEnabled: cashierReturnsEnabled, returnApprovalAboveMinor: returnApprovalAboveMinor, returnApprovalAfterDays: returnApprovalAfterDays,
         receiptOptions: receiptOptions,
+        requirePinForReprint: requirePinForReprint,
+        hideCostsFromManagers: hideCostsFromManagers,
       );
 
   /// For the on-device settings cache (round-trips through [fromJson]).
@@ -115,6 +125,8 @@ class PosSettingsModel {
         'returnApprovalAboveMinor': returnApprovalAboveMinor,
         'returnApprovalAfterDays': returnApprovalAfterDays,
         'receiptOptions': receiptOptions.toJson(),
+        'requirePinForReprint': requirePinForReprint,
+        'hideCostsFromManagers': hideCostsFromManagers,
       };
 
   Map<String, dynamic> toUpdateJson({

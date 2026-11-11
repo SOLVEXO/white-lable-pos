@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/costs_hidden_note.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
@@ -126,6 +127,7 @@ class PoDetailView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s8),
       children: [
+        if (c.detail.value?.costsHidden ?? false) const CostsHiddenNote(what: 'Order costs and totals'), // G4.8
         Row(
           children: [
             Expanded(

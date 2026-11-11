@@ -105,10 +105,12 @@ void main() {
       repo = _Repo();
       when(() => repo.getSaleById(any())).thenAnswer((_) async => sale);
       when(() => repo.getSaleDocuments(any())).thenAnswer((_) async => PosSaleDocuments(saleNumber: 'POS-00007', status: 'completed', creditNotes: [cn]));
+      // G4.8: every print here is a reprint — recorded first (no number back = the lines stay exactly the document's)
+      when(() => repo.recordReprint(any(), documentType: any(named: 'documentType'), documentId: any(named: 'documentId'), approverToken: any(named: 'approverToken'))).thenAnswer((_) async => (success: true, code: null, message: null, reprintNumber: null));
     });
 
     Future<PosDocumentsController> make() async {
-      final c = PosDocumentsController(repository: repo, saleId: 'sale-1', printer: printer);
+      final c = PosDocumentsController(repository: repo, saleId: 'sale-1', printer: printer, requirePinCached: (_) async => false);
       Get.put(c);
       await c.load();
       return c;

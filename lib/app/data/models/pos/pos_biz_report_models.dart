@@ -31,15 +31,18 @@ DateTime? parseDayKey(String? k) {
 
 /// What every report response carries.
 class ReportHead {
-  const ReportHead({this.cur, this.timeZone, required this.from, required this.to, this.days = 1});
+  const ReportHead({this.cur, this.timeZone, required this.from, required this.to, this.days = 1, this.costsHidden = false});
   final InvCur? cur;
+
+  /// G4.8: the owner hides costs from managers — margin, COGS and profit are not sent; the report says so instead of zeros
+  final bool costsHidden;
   final String? timeZone;
   final String from, to;
   final int days;
 
   factory ReportHead.fromJson(Map<String, dynamic> j) {
     final p = _map(j['period']);
-    return ReportHead(cur: InvCur.fromJson(j), timeZone: _str(j['timeZone']), from: '${p['from'] ?? ''}', to: '${p['to'] ?? ''}', days: _intN(p['days']) ?? 1);
+    return ReportHead(cur: InvCur.fromJson(j), timeZone: _str(j['timeZone']), from: '${p['from'] ?? ''}', to: '${p['to'] ?? ''}', days: _intN(p['days']) ?? 1, costsHidden: j['costsHidden'] == true);
   }
 
   String money(int minor) => cur == null ? '—' : cur!.format(minor);

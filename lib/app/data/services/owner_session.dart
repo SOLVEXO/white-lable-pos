@@ -61,6 +61,8 @@ class OwnerRoutes {
     // G4.0 / G4.2 / G4.4: the owner's own settings (time zone, roles & permissions, store settings). With an owner session the owner's JWT goes
     // (reads too, so the screens know the owner may edit); without one the device token goes and a manager reads them (the server decides).
     if (p.startsWith('/pos/permissions/') || p.startsWith('/pos/store/settings/') || p.startsWith('/pos/store/time-zone/')) return true;
+    // G4.8: the manager-PIN reads (legacy reports, activity log) — the owner's session when it is live (an owner screen while a cashier is signed in)
+    if (p == '/pos/reports/daily' || p == '/pos/reports/daily/export' || p == '/pos/reports/range' || p.startsWith('/pos/reports/register/') || p.startsWith('/pos/reports/employee/') || p.startsWith('/pos/audit-logs/')) return true;
     if (p.startsWith('/inventory/') || p.startsWith('/activity-log/') || p.startsWith('/store/') || p.startsWith('/products/')) return true;
     return false;
   }

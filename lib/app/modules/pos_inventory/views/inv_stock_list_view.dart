@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/costs_hidden_note.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/modules/pos_stock_ops/views/draft_po_sheet.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
@@ -46,6 +47,8 @@ class InvStockListView extends StatelessWidget {
                 ),
               ),
             ),
+          // G4.8: the owner hides costs from managers — say so above the list (the rows simply carry no cost)
+          Obx(() => c.costsHidden.value ? const Padding(padding: EdgeInsets.symmetric(horizontal: Space.s4), child: CostsHiddenNote(what: 'Costs and stock value')) : const SizedBox.shrink()),
           Expanded(
             child: Obx(() {
               if (c.loading.value && c.items.isEmpty) return const Center(child: CircularProgressIndicator(key: Key('invLoading')));

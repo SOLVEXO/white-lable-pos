@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/costs_hidden_note.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/controllers/inv_detail_controller.dart';
@@ -83,6 +84,7 @@ class InvDetailView extends StatelessWidget {
               if (r.reorderPoint != null) _kv(context, 'Reorder point', '${r.reorderPoint}'),
               if (r.trackLots) _kv(context, 'Expired units', '${r.expiredUnits}', key: const Key('invDetailExpired')),
               if (r.trackLots && r.nextExpiryAt != null) _kv(context, 'Next expiry', invDate(r.nextExpiryAt), key: const Key('invDetailNextExpiry')),
+              if (d.costsHidden) const CostsHiddenNote(what: 'Cost and stock value'), // G4.8
               if (r.costMinor != null && d.cur != null) _kv(context, 'Cost (average)', invMoney(r.costMinor!, d.cur!), key: const Key('invDetailCost')),
               if (r.valueMinor != null && d.cur != null) _kv(context, 'Stock value', invMoney(r.valueMinor!, d.cur!), key: const Key('invDetailValue')),
               const SizedBox(height: Space.s3),

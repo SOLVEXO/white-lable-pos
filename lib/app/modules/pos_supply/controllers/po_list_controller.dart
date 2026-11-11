@@ -20,6 +20,9 @@ class PoListController extends GetxController {
 
   final RxList<PurchaseOrder> orders = <PurchaseOrder>[].obs;
   final Rxn<InvCur> cur = Rxn<InvCur>();
+
+  /// G4.8: the owner hides costs from this manager (order amounts are not sent)
+  final RxBool costsHidden = false.obs;
   final RxBool loading = true.obs;
   final RxnString error = RxnString();
   final RxString status = 'all'.obs;
@@ -70,6 +73,7 @@ class PoListController extends GetxController {
     if (r != null) {
       orders.assignAll(r.orders);
       cur.value = r.cur;
+      costsHidden.value = r.costsHidden;
       asOf.value = null;
       if (status.value == 'all' && supplierId == null) await _cache.save(sid, r);
     } else if (!supplyOnline() || _repo.lastErrorCode == null) {

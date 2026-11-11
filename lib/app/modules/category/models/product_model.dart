@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/modules/category/models/category_model.dart';
 import 'package:get/get.dart';
 
@@ -157,7 +158,7 @@ class ActiveCampaign {
       return '${discountValue!.toStringAsFixed(0)}% OFF';
     }
     if (discountType == 'fixed') {
-      return '\$${discountValue!.toStringAsFixed(0)} OFF';
+      return '${Money.format(discountValue!.roundToDouble())} OFF'; // the store's currency, never a fixed symbol
     }
     return 'SALE';
   }

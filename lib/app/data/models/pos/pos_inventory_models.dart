@@ -61,8 +61,11 @@ class InvOverview {
     this.stockValueMinor,
     this.variantsWithoutCost,
     this.cur,
+    this.costsHidden = false,
   });
 
+  /// G4.8: the owner hides costs from managers — the stock value is not sent; the screen says so instead of showing nothing
+  final bool costsHidden;
   final String role;
   final int skuCount, lowStockCount, outOfStockCount, expiredLots, expiringIn7Days, expiringIn30Days;
   final String? openCountId;
@@ -88,6 +91,7 @@ class InvOverview {
       stockValueMinor: _int(j['stockValueMinor']),
       variantsWithoutCost: _int(j['variantsWithoutCost']),
       cur: InvCur.fromJson(j),
+      costsHidden: j['costsHidden'] == true,
     );
   }
 }
@@ -159,8 +163,11 @@ class InvRow {
 }
 
 class InvPage<T> {
-  const InvPage({required this.items, required this.total, required this.page, required this.hasMore, this.cur});
+  const InvPage({required this.items, required this.total, required this.page, required this.hasMore, this.cur, this.costsHidden = false});
   final InvCur? cur;
+
+  /// G4.8: costs hidden from this manager by the owner
+  final bool costsHidden;
   final List<T> items;
   final int total, page;
   final bool hasMore;
@@ -267,8 +274,11 @@ String invReasonLabel(String? reason) => switch (reason) {
 };
 
 class InvDetail {
-  const InvDetail({required this.row, this.locations = const [], this.lots = const [], this.recentMovements = const [], this.ledgerStartsAt, this.cur});
+  const InvDetail({required this.row, this.locations = const [], this.lots = const [], this.recentMovements = const [], this.ledgerStartsAt, this.cur, this.costsHidden = false});
   final InvRow row;
+
+  /// G4.8: costs hidden from this manager by the owner
+  final bool costsHidden;
   final List<InvLocationStock> locations;
   final List<InvLot> lots;
   final List<InvMovement> recentMovements;
@@ -282,6 +292,7 @@ class InvDetail {
     recentMovements: [for (final m in _maps(j['recentMovements'])) InvMovement.fromJson(m)],
     ledgerStartsAt: DateTime.tryParse('${j['ledgerStartsAt'] ?? ''}')?.toLocal(),
     cur: InvCur.fromJson(j),
+    costsHidden: j['costsHidden'] == true,
   );
 }
 

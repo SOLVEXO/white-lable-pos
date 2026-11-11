@@ -1577,6 +1577,7 @@ class PosRepository {
           if (registerId != null && registerId.isNotEmpty) 'registerId': registerId,
         },
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(), // G4.8: a manager-PIN route on a till (RequireManagerPin)
       );
       final data = _data(res) as Map<String, dynamic>?;
       return data != null ? PosDailyReportModel.fromJson(data) : null;
@@ -1596,6 +1597,7 @@ class PosRepository {
         ApiConstants.posReportsRange,
         queryParameters: {'storeId': storeId, 'from': from, 'to': to},
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(), // G4.8: a manager-PIN route on a till (RequireManagerPin)
       );
       final data = _data(res) as Map<String, dynamic>?;
       return data != null ? PosRangeReportModel.fromJson(data) : null;
@@ -1615,6 +1617,7 @@ class PosRepository {
         ApiConstants.posReportsRegister(registerId),
         queryParameters: {if (from != null) 'from': from, if (to != null) 'to': to},
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(), // G4.8: a manager-PIN route on a till (RequireManagerPin)
       );
       final data = _data(res) as Map<String, dynamic>?;
       return data != null ? PosRegisterReportModel.fromJson(data) : null;
@@ -1639,6 +1642,7 @@ class PosRepository {
         ApiConstants.posReportsEmployee(employeeId),
         queryParameters: {'storeId': storeId, if (from != null) 'from': from, if (to != null) 'to': to},
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(), // G4.8: a manager-PIN route on a till (RequireManagerPin)
       );
       final data = _data(res) as Map<String, dynamic>?;
       return data != null ? PosEmployeeReportModel.fromJson(data) : null;
@@ -1660,6 +1664,7 @@ class PosRepository {
         ApiConstants.posReportsDailyExport,
         queryParameters: {'storeId': storeId, if (date != null) 'date': date},
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(), // G4.8: a manager-PIN route on a till (RequireManagerPin)
         responseType: ResponseType.bytes,
       );
       return res.data as List<int>;
@@ -1739,6 +1744,7 @@ class PosRepository {
           if (to != null) 'to': to,
         },
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(), // G4.8: a manager-PIN route on a till (RequireManagerPin)
       );
       final data = _data(res) as Map<String, dynamic>?;
       if (data == null) return _emptyPage();
@@ -1784,6 +1790,7 @@ class PosRepository {
         page: (d['page'] as num?)?.toInt() ?? 1,
         hasMore: d['hasMore'] == true,
         cur: InvCur.fromJson(d),
+        costsHidden: d['costsHidden'] == true,
       );
 
   Future<InvOverview?> getInventoryOverview(String storeId) => _invGet('inventoryOverview', _inv(storeId, 'overview'), InvOverview.fromJson);
@@ -1812,6 +1819,7 @@ class PosRepository {
           page: (d['page'] as num?)?.toInt() ?? 1,
           hasMore: d['hasMore'] == true,
           cur: InvCur.fromJson(d),
+          costsHidden: d['costsHidden'] == true,
         ),
         query: {
           if (variantId != null) 'variantId': variantId,
@@ -2519,6 +2527,7 @@ class PosRepository {
         ApiConstants.posAuditLogs(storeId),
         queryParameters: {'page': page, 'limit': limit, 'employeeId': ?employeeId, 'targetType': ?targetType, 'from': ?from, 'to': ?to},
         requiresAuth: true,
+        headers: await _employeeAuthHeaders(), // G4.8: a manager-PIN route on a till (RequireManagerPin)
       );
       if (!_ok(res)) return null;
       final data = _data(res);
@@ -2609,6 +2618,15 @@ class PosRepository {
   /// G4.6: what the register's last closed shift left behind (counted, expected, variance, who) — null when it was never closed or on failure.
   Future<LastClose?> getLastClose(String storeId, String registerId) =>
       _invGet<LastClose?>('lastClose', '${ApiConstants.apiPrefix}/pos/sessions/last-close', LastClose.fromJson, query: {'storeId': storeId, 'registerId': registerId});
+
+  // ── G4.8 · reprints ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  /// Records a reprint ([documentType]: sale | invoice | credit_note). With "require PIN to reprint" a cashier's call needs [approverToken] (a manager's
+  /// PIN token) — `POS_APPROVAL_REQUIRED` otherwise. Returns the reprint number the print shows ("REPRINT #n").
+  Future<({bool success, String? code, String? message, int? reprintNumber})> recordReprint(String storeId, {required String documentType, required String documentId, String? reason, String? approverToken}) async {
+    final r = await _supplyWrite('reprint', 'POST', '${ApiConstants.apiPrefix}/pos/reprints/$storeId', {'documentType': documentType, 'documentId': documentId, 'reason': ?reason}, approverToken: approverToken);
+    final n = r.data?['reprintNumber'];
+    return (success: r.success, code: r.code, message: r.message, reprintNumber: n is num ? n.toInt() : null);
+  }
 
   // ── G4.6 · transfers, expiry + write-off, low stock → draft PO ───────────────────────────────────────────────────────────────────────────
   /// [status]: all | in_transit | partially_received | received | cancelled (newest first, 200 at most).

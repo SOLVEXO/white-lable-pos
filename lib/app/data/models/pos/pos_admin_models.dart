@@ -226,13 +226,13 @@ class ReceiptOptions {
     'showQr' => 'QR code (digital receipt)',
     'showCashierName' => 'Cashier name',
     'showCustomerName' => 'Customer name',
-    'showLoyaltyBalance' => 'Loyalty points balance',
+    'showLoyaltyBalance' => 'Loyalty points (earned / redeemed)',
     'showBarcode' => 'Receipt number barcode',
     _ => k,
   };
 
   /// switches the thermal / PDF receipt does not print yet (the setting is kept; the preview shows it)
-  static const notPrintedYet = {'showLogo', 'showQr', 'showLoyaltyBalance', 'showBarcode'};
+  static const notPrintedYet = {'showLogo'}; // G4.8: QR, barcode and points print now; the logo waits for the vector / 1024 px masters
 
   bool flag(String k) => toJson()[k] == true;
 

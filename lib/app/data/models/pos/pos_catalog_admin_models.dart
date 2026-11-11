@@ -17,6 +17,7 @@ List<Map<String, dynamic>> _maps(dynamic v) => v is List
       ]
     : const [];
 DateTime? _date(dynamic v) => v == null ? null : DateTime.tryParse('$v')?.toLocal();
+DateTime? _utc(dynamic v) => v == null ? null : DateTime.tryParse('$v')?.toUtc();
 
 /// The currency every money figure of a response is in.
 class CatCur {
@@ -131,11 +132,30 @@ class ChosenModifier {
 
 // ── price books ─────────────────────────────────────────────────────────────
 class PriceBook {
-  const PriceBook({required this.id, required this.name, this.active = true, this.startsAt, this.endsAt, this.note, this.entries = const {}, this.inForce = true});
+  const PriceBook({
+    required this.id,
+    required this.name,
+    this.active = true,
+    this.startsAt,
+    this.endsAt,
+    this.note,
+    this.entries = const {},
+    this.inForce = true,
+    this.validFromUtc,
+    this.validToUtc,
+    this.validFromDay,
+    this.validToDay,
+    this.timeZone,
+  });
   final String id, name;
   final bool active, inForce;
   final DateTime? startsAt, endsAt;
   final String? note;
+
+  /// G4.8: when the book is valid, as UTC instants the SERVER computed in the store's time zone (from = start of the first store day, inclusive;
+  /// to = end of the last store day, exclusive) and as store days ("2026-11-12") — a till in another zone switches at the store's midnight
+  final DateTime? validFromUtc, validToUtc;
+  final String? validFromDay, validToDay, timeZone;
 
   /// variantId → price in minor units
   final Map<String, int> entries;
@@ -149,6 +169,11 @@ class PriceBook {
     note: _str(j['note']),
     entries: {for (final e in _maps(j['entries'])) '${e['variantId']}': _int(e['priceMinor'])},
     inForce: j['inForce'] is bool ? j['inForce'] as bool : j['active'] != false,
+    validFromUtc: _utc(j['validFromUtc'] ?? j['startsAt']),
+    validToUtc: _utc(j['validToUtc'] ?? j['endsAt']),
+    validFromDay: _str(j['validFromDay']),
+    validToDay: _str(j['validToDay']),
+    timeZone: _str(j['timeZone']),
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -161,10 +186,22 @@ class PriceBook {
       for (final e in entries.entries) {'variantId': e.key, 'priceMinor': e.value},
     ],
     'inForce': inForce,
+    'validFromUtc': validFromUtc?.toIso8601String(),
+    'validToUtc': validToUtc?.toIso8601String(),
+    'validFromDay': validFromDay,
+    'validToDay': validToDay,
+    'timeZone': timeZone,
   };
 
-  /// in force at [at] by its own window (the server decides at the sale; this is for the picker)
-  bool inForceAt(DateTime at) => active && (startsAt == null || !startsAt!.isAfter(at)) && (endsAt == null || endsAt!.isAfter(at));
+  /// In force at the instant [at] by the server's UTC boundaries — compared in UTC, so the device's own zone never matters (also from the offline cache).
+  /// The server decides at the sale; this is for the picker.
+  bool inForceAt(DateTime at) {
+    final t = at.toUtc();
+    return active && (validFromUtc == null || !validFromUtc!.isAfter(t)) && (validToUtc == null || validToUtc!.isAfter(t));
+  }
+
+  /// not yet in force at [at] (its first store day is still ahead)
+  bool scheduledAt(DateTime at) => active && validFromUtc != null && validFromUtc!.isAfter(at.toUtc());
 }
 
 class PriceBooks {

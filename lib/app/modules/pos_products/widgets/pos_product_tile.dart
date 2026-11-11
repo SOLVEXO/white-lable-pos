@@ -10,9 +10,10 @@ import 'package:flutter/material.dart';
 
 class PosProductTile extends StatelessWidget {
   final PosProductModel product;
-  final String currencySymbol;
+  /// unused by the tile (prices are formatted with the store's currency); kept so existing callers still compile
+  final String? currencySymbol;
 
-  const PosProductTile({super.key, required this.product, this.currencySymbol = '\$'});
+  const PosProductTile({super.key, required this.product, this.currencySymbol});
 
   @override
   Widget build(BuildContext context) {

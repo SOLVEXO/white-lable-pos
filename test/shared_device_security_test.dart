@@ -109,6 +109,8 @@ void main() {
         ('POST', '/api/pos/permissions/s1/reset'),
         ('PATCH', '/api/pos/store/settings/s1'),
         ('PATCH', '/api/pos/store/time-zone/s1'),
+        ('GET', '/api/pos/reports/daily?storeId=s1'),
+        ('GET', '/api/pos/audit-logs/s1'),
       ]) {
         expect(OwnerRoutes.requiresOwner(r.$1, r.$2), isTrue, reason: '${r.$1} ${r.$2}');
       }
@@ -132,7 +134,6 @@ void main() {
         ('GET', '/api/pos/subscription/s1'),
         ('GET', '/api/pos/devices/me'),
         ('POST', '/api/pos/devices/me/sign-out'),
-        ('GET', '/api/pos/reports/daily'),
         ('GET', '/api/pos/store/sync-status/s1'),
         ('GET', '/api/pos/audit/verify/s1'),
         ('POST', '/api/pos/catalog-admin/modifiers/s1'),

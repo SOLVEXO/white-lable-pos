@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart' show dayKey, parseDayKey;
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_catalog_admin_models.dart';
@@ -12,8 +13,12 @@ import 'package:solvexo_pos/utils/money.dart';
 
 String _day(DateTime d) => DateFormat('d MMM yyyy').format(d);
 
-/// An end at midnight is "until the end of" the day before; any other time is shown as it is.
-String _endLabel(DateTime e) => e.hour == 0 && e.minute == 0 && e.second == 0 ? 'Until the end of ${_day(DateTime(e.year, e.month, e.day - 1))}' : 'Until ${DateFormat('d MMM yyyy, HH:mm').format(e)}';
+/// G4.8: a store day ("2026-11-12") as "12 Nov 2026" (no time zone conversion — it IS the store's day)
+String _storeDay(String key) => parseDayKey(key) == null ? key : _day(parseDayKey(key)!);
+
+/// the store's first / last valid day of a book (the server's; derived from the instants for a book saved before G4.8)
+String? _fromDayOf(PriceBook b) => b.validFromDay ?? (b.startsAt == null ? null : dayKey(b.startsAt!));
+String? _toDayOf(PriceBook b) => b.validToDay ?? (b.endsAt == null ? null : dayKey(b.endsAt!.subtract(const Duration(milliseconds: 1))));
 
 StatusTone _tone(BookState s) => switch (s) {
   BookState.inForce => StatusTone.success,
@@ -68,7 +73,7 @@ class _PriceBooksViewState extends State<PriceBooksView> with CatOwnedController
             Builder(
               builder: (context) {
                 final s = BookState.of(b, now);
-                final window = [if (b.startsAt != null) 'From ${_day(b.startsAt!)}', if (b.endsAt != null) _endLabel(b.endsAt!)].join(' · ');
+                final window = [if (_fromDayOf(b) != null) 'From ${_storeDay(_fromDayOf(b)!)}', if (_toDayOf(b) != null) 'Until the end of ${_storeDay(_toDayOf(b)!)}', if (b.timeZone != null && (_fromDayOf(b) != null || _toDayOf(b) != null)) '${b.timeZone} time'].join(' · ');
                 return Padding(
                   padding: const EdgeInsets.only(bottom: Space.s2),
                   child: AppCard(
@@ -124,8 +129,9 @@ class _PriceBookEditorViewState extends State<PriceBookEditorView> {
   late final TextEditingController _name = TextEditingController(text: b?.name ?? '');
   late final TextEditingController _note = TextEditingController(text: b?.note ?? '');
   late bool _active = b?.active ?? true;
-  late DateTime? _starts = b?.startsAt;
-  late DateTime? _ends = b?.endsAt;
+  /// G4.8: the first and last valid STORE days ("2026-11-12"); the server turns them into the store's midnights
+  late String? _fromDay = b == null ? null : _fromDayOf(b!);
+  late String? _toDay = b == null ? null : _toDayOf(b!);
   late final List<_EntryDraft> _entries = [for (final e in (b?.entries ?? const <String, int>{}).entries) _EntryDraft(e.key, catMajorText(e.value, c.cur.exponent))];
   final Map<String, String> _errors = {};
 
@@ -140,12 +146,12 @@ class _PriceBookEditorViewState extends State<PriceBookEditorView> {
   }
 
   Future<void> _pickDate(bool start) async {
-    final cur = start ? _starts : _ends;
+    final cur = parseDayKey((start ? _fromDay : _toDay) ?? '');
     final now = c.now();
     final d = await showDatePicker(context: context, initialDate: cur ?? now, firstDate: DateTime(now.year - 5), lastDate: DateTime(now.year + 10));
     if (d == null || !mounted) return;
-    // a start is the beginning of its day, an end the beginning of the day after (so "until 31 Dec" includes the 31st)
-    setState(() => start ? _starts = DateTime(d.year, d.month, d.day) : _ends = DateTime(d.year, d.month, d.day + 1));
+    // a store day: from its start / until its end, in the STORE's time zone (the server computes the instants)
+    setState(() => start ? _fromDay = dayKey(d) : _toDay = dayKey(d));
   }
 
   Future<void> _addEntry() async {
@@ -194,8 +200,8 @@ class _PriceBookEditorViewState extends State<PriceBookEditorView> {
     final body = <String, dynamic>{
       'name': _name.text.trim(),
       'active': _active,
-      'startsAt': _starts?.toUtc().toIso8601String(),
-      'endsAt': _ends?.toUtc().toIso8601String(),
+      'validFrom': _fromDay,
+      'validTo': _toDay,
       'note': note.isEmpty ? null : note,
       'entries': entries,
     };
@@ -203,7 +209,7 @@ class _PriceBookEditorViewState extends State<PriceBookEditorView> {
     if (ok && mounted) Get.back();
   }
 
-  Widget _dateRow(String label, DateTime? value, bool start, String shown) {
+  Widget _dateRow(String label, String? value, bool start, String shown) {
     final p = context.palette;
     return ListTile(
       key: Key(start ? 'bookStarts' : 'bookEnds'),
@@ -217,7 +223,7 @@ class _PriceBookEditorViewState extends State<PriceBookEditorView> {
               key: Key(start ? 'bookStartsClear' : 'bookEndsClear'),
               tooltip: 'Clear',
               icon: const Icon(Icons.close_rounded),
-              onPressed: () => setState(() => start ? _starts = null : _ends = null),
+              onPressed: () => setState(() => start ? _fromDay = null : _toDay = null),
             ),
       onTap: () => _pickDate(start),
     );
@@ -241,8 +247,8 @@ class _PriceBookEditorViewState extends State<PriceBookEditorView> {
             decoration: catField('Name', hint: 'e.g. Wholesale'),
           ),
           SwitchListTile.adaptive(key: const Key('bookActive'), contentPadding: EdgeInsets.zero, title: const Text('Book is on'), value: _active, onChanged: (v) => setState(() => _active = v)),
-          _dateRow('Starts', _starts, true, _starts == null ? '' : _day(_starts!)),
-          _dateRow('Ends', _ends, false, _ends == null ? '' : _endLabel(_ends!)),
+          _dateRow('Starts', _fromDay, true, _fromDay == null ? '' : 'From ${_storeDay(_fromDay!)}'),
+          _dateRow('Ends', _toDay, false, _toDay == null ? '' : 'Until the end of ${_storeDay(_toDay!)}'),
           TextField(key: const Key('bookNote'), controller: _note, maxLength: 300, decoration: catField('Note (optional)')),
           InvSectionTitle('Prices · ${c.cur.currency}'),
           if (_entries.isEmpty) const CatHint('No prices yet. Items not in the book sell at their normal price.'),

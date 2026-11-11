@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/costs_hidden_note.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/views/inv_widgets.dart';
@@ -69,6 +70,7 @@ class _ReportViewState extends State<ReportView> {
                           children: [
                             if (c.loading.value) const LinearProgressIndicator(minHeight: 2),
                             if (c.exportError.value != null) ReportInfo(c.exportError.value!, warn: true),
+                            if (r.head.costsHidden) const CostsHiddenNote(what: 'Costs, margins and profit'), // G4.8
                             ReportBody(c: c, r: r),
                           ],
                         ),

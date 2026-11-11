@@ -154,6 +154,16 @@ class StoreSettingsController extends GetxController {
     return ok;
   }
 
+  /// G4.8: a cashier's reprint needs a manager's PIN (the server enforces it at the reprint endpoint)
+  Future<bool> setRequirePinForReprint(bool on) => _save({
+    'security': {'requirePinForReprint': on},
+  }, on ? 'Reprints by a cashier now need a manager\'s PIN.' : 'Cashiers can reprint without a manager.');
+
+  /// G4.8: managers no longer see costs, margins or stock value (the server removes them from every response; the owner still sees them)
+  Future<bool> setHideCostsFromManagers(bool on) => _save({
+    'security': {'hideCostsFromManagers': on},
+  }, on ? 'Costs, margins and stock value are now hidden from managers.' : 'Managers can see costs again.');
+
   /// This device follows the store's security settings at once (every other till picks them up when it next loads them).
   Future<void> _applySecurity() async {
     final s = settings.value?.security;

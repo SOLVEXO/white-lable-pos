@@ -212,7 +212,11 @@ class ReceiptDesignerView extends StatelessWidget {
               _Switch(
                 key: Key('receiptFlag_$k'),
                 title: ReceiptOptions.flagLabel(k),
-                subtitle: ReceiptOptions.notPrintedYet.contains(k) ? 'Saved; not on printed receipts yet' : null,
+                subtitle: ReceiptOptions.notPrintedYet.contains(k)
+                    ? 'Saved; not on printed receipts yet'
+                    : k == 'showQr'
+                    ? 'The digital receipt link, when the till has it (online)'
+                    : null,
                 value: d.flag(k),
                 onChanged: edit ? (v) => c.setReceiptFlag(k, v) : null,
               ),
@@ -349,7 +353,7 @@ class ReceiptPreview extends StatelessWidget {
             line('TOTAL', '17.46'),
             line('Cash', '20.00'),
             line('Change', '2.54'),
-            if (o.showLoyaltyBalance) ...[rule(), line('Points balance', '120')],
+            if (o.showLoyaltyBalance) ...[rule(), line('Points earned', '12')],
             if (o.promoText != null) ...[rule(), center(o.promoText!)],
             if (o.showQr) const Padding(padding: EdgeInsets.only(top: 6), child: Icon(Icons.qr_code_2_rounded, key: Key('previewQr'), color: ink, size: 56)),
             if (o.showBarcode) Padding(padding: const EdgeInsets.only(top: 4), child: center('||| |||| | ||| || ||||', bold: true)),
@@ -424,6 +428,21 @@ class SecuritySettingsView extends StatelessWidget {
             subtitle: 'Locks as soon as someone switches app or the screen turns off',
             value: s.security.lockOnBackground,
             onChanged: edit ? c.setLockOnBackground : null,
+          ),
+          const InvSectionTitle('Reprints & costs'),
+          _Switch(
+            key: const Key('requirePinForReprint'),
+            title: 'Manager PIN to reprint',
+            subtitle: 'A cashier reprinting a receipt, invoice or credit note needs a manager. Every reprint is recorded and prints "REPRINT #n".',
+            value: s.security.requirePinForReprint,
+            onChanged: edit ? c.setRequirePinForReprint : null,
+          ),
+          _Switch(
+            key: const Key('hideCostsFromManagers'),
+            title: 'Hide costs from managers',
+            subtitle: 'Managers no longer see cost prices, stock value, margins or purchase amounts. Only you (the owner) still see them.',
+            value: s.security.hideCostsFromManagers,
+            onChanged: edit ? c.setHideCostsFromManagers : null,
           ),
           const InvSectionTitle('PINs & sessions'),
           Text(

@@ -64,7 +64,7 @@ class TaxDocumentEscPos {
 
   static List<DocLine> _fiscalQr(FiscalSlots f) => f.qrPayload == null ? const [] : [const DocLine.blank(), DocLine.qr(f.qrPayload!)];
 
-  static List<DocLine> invoice(PosSaleModel sale, {required int cols, FiscalSlots fiscal = const FiscalSlots(), String? storeName}) {
+  static List<DocLine> invoice(PosSaleModel sale, {required int cols, FiscalSlots fiscal = const FiscalSlots(), String? storeName, int? reprintNumber}) {
     final inv = sale.invoice;
     final exp = sale.currencyExponent;
     String m(int minor) => _money(minor, sale.currency, exp);
@@ -74,6 +74,7 @@ class TaxDocumentEscPos {
       ..._seller(cols, name: inv?.sellerName ?? storeName, address: inv?.sellerAddress, ntn: inv?.sellerNtn, strn: inv?.sellerStrn),
       const DocLine.rule(),
       DocLine('TAX INVOICE', align: PosAlign.center, bold: true),
+      if (reprintNumber != null) DocLine('REPRINT #$reprintNumber', align: PosAlign.center, bold: true), // G4.8
       DocLine(inv?.number ?? sale.saleNumber, align: PosAlign.center, bold: true),
       ..._fiscalNumber(fiscal),
       if (inv?.offlineRef != null) DocLine('Offline ref ${inv!.offlineRef}', align: PosAlign.center),
@@ -96,13 +97,14 @@ class TaxDocumentEscPos {
     ];
   }
 
-  static List<DocLine> creditNote(PosCreditNote n, {required int cols, FiscalSlots fiscal = const FiscalSlots(), String? storeName}) {
+  static List<DocLine> creditNote(PosCreditNote n, {required int cols, FiscalSlots fiscal = const FiscalSlots(), String? storeName, int? reprintNumber}) {
     String m(int minor) => _money(minor, n.currency, n.exponent);
     final when = n.createdAt == null ? '' : DateFormat('yyyy-MM-dd HH:mm').format(n.createdAt!.toLocal());
     return [
       ..._seller(cols, name: n.sellerName ?? storeName, address: n.sellerAddress, ntn: n.sellerNtn, strn: n.sellerStrn),
       const DocLine.rule(),
       DocLine('CREDIT NOTE', align: PosAlign.center, bold: true),
+      if (reprintNumber != null) DocLine('REPRINT #$reprintNumber', align: PosAlign.center, bold: true), // G4.8
       DocLine(n.number, align: PosAlign.center, bold: true),
       ..._fiscalNumber(fiscal),
       if (n.invoiceNumber != null) ..._centered('Against invoice ${n.invoiceNumber}', cols),

@@ -173,7 +173,7 @@ enum BookState {
   static BookState of(PriceBook b, DateTime now) {
     if (b.inForce) return BookState.inForce;
     if (!b.active) return BookState.off;
-    if (b.startsAt != null && b.startsAt!.isAfter(now)) return BookState.scheduled;
+    if (b.scheduledAt(now)) return BookState.scheduled; // G4.8: the store's day boundaries, in UTC
     return BookState.ended;
   }
 }

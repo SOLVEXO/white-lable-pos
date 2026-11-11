@@ -51,7 +51,7 @@ class ReceiptPdfBuilder {
           children: [
             if (data.banner != null) center('*** ${data.banner} ***', size: 13, bold: true, color: _red),
             if (data.offlineNote != null) center('*** ${data.offlineNote} ***', size: 10, bold: true, color: _red),
-            if (data.isCopy) center('COPY', size: 9, bold: true),
+            if (data.reprintNumber != null) center('REPRINT #${data.reprintNumber}', size: 9, bold: true) else if (data.isCopy) center('COPY', size: 9, bold: true),
             if (data.businessName != null) center(data.businessName!, size: 14, bold: true),
             if (data.header != null) center(data.header!),
             if (data.address != null) center(data.address!, size: 8),
@@ -85,10 +85,21 @@ class ReceiptPdfBuilder {
             for (final r in data.refunds) row(r.label, r.amount, size: 9),
             pw.SizedBox(height: 4),
             if (data.customer != null) row('Customer', data.customer!),
+            // G4.8 receipt designer: points of this sale, the digital-receipt QR, the receipt-number barcode
+            if (data.pointsEarned != null) row('Points earned', '${data.pointsEarned}', size: 9),
+            if (data.pointsRedeemed != null) row('Points redeemed', '${data.pointsRedeemed}', size: 9),
             if (data.footer != null) ...[
               pw.SizedBox(height: 10),
               pw.Divider(),
               center(data.footer!, size: 8),
+            ],
+            if (data.qrPayload != null) ...[
+              pw.SizedBox(height: 8),
+              pw.Center(child: pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: data.qrPayload!, width: 72, height: 72)),
+            ],
+            if (data.barcodeData != null) ...[
+              pw.SizedBox(height: 8),
+              pw.Center(child: pw.BarcodeWidget(barcode: pw.Barcode.code128(), data: data.barcodeData!, width: 150, height: 36, drawText: true, textStyle: const pw.TextStyle(fontSize: 7))),
             ],
           ],
         ),

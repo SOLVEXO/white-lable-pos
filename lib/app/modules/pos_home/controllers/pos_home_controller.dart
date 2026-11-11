@@ -654,7 +654,7 @@ class PosHomeController extends GetxController {
   }
 
   /// the books the picker offers (in force now by their own window; the server has the last word)
-  List<PriceBook> get bookChoices => priceBooks.where((b) => b.inForceAt(DateTime.now())).toList();
+  List<PriceBook> get bookChoices => priceBooks.where((b) => b.inForceAt(DateTime.now().toUtc())).toList(); // the server's UTC boundaries (store midnight)
 
   void setPriceBook(PriceBook? b) {
     priceBook.value = b;

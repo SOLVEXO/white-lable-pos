@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/money.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:solvexo_pos/utils/receipt_data.dart';
 
@@ -79,7 +80,11 @@ class ReceiptEscPosBuilder {
       bytes.addAll(g.reset());
       if (data.banner != null) big('*** ${data.banner} ***');
       if (data.offlineNote != null) center('*** ${data.offlineNote} ***', bold: true);
-      if (data.isCopy) center('COPY', bold: true);
+      if (data.reprintNumber != null) {
+        center('REPRINT #${data.reprintNumber}', bold: true); // G4.8: the recorded reprint
+      } else if (data.isCopy) {
+        center('COPY', bold: true);
+      }
       if (data.businessName != null) big(data.businessName!);
       if (data.header != null) center(data.header!);
       if (data.address != null) center(data.address!);
@@ -111,10 +116,21 @@ class ReceiptEscPosBuilder {
         row(r.label, r.amount);
       }
       if (data.customer != null) row('Customer', data.customer!);
+      // G4.8 receipt designer: the points of this sale, the digital-receipt QR, the receipt-number barcode
+      if (data.pointsEarned != null) row('Points earned', '${data.pointsEarned}');
+      if (data.pointsRedeemed != null) row('Points redeemed', '${data.pointsRedeemed}');
 
       if (data.footer != null) {
         bytes.addAll(g.hr());
         center(data.footer!);
+      }
+      if (data.qrPayload != null) {
+        bytes.addAll(g.emptyLines(1));
+        bytes.addAll(g.qrcode(data.qrPayload!, size: paperMm == 58 ? QRSize.size4 : QRSize.size5));
+      }
+      if (data.barcodeData != null) {
+        bytes.addAll(g.emptyLines(1));
+        bytes.addAll(g.barcode(Barcode.code128('{B${data.barcodeData!}'.split('')), height: 60, width: paperMm == 58 ? 1 : 2, align: PosAlign.center));
       }
       bytes.addAll(g.feed(2));
       bytes.addAll(g.cut());
@@ -140,10 +156,10 @@ class ReceiptEscPosBuilder {
     b.addAll(g.text('Paper: $paperMm mm ($cols columns)', styles: const PosStyles(align: PosAlign.center)));
     b.addAll(g.hr());
     b.addAll(g.text(List.generate(cols, (i) => (i + 1) % 10 == 0 ? '${((i + 1) ~/ 10) % 10}' : '.').join()));
-    for (final l in twoColumn('A very long product name that must wrap neatly onto several lines', 'JPY 12,345', cols)) {
+    for (final l in twoColumn('A very long product name that must wrap neatly onto several lines', '${Money.currency} ${Money.plain(12345)}', cols)) {
       b.addAll(g.text(l));
     }
-    for (final l in twoColumn('Total', 'USD 1,234.50', cols)) {
+    for (final l in twoColumn('Total', '${Money.currency} ${Money.plain(1234.5)}', cols)) {
       b.addAll(g.text(l, styles: const PosStyles(bold: true)));
     }
     b.addAll(g.hr());

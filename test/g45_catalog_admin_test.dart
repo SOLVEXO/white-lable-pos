@@ -1,3 +1,6 @@
+import 'package:solvexo_pos/app/modules/pos_catalog_admin/controllers/csv_file_picker.dart';
+import 'dart:typed_data';
+import 'dart:convert';
 // G4.5 products & pricing admin: the hub, modifier groups, price books (+ assign to a customer), new product (+ add / archive variant),
 // categories and CSV import. Controllers and screens over a mocked repository; phone, tablet and dark.
 import 'package:flutter/material.dart';
@@ -99,7 +102,7 @@ PriceBooks _books() => PriceBooks.fromJson({
         {'variantId': 'v1', 'priceMinor': 180},
       ],
     },
-    {'id': 'b2', 'name': 'Christmas', 'inForce': false, 'startsAt': '2026-12-20T00:00:00.000Z', 'endsAt': '2026-12-27T00:00:00.000Z'},
+    {'id': 'b2', 'name': 'Christmas', 'inForce': false, 'startsAt': '2026-12-19T19:00:00.000Z', 'endsAt': '2026-12-26T19:00:00.000Z', 'validFromUtc': '2026-12-19T19:00:00.000Z', 'validToUtc': '2026-12-26T19:00:00.000Z', 'validFromDay': '2026-12-20', 'validToDay': '2026-12-26', 'timeZone': 'Asia/Karachi'},
     {'id': 'b3', 'name': 'Summer', 'inForce': false, 'startsAt': '2026-06-01T00:00:00.000Z', 'endsAt': '2026-09-01T00:00:00.000Z'},
     {'id': 'b4', 'name': 'Staff', 'active': false, 'inForce': false},
   ],
@@ -474,7 +477,7 @@ void main() {
       final body = verify(() => repo.savePriceBook('st1', captureAny(), id: 'b1')).captured.single as Map<String, dynamic>;
       expect(body['name'], 'Wholesale');
       expect(body['note'], 'Trade customers');
-      expect(body['startsAt'], isNull);
+      expect([body['validFrom'], body.containsKey('startsAt')], [null, false], reason: 'G4.8: store days, never device-midnight instants');
       expect(body['entries'], [
         {'variantId': 'v1', 'priceMinor': 175},
         {'variantId': 'v3', 'priceMinor': 300},
@@ -490,12 +493,13 @@ void main() {
       await tapKey(t, 'book_b2');
       await tapKey(t, 'bookSaveBottom');
       var body = verify(() => repo.savePriceBook('st1', captureAny(), id: 'b2')).captured.single as Map<String, dynamic>;
-      expect([body['startsAt'], body['endsAt']], ['2026-12-20T00:00:00.000Z', '2026-12-27T00:00:00.000Z']);
+      expect([body['validFrom'], body['validTo']], ['2026-12-20', '2026-12-26'], reason: 'the store days the server computed, sent back as they are');
+      expect(find.text('Until the end of 26 Dec 2026'), findsOneWidget);
       expect(find.text('The end must be after the start'), findsOneWidget);
       await tapKey(t, 'bookEndsClear');
       await tapKey(t, 'bookSaveBottom');
       body = verify(() => repo.savePriceBook('st1', captureAny(), id: 'b2')).captured.single as Map<String, dynamic>;
-      expect(body['endsAt'], isNull);
+      expect(body['validTo'], isNull);
     });
 
     testWidgets('assign a book to a customer, then clear it', (t) async {
@@ -779,19 +783,35 @@ void main() {
           csv: any(named: 'csv'),
         ),
       ).thenAnswer((_) async => (success: false, code: 'CSV_TOO_LARGE', message: 'x', data: null) as _ImpRes);
-      await pump(t, CsvImportView(controller: ctl(picker: () async => (name: 'items.csv', text: 'Name,Price\nTea,2\n'))));
+      await pump(t, CsvImportView(controller: ctl(picker: () async => (name: 'items.csv', text: 'Name,Price\nTea,2\n', rows: 1))));
       await tapKey(t, 'importPick');
-      expect(find.text('From items.csv'), findsOneWidget);
+      expect(find.text('From items.csv · 1 row'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Name,Price\nTea,2\n'), findsOneWidget);
       await tapKey(t, 'importSubmit');
       verify(() => repo.importCatalogCsv('st1', kind: 'products', csv: 'Name,Price\nTea,2\n')).called(1);
       expect(find.text('The file is too large (2 MB at most).'), findsOneWidget);
     });
 
-    testWidgets('no file picker by default (file_picker is approved for KYB only): paste the text', (t) async {
-      await pump(t, CsvImportView(controller: ctl()));
-      expect(find.byKey(const Key('importPick')), findsNothing);
+    testWidgets('G4.8: a file over 2 MB or not a .csv is refused in words; pasted text over 2 MB too; paste stays an alternative', (t) async {
+      final c = ctl(picker: () async => throw const CsvFileTooLarge(3 * 1024 * 1024));
+      await pump(t, CsvImportView(controller: c));
+      expect(find.byKey(const Key('importPick')), findsOneWidget);
       expect(find.byKey(const Key('importText')), findsOneWidget);
+      await tapKey(t, 'importPick');
+      expect(find.textContaining('That file is 3.0 MB; the limit is 2 MB'), findsOneWidget);
+      final c2 = ctl(picker: () async => throw const CsvFileNotCsv('stock.xlsx'));
+      await c2.pickFile();
+      expect(c2.saveError.value, 'Choose a .csv file (save the sheet as CSV first).');
+      c2.setText('x' * (csvMaxBytes + 1));
+      expect(await c2.submit(), isFalse);
+      expect(c2.saveError.value, 'The CSV is larger than 2 MB. Split it into smaller imports.');
+      verifyNever(() => repo.importCatalogCsv(any(), kind: any(named: 'kind'), csv: any(named: 'csv')));
+    });
+
+    test('G4.8: the file is decoded off the UI thread: BOM dropped, data rows counted', () {
+      final d = decodeCsv(Uint8List.fromList(utf8.encode('\uFEFFName,Price\nTea,2\n\nCake,3\n')));
+      expect(d.text.startsWith('Name'), isTrue);
+      expect(d.rows, 2);
     });
 
     testWidgets('offline: the screen says so and an import needs internet', (t) async {

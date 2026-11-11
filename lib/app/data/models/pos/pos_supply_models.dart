@@ -263,8 +263,11 @@ class PurchaseOrder {
 }
 
 class PoList {
-  const PoList({required this.orders, this.cur, this.asOf, this.raw});
+  const PoList({required this.orders, this.cur, this.asOf, this.raw, this.costsHidden = false});
   final List<PurchaseOrder> orders;
+
+  /// G4.8: the owner hides costs from managers — order amounts are not sent
+  final bool costsHidden;
   final InvCur? cur;
 
   /// set when the list came from the on-device copy (read only)
@@ -273,7 +276,7 @@ class PoList {
   /// the response `data` as received (what the offline copy stores)
   final Map<String, dynamic>? raw;
 
-  PoList withAsOf(DateTime t) => PoList(orders: orders, cur: cur, asOf: t, raw: raw);
+  PoList withAsOf(DateTime t) => PoList(orders: orders, cur: cur, asOf: t, raw: raw, costsHidden: costsHidden);
 
   factory PoList.fromJson(Map<String, dynamic> j) {
     final cur = InvCur.fromJson(j);
@@ -284,6 +287,7 @@ class PoList {
       ],
       cur: cur,
       raw: j,
+      costsHidden: j['costsHidden'] == true,
     );
   }
 }
@@ -369,13 +373,16 @@ class SupplyReceipt {
 }
 
 class PoDetail {
-  const PoDetail({required this.order, this.receipts = const [], this.cur});
+  const PoDetail({required this.order, this.receipts = const [], this.cur, this.costsHidden = false});
   final PurchaseOrder order;
+
+  /// G4.8: costs hidden from this manager by the owner
+  final bool costsHidden;
   final List<SupplyReceipt> receipts;
   final InvCur? cur;
   factory PoDetail.fromJson(Map<String, dynamic> j) {
     final cur = InvCur.fromJson(j);
-    return PoDetail(order: PurchaseOrder.fromJson(_map(j['order'])), receipts: [for (final r in _maps(j['receipts'])) SupplyReceipt.fromJson(r)], cur: cur);
+    return PoDetail(order: PurchaseOrder.fromJson(_map(j['order'])), receipts: [for (final r in _maps(j['receipts'])) SupplyReceipt.fromJson(r)], cur: cur, costsHidden: j['costsHidden'] == true);
   }
 }
 
@@ -448,12 +455,15 @@ class PayableRow {
 }
 
 class Payables {
-  const Payables({required this.totals, required this.suppliers, this.cur});
+  const Payables({required this.totals, required this.suppliers, this.cur, this.costsHidden = false});
   final Aging totals;
+
+  /// G4.8: payables are amounts owed for stock (cost) — hidden from managers when the owner says so
+  final bool costsHidden;
   final List<PayableRow> suppliers;
   final InvCur? cur;
   factory Payables.fromJson(Map<String, dynamic> j) =>
-      Payables(totals: Aging.fromJson(_map(j['totals'])), suppliers: [for (final s in _maps(j['suppliers'])) PayableRow.fromJson(s)], cur: InvCur.fromJson(j));
+      Payables(totals: Aging.fromJson(_map(j['totals'])), suppliers: [for (final s in _maps(j['suppliers'])) PayableRow.fromJson(s)], cur: InvCur.fromJson(j), costsHidden: j['costsHidden'] == true);
 }
 
 class LedgerEntry {

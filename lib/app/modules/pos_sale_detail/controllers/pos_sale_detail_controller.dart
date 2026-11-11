@@ -12,15 +12,19 @@ import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/utils/pos_role.dart';
 import 'package:solvexo_pos/utils/receipt_pdf_builder.dart';
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/data/services/reprint_gate.dart';
 import 'package:share_plus/share_plus.dart';
 
 class PosSaleDetailController extends GetxController {
-  PosSaleDetailController({PosRepository? posRepository, ThermalPrinterService? printerService})
+  PosSaleDetailController({PosRepository? posRepository, ThermalPrinterService? printerService, ReprintGate? reprintGate})
       : _posRepo = posRepository ?? PosRepository(),
-        _printerService = printerService ?? Get.find<ThermalPrinterService>();
+        _printerService = printerService ?? Get.find<ThermalPrinterService>(),
+        _gateOverride = reprintGate;
 
   final PosRepository _posRepo;
   final ThermalPrinterService _printerService;
+  final ReprintGate? _gateOverride;
+  late final ReprintGate _gate = _gateOverride ?? ReprintGate(repository: _posRepo);
 
   final RxBool isLoading = true.obs;
   final RxBool isProcessing = false.obs;
@@ -97,8 +101,8 @@ class PosSaleDetailController extends GetxController {
   }
 
   /// A reprint/copy of the sale's receipt, rendered from the single [ReceiptData] model.
-  ReceiptData _receipt(PosSaleModel s, {bool asciiSafeMoney = false}) =>
-      ReceiptData.fromSale(s, _settings, isCopy: true, asciiSafeMoney: asciiSafeMoney, offlineRef: offlineRef.value);
+  ReceiptData _receipt(PosSaleModel s, {bool asciiSafeMoney = false, String? receiptUrl}) =>
+      ReceiptData.fromSale(s, _settings, isCopy: true, asciiSafeMoney: asciiSafeMoney, offlineRef: offlineRef.value, receiptUrl: receiptUrl);
 
   void shareReceipt() {
     final s = sale.value;
@@ -140,7 +144,15 @@ class PosSaleDetailController extends GetxController {
     }
     isPrinting.value = true;
     try {
-      final error = await _printerService.printReceipt(receipt: _receipt(s, asciiSafeMoney: true));
+      // G4.8: the reprint is recorded first (a manager PIN when the store requires it); the print says "REPRINT #n"
+      final go = await _gate.record(storeId: s.storeId, documentType: 'sale', documentId: s.id, requirePinCached: _settings?.requirePinForReprint ?? false);
+      if (!go.ok) {
+        CustomAppSnackbar.error(go.message ?? 'The reprint was not recorded.');
+        return;
+      }
+      // G4.8: the designer's QR = the public digital-receipt link (only when online; a reprint offline prints without it)
+      final url = (_settings?.receiptOptions.showQr ?? true) ? await _posRepo.getReceiptLink(s.id).catchError((_) => null) : null;
+      final error = await _printerService.printReceipt(receipt: _receipt(s, asciiSafeMoney: true, receiptUrl: url).copyWith(reprintNumber: go.number));
       if (error != null) {
         // The receipt is never lost: offer the PDF/share route right away.
         CustomAppSnackbar.error('$error You can also share it as PDF.');

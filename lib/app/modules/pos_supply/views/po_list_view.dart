@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/costs_hidden_note.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/views/inv_widgets.dart';
@@ -74,12 +75,17 @@ class PoListView extends StatelessWidget {
                         key: const Key('poList'),
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s6),
-                        itemCount: list.length,
-                        itemBuilder: (_, i) => PoTile(
-                          order: list[i],
-                          cur: c.cur.value,
-                          onTap: c.readOnly ? () => CustomSnack.readOnly() : () => Get.toNamed(Routes.posSupplyOrder, arguments: {'orderId': list[i].id})?.then((_) => c.load()),
-                        ),
+                        // G4.8: when the owner hides costs, the first row says so (the orders simply carry no amounts)
+                        itemCount: list.length + (c.costsHidden.value ? 1 : 0),
+                        itemBuilder: (_, j) {
+                          if (c.costsHidden.value && j == 0) return const CostsHiddenNote(what: 'Order amounts');
+                          final i = c.costsHidden.value ? j - 1 : j;
+                          return PoTile(
+                            order: list[i],
+                            cur: c.cur.value,
+                            onTap: c.readOnly ? () => CustomSnack.readOnly() : () => Get.toNamed(Routes.posSupplyOrder, arguments: {'orderId': list[i].id})?.then((_) => c.load()),
+                          );
+                        },
                       ),
                     ),
             ),
