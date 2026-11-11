@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/owner_unlock_button.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart';
 import 'package:solvexo_pos/app/modules/pos_admin/controllers/roles_controller.dart';
@@ -61,8 +62,10 @@ class _RolesViewState extends State<RolesView> {
                 key: const Key('permList'),
                 padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s8),
                 children: [
-                  if (!m.canEdit)
-                    const ReportInfo(key: Key('permReadOnly'), 'Only the owner can change roles and permissions. You can see them here.', icon: Icons.lock_outline_rounded)
+                  if (!m.canEdit) ...[
+                    const ReportInfo(key: Key('permReadOnly'), 'Only the owner can change roles and permissions. You can see them here.', icon: Icons.lock_outline_rounded),
+                    OwnerUnlockButton(onUnlocked: c.load),
+                  ]
                   else if (!reportsOnlineRx().value)
                     const ReportInfo('Changing permissions needs an internet connection.', warn: true),
                   if (c.notice.value != null) ReportInfo(key: const Key('permNotice'), c.notice.value!, icon: Icons.check_circle_outline_rounded),

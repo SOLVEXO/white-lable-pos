@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/owner_unlock_button.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/views/inv_widgets.dart';
 import 'package:solvexo_pos/app/modules/pos_reports/controllers/reports_common.dart';
@@ -68,8 +69,10 @@ class _TimeZoneViewState extends State<TimeZoneView> {
             const SizedBox(height: Space.s3),
             Text('Every report, the daybook and the attendance report count days from midnight to midnight in this zone.', style: t.bodySmall.copyWith(color: p.textSecondary)),
             const SizedBox(height: Space.s3),
-            if (!c.canEdit.value)
-              const ReportInfo(key: Key('tzReadOnly'), 'Only the owner can change the store\'s time zone.', icon: Icons.lock_outline_rounded)
+            if (!c.canEdit.value) ...[
+              const ReportInfo(key: Key('tzReadOnly'), 'Only the owner can change the store\'s time zone.', icon: Icons.lock_outline_rounded),
+              OwnerUnlockButton(onUnlocked: c.load),
+            ]
             else ...[
               if (c.saved.value != null) ReportInfo(key: const Key('tzSaved'), c.saved.value!, icon: Icons.check_circle_outline_rounded),
               if (c.saveError.value != null) ReportInfo(key: const Key('tzError'), c.saveError.value!, warn: true),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/components/owner_unlock_button.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_hub_widgets.dart';
@@ -50,7 +51,10 @@ class _SettingsHubViewState extends State<SettingsHubView> {
         title: 'Store settings',
         listKey: const Key('settingsHub'),
         children: [
-          if (s != null && !edit) const ReportInfo(key: Key('settingsReadOnly'), 'Only the owner can change store settings. You can see them here.', icon: Icons.lock_outline_rounded),
+          if (s != null && !edit) ...[
+            const ReportInfo(key: Key('settingsReadOnly'), 'Only the owner can change store settings. You can see them here.', icon: Icons.lock_outline_rounded),
+            OwnerUnlockButton(onUnlocked: c.load),
+          ],
           if (c.error.value != null && s == null) ReportInfo(c.error.value!, warn: true),
           HubSection('Store', [
             HubRow(icon: Icons.storefront_outlined, title: s?.businessName ?? 'Store profile', subtitle: s?.businessAddress ?? 'Name, address and tax ID (from the tax profile)', onTap: () => Get.toNamed(Routes.posTaxProfile), locked: true),
@@ -117,8 +121,10 @@ class _SettingsBody extends StatelessWidget {
     final p = context.palette;
     // the outcome of a save stays in sight above the list, wherever it is scrolled
     final banners = [
-      if (!s.canEdit)
-        const ReportInfo(key: Key('settingsReadOnly'), 'Only the owner can change these settings.', icon: Icons.lock_outline_rounded)
+      if (!s.canEdit) ...[
+        const ReportInfo(key: Key('settingsReadOnly'), 'Only the owner can change these settings.', icon: Icons.lock_outline_rounded),
+        OwnerUnlockButton(onUnlocked: c.load),
+      ]
       else if (!reportsOnlineRx().value)
         const ReportInfo('Changing settings needs an internet connection.', warn: true),
       if (c.notice.value != null) ReportInfo(key: const Key('settingsNotice'), c.notice.value!, icon: Icons.check_circle_outline_rounded),

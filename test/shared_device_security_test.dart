@@ -103,6 +103,12 @@ void main() {
         ('GET', '/api/products/p1/variants'),
         ('GET', '/api/activity-log/s1'),
         ('GET', '/api/store/s1/customers?page=1'),
+        // G4: the owner's own settings — with no owner session the device token is used (a manager reads them)
+        ('GET', '/api/pos/permissions/s1'),
+        ('PUT', '/api/pos/permissions/s1'),
+        ('POST', '/api/pos/permissions/s1/reset'),
+        ('PATCH', '/api/pos/store/settings/s1'),
+        ('PATCH', '/api/pos/store/time-zone/s1'),
       ]) {
         expect(OwnerRoutes.requiresOwner(r.$1, r.$2), isTrue, reason: '${r.$1} ${r.$2}');
       }
@@ -127,6 +133,10 @@ void main() {
         ('GET', '/api/pos/devices/me'),
         ('POST', '/api/pos/devices/me/sign-out'),
         ('GET', '/api/pos/reports/daily'),
+        ('GET', '/api/pos/store/sync-status/s1'),
+        ('GET', '/api/pos/audit/verify/s1'),
+        ('POST', '/api/pos/catalog-admin/modifiers/s1'),
+        ('POST', '/api/pos/inventory/transfers/s1'),
       ]) {
         expect(OwnerRoutes.requiresOwner(r.$1, r.$2), isFalse, reason: '${r.$1} ${r.$2}');
       }

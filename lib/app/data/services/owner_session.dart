@@ -58,6 +58,9 @@ class OwnerRoutes {
     if (p.startsWith('/pos/shifts/') && m != 'GET') return true;
     if (p.startsWith('/pos/settings/') && m != 'GET') return true;
     if (RegExp(r'^/pos/sessions/[^/]+/force-close$').hasMatch(p)) return true;
+    // G4.0 / G4.2 / G4.4: the owner's own settings (time zone, roles & permissions, store settings). With an owner session the owner's JWT goes
+    // (reads too, so the screens know the owner may edit); without one the device token goes and a manager reads them (the server decides).
+    if (p.startsWith('/pos/permissions/') || p.startsWith('/pos/store/settings/') || p.startsWith('/pos/store/time-zone/')) return true;
     if (p.startsWith('/inventory/') || p.startsWith('/activity-log/') || p.startsWith('/store/') || p.startsWith('/products/')) return true;
     return false;
   }
