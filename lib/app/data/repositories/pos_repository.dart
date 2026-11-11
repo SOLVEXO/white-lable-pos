@@ -1806,9 +1806,11 @@ class PosRepository {
   /// G5.1: the store's locations, quietly (no toast) — for the stock list's location filter. Null on failure.
   Future<List<StoreLocationModel>?> getStoreLocations(String storeId) => _invGet<List<StoreLocationModel>>(
     'storeLocations',
-    ApiConstants.posLocations(storeId),
-    (d) => [for (final e in (d['list'] as List? ?? const [])) if (e is Map) StoreLocationModel.fromJson(e.cast<String, dynamic>())],
-    dataIsList: true,
+    _inv(storeId, 'locations'), // the till-readable list (the owner-session locations route refuses device tokens)
+    (d) => [
+      for (final e in (d['locations'] as List? ?? const []))
+        if (e is Map) StoreLocationModel(id: '${e['id'] ?? ''}', storeId: storeId, sellerId: '', name: e['name'] as String? ?? '', status: e['status'] as String? ?? 'active', createdAt: DateTime.fromMillisecondsSinceEpoch(0)),
+    ],
   );
 
   Future<InvPage<InvRow>?> getInventoryLowStock(String storeId) => _invGet('inventoryLowStock', _inv(storeId, 'low-stock'), _invRows);
@@ -2370,6 +2372,16 @@ class PosRepository {
       return (success: false, message: 'Could not reach the server.', code: null, retryable: true, data: null, extra: null);
     }
   }
+
+  /// G5.1: the team list a REGISTERED TILL can read (device + PIN session) — the owner-session [getEmployees] is refused there. Null on failure.
+  Future<List<PosEmployeeModel>?> getTeamMembers(String storeId) => _invGet<List<PosEmployeeModel>>(
+    'teamMembers',
+    '${ApiConstants.apiPrefix}/pos/team/members/$storeId',
+    (d) => [
+      for (final m in (d['members'] as List? ?? const []))
+        if (m is Map) PosEmployeeModel(id: '${m['id'] ?? ''}', storeId: storeId, sellerId: '', name: m['name'] as String? ?? '', email: m['email'] as String? ?? '', role: m['role'] as String? ?? 'cashier', shiftIds: const [], status: m['status'] as String? ?? 'active', createdAt: DateTime.fromMillisecondsSinceEpoch(0)),
+    ],
+  );
 
   /// G5.1: a team member's profile (managers: anyone; a cashier: themself).
   Future<StaffProfile?> getStaffProfile(String storeId, String employeeId) => _invGet('teamProfile', '${ApiConstants.apiPrefix}/pos/team/profile/$storeId/$employeeId', StaffProfile.fromJson);

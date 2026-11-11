@@ -196,7 +196,7 @@ class TeamClockController extends GetxController {
   /// The team members this till may clock (everyone active but the signed-in person). Empty when the list cannot be loaded.
   Future<List<PosEmployeeModel>> teamMembers() async {
     final sid = await teamStoreId(_storeIdOverride);
-    final all = await _repo.getEmployees(sid);
+    final all = await _repo.getTeamMembers(sid) ?? const <PosEmployeeModel>[];
     return all.where((e) => e.id != employeeId.value && e.status != 'inactive').toList()..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 

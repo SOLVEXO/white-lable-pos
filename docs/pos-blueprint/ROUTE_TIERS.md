@@ -4,7 +4,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 
 **Tiers:** `owner` = the owner's own session only · `manager-with-limit` = a manager or the owner (some actions have per-store approval limits) · `cashier` = any PIN-signed employee (approval limits may ask for a manager) · `public` = no PIN session (device, PIN login, public receipt).
 
-**Declared:** 147 routes — owner 26, manager-with-limit 68, cashier 46, public 7. Other GET routes (no cost / settings data): 42.
+**Declared:** 148 routes — owner 26, manager-with-limit 68, cashier 47, public 7. Other GET routes (no cost / settings data): 43.
 
 | Method | Route | Tier | Handler | Guards |
 |---|---|---|---|---|
@@ -60,6 +60,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 | GET | `/api/pos/inventory/expiry/:storeId` | cashier | PosInventoryController.expiry | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | GET | `/api/pos/inventory/limits/:storeId` | manager-with-limit | PosInventoryController.limits | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | PATCH | `/api/pos/inventory/limits/:storeId` | owner | PosInventoryController.setLimits | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| GET | `/api/pos/inventory/locations/:storeId` | cashier | PosInventoryController.locations | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | GET | `/api/pos/inventory/lookup/:storeId` | cashier | PosInventoryController.lookup | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | POST | `/api/pos/inventory/lots/:storeId/:lotId/write-off` | manager-with-limit | PosInventoryController.writeOff | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | GET | `/api/pos/inventory/lots/:storeId/:variantId` | cashier | PosInventoryController.lots | FeatureFlagGuard + PosAuthGuard + RolesGuard |

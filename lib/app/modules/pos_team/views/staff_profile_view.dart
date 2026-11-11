@@ -28,7 +28,7 @@ class _TeamMembersViewState extends State<TeamMembersView> {
   void initState() {
     super.initState();
     () async {
-      final all = await (widget.repository ?? PosRepository()).getEmployees(await teamStoreId(widget.storeId));
+      final all = [...?await (widget.repository ?? PosRepository()).getTeamMembers(await teamStoreId(widget.storeId))];
       if (mounted) setState(() => _people = all..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase())));
     }();
   }

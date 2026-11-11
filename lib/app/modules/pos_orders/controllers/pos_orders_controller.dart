@@ -35,7 +35,7 @@ class PosOrdersController extends GetxController {
   final Rxn<({String id, String name})> cashierFilter = Rxn<({String id, String name})>();
   final Rxn<({String id, String name})> registerFilter = Rxn<({String id, String name})>();
   Future<List<({String id, String name})>> cashierOptions() async =>
-      [for (final e in await _posRepo.getEmployees(_storeId)) (id: e.id, name: e.name)]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      [for (final e in await _posRepo.getTeamMembers(_storeId) ?? const []) (id: e.id, name: e.name)]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   Future<List<({String id, String name})>> registerOptions() async => [for (final r in await _posRepo.listRegisters(_storeId)) (id: r.id, name: r.name)];
   void setCashierFilter(({String id, String name})? v) {
     cashierFilter.value = v;
