@@ -215,7 +215,7 @@ class ReceiptDesignerView extends StatelessWidget {
                 subtitle: ReceiptOptions.notPrintedYet.contains(k)
                     ? 'Saved; not on printed receipts yet'
                     : k == 'showQr'
-                    ? 'The digital receipt link, when the till has it (online)'
+                    ? 'The digital receipt link — printed offline too (it says "syncing" until the sale reaches the server)'
                     : null,
                 value: d.flag(k),
                 onChanged: edit ? (v) => c.setReceiptFlag(k, v) : null,
@@ -353,7 +353,7 @@ class ReceiptPreview extends StatelessWidget {
             line('TOTAL', '17.46'),
             line('Cash', '20.00'),
             line('Change', '2.54'),
-            if (o.showLoyaltyBalance) ...[rule(), line('Points earned', '12')],
+            if (o.showLoyaltyBalance) ...[rule(), line('Points balance', '140')], // G4.9: the balance after the sale (earned / redeemed when the server has no balance)
             if (o.promoText != null) ...[rule(), center(o.promoText!)],
             if (o.showQr) const Padding(padding: EdgeInsets.only(top: 6), child: Icon(Icons.qr_code_2_rounded, key: Key('previewQr'), color: ink, size: 56)),
             if (o.showBarcode) Padding(padding: const EdgeInsets.only(top: 4), child: center('||| |||| | ||| || ||||', bold: true)),
