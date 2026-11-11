@@ -106,6 +106,18 @@ abstract class Routes {
   static const posSecuritySettings = '/pos/settings/security';
   static const posBackupSync = '/pos/settings/backup-sync';
 
+  // G4.6 stock transfers and expiring lots
+  static const posTransfers = '/pos/inventory/transfers';
+  static const posExpiry = '/pos/inventory/expiry';
+
+  // G4.5 products & pricing admin
+  static const posCatalogAdmin = '/pos/catalog-admin';
+  static const posModifierGroups = '/pos/catalog-admin/modifiers';
+  static const posPriceBooks = '/pos/catalog-admin/price-books';
+  static const posCatalogNewProduct = '/pos/catalog-admin/new-product';
+  static const posCatalogCategories = '/pos/catalog-admin/categories';
+  static const posCatalogImport = '/pos/catalog-admin/import';
+
   // 5D — shared-device security
   static const posDeviceSetup = '/pos/device-setup';
   static const posOwnerGate = '/pos/owner-gate';

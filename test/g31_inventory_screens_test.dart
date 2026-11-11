@@ -86,6 +86,7 @@ void main() {
             ),
             env,
           );
+          expect(find.text('\$12,345.00'), findsOneWidget); // (before scrolling: the list builds lazily)
           for (final k in [
             'invTileSkus',
             'invTileLow',
@@ -99,6 +100,8 @@ void main() {
             'invNoCostNote',
             'invRowStock',
             'invRowLow',
+            'invRowExpiry',
+            'invRowTransfers',
             'invRowMovements',
             'invRowCount',
             'invRowLimits',
@@ -110,7 +113,6 @@ void main() {
             );
             expect(find.byKey(Key(k)), findsOneWidget, reason: k);
           }
-          expect(find.text('\$12,345.00'), findsOneWidget);
           expect(t.takeException(), isNull);
         },
       );
@@ -160,8 +162,8 @@ void main() {
           env,
         );
         expect(find.byKey(const Key('invContinueCount')), findsOneWidget);
-        expect(find.byKey(const Key('invRowCount')), findsOneWidget);
-        expect(find.byKey(const Key('invRowMovements')), findsNothing);
+        expect(find.byKey(const Key('invRowCount'), skipOffstage: false), findsOneWidget);
+        expect(find.byKey(const Key('invRowMovements'), skipOffstage: false), findsNothing);
       });
 
       testWidgets(

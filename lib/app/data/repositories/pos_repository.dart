@@ -11,6 +11,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_team_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_catalog_admin_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_stock_ops_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -573,13 +574,16 @@ class PosRepository {
     required String employeeId,
     String? shiftId,
     required double openingCash,
+    List<Map<String, int>>? denominations, // G4.6: the notes / coins counted into the float (their total must equal openingCash)
   }) async {
+    lastErrorCode = null;
     final payload = {
       'storeId': storeId,
       'registerId': registerId,
       'employeeId': employeeId,
       if (shiftId != null && shiftId.isNotEmpty) 'shiftId': shiftId,
       'openingCash': openingCash,
+      if (denominations != null && denominations.isNotEmpty) 'denominations': denominations,
     };
     final fp = IdempotencyIntentStore.fingerprint('openSession', payload);
     var settled = false;
@@ -596,6 +600,7 @@ class PosRepository {
       return (success: false, session: null, message: res.data['message'] as String?);
     } on DioException catch (e) {
       settled = _isFinalFailure(e);
+      lastErrorCode = _dioCode(e);
       _logDioError('openSession', e);
       _noteEntitlement(e);
       DioExceptionHandler.handleDioException(e, showToast: false);
@@ -613,9 +618,15 @@ class PosRepository {
     required double closingCash,
     double? cardTotalFromSlip, // G2.4: the total printed on the card terminal's settlement slip (a difference needs a manager)
     String? approverToken, // a manager's token approving a card variance (replaces the cashier's for this call)
+    List<Map<String, int>>? denominations, // G4.6: the notes / coins counted at close (their total must equal closingCash)
   }) async {
     lastErrorCode = null;
-    final payload = {'sessionId': sessionId, 'closingCash': closingCash, if (cardTotalFromSlip != null) 'cardTotalFromSlip': cardTotalFromSlip};
+    final payload = {
+      'sessionId': sessionId,
+      'closingCash': closingCash,
+      if (cardTotalFromSlip != null) 'cardTotalFromSlip': cardTotalFromSlip,
+      if (denominations != null && denominations.isNotEmpty) 'denominations': denominations,
+    };
     final fp = IdempotencyIntentStore.fingerprint('closeSession', payload);
     var settled = false;
     try {
@@ -2595,12 +2606,56 @@ class PosRepository {
   /// G4.4: the server's time, devices with when each was last seen, the latest audit seal.
   Future<SyncStatus?> getSyncStatus(String storeId) => _invGet('syncStatus', '${ApiConstants.apiPrefix}/pos/store/sync-status/$storeId', SyncStatus.fromJson);
 
+  /// G4.6: what the register's last closed shift left behind (counted, expected, variance, who) — null when it was never closed or on failure.
+  Future<LastClose?> getLastClose(String storeId, String registerId) =>
+      _invGet<LastClose?>('lastClose', '${ApiConstants.apiPrefix}/pos/sessions/last-close', LastClose.fromJson, query: {'storeId': storeId, 'registerId': registerId});
+
+  // ── G4.6 · transfers, expiry + write-off, low stock → draft PO ───────────────────────────────────────────────────────────────────────────
+  /// [status]: all | in_transit | partially_received | received | cancelled (newest first, 200 at most).
+  Future<List<StockTransfer>?> getTransfers(String storeId, {String status = 'all'}) =>
+      _invGet('transfers', _inv(storeId, 'transfers'), StockTransfer.listFrom, query: {'status': status}, dataIsList: true);
+
+  /// Ships [quantity] of a variant from one location to another (it leaves the first now, arrives when received). Matrix: inventory.transfer.create.
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> shipTransfer(String storeId, {required String variantId, required String fromLocationId, required String toLocationId, required int quantity, String? note}) =>
+      _supplyWrite('transferShip', 'POST', _inv(storeId, 'transfers'), {
+        'variantId': variantId,
+        'fromLocationId': fromLocationId,
+        'toLocationId': toLocationId,
+        'quantity': quantity,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      });
+
+  /// Receives (part of) a transfer at its destination. Matrix: inventory.transfer.receive.
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> receiveTransfer(String storeId, String transferId, int receivedQty) =>
+      _supplyWrite('transferReceive', 'POST', '${_inv(storeId, 'transfers')}/$transferId/receive', {'receivedQty': receivedQty});
+
+  /// Cancels a transfer nothing of which has arrived (the stock goes back to where it left).
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> cancelTransfer(String storeId, String transferId) =>
+      _supplyWrite('transferCancel', 'POST', '${_inv(storeId, 'transfers')}/$transferId/cancel', const {});
+
+  /// Lots by how soon they expire (store time zone).
+  Future<ExpiryBuckets?> getExpiry(String storeId) => _invGet('expiry', _inv(storeId, 'expiry'), ExpiryBuckets.fromJson);
+
+  /// Writes off (part of) a lot — [quantity] null = all that is left; [reason]: expired | damaged. Matrix: inventory.writeoff.
+  Future<({bool success, String? message, String? code, Map<String, dynamic>? data})> writeOffLot(String storeId, String lotId, {int? quantity, String reason = 'expired', String? note}) =>
+      _supplyWrite('lotWriteOff', 'POST', '${_inv(storeId, 'lots')}/$lotId/write-off', {
+        'quantity': ?quantity,
+        'reason': reason,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      });
+
+  /// A DRAFT purchase order from the store's low-stock suggestions for one supplier (or only [variantIds]); nothing is approved or sent.
+  Future<({bool success, String? message, String? code, PurchaseOrder? order})> draftPoFromLowStock(String storeId, String supplierId, {List<String>? variantIds}) async {
+    final r = await _supplyWrite('poFromLowStock', 'POST', '${_sup(storeId, 'orders')}/from-low-stock', {'supplierId': supplierId, if (variantIds != null && variantIds.isNotEmpty) 'variantIds': variantIds});
+    return (success: r.success, message: r.message, code: r.code, order: _poOf(r.data));
+  }
+
   // ── G4.5 · products & pricing (catalog-admin) ──────────────────────────────────────────────────────────────────────────────────────────
   String _cat(String storeId, String path) => '${ApiConstants.apiPrefix}/pos/catalog-admin/$path/$storeId';
 
   /// A write's outcome: the parsed data, or the server's code and words.
   ({bool success, String? code, String? message, T? data}) _catResult<T>(({bool success, String? message, String? code, Map<String, dynamic>? data, Map<String, dynamic>? extra}) r, T Function(Map<String, dynamic>) parse) =>
-      (success: r.success && r.data != null, code: r.code, message: r.extra?['message'] as String? ?? r.message, data: r.success && r.data != null ? parse(r.data!) : null);
+      (success: r.success && r.data != null, code: r.code, message: (r.extra?['message'] is String ? r.extra!['message'] as String : null) ?? r.message, data: r.success && r.data != null ? parse(r.data!) : null);
 
   /// The modifier groups the till sells with (active only, unless [all] for the editor).
   Future<ModifierGroups?> getModifierGroups(String storeId, {bool all = false}) => _invGet('modifierGroups', _cat(storeId, 'modifiers'), ModifierGroups.fromJson, query: {if (all) 'all': 'true'});

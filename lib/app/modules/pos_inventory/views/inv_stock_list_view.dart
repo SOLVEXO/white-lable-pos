@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/modules/pos_stock_ops/views/draft_po_sheet.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/controllers/inv_stock_list_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_inventory/views/inv_widgets.dart';
@@ -20,6 +21,8 @@ class InvStockListView extends StatelessWidget {
     final p = context.palette;
     return InvScaffold(
       title: c.lowOnly ? 'Low stock' : 'Stock',
+      // G4.6: the low items of one supplier → a draft purchase order (managers; the server decides)
+      actions: c.lowOnly ? [TextButton.icon(key: const Key('draftPoButton'), onPressed: () => DraftPoSheet.open(), icon: const Icon(Icons.post_add_rounded), label: const Text('Draft PO'))] : null,
       body: Column(
         children: [
           Padding(

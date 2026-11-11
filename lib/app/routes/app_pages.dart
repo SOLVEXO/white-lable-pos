@@ -6,6 +6,15 @@ import 'package:solvexo_pos/app/modules/pos_reports/views/time_zone_view.dart';
 import 'package:solvexo_pos/app/modules/pos_reports/views/day_orders_view.dart';
 import 'package:solvexo_pos/app/modules/pos_admin/views/roles_view.dart';
 import 'package:solvexo_pos/app/modules/pos_admin/views/settings_hub_views.dart';
+import 'package:solvexo_pos/app/modules/pos_stock_ops/views/expiry_view.dart';
+import 'package:solvexo_pos/app/modules/pos_stock_ops/views/transfers_view.dart';
+// G4.5 products & pricing admin
+import 'package:solvexo_pos/app/modules/pos_catalog_admin/views/catalog_admin_hub_view.dart';
+import 'package:solvexo_pos/app/modules/pos_catalog_admin/views/categories_view.dart';
+import 'package:solvexo_pos/app/modules/pos_catalog_admin/views/csv_import_view.dart';
+import 'package:solvexo_pos/app/modules/pos_catalog_admin/views/modifier_groups_view.dart';
+import 'package:solvexo_pos/app/modules/pos_catalog_admin/views/new_product_view.dart';
+import 'package:solvexo_pos/app/modules/pos_catalog_admin/views/price_books_view.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/config/debug_launch_params.dart';
@@ -351,6 +360,16 @@ class AppPages {
     GetPage(name: Routes.posAlertSettings, page: () => AlertSettingsView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posSecuritySettings, page: () => SecuritySettingsView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posBackupSync, page: () => const BackupSyncView(), middlewares: [PosAccessMiddleware()]),
+    // G4.6 transfers and expiring lots (the server decides who may ship / receive / write off)
+    GetPage(name: Routes.posTransfers, page: () => const TransfersView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posExpiry, page: () => const ExpiryView(), middlewares: [PosAccessMiddleware()]),
+    // G4.5 products & pricing admin (managers by default through the permission matrix — the server decides)
+    GetPage(name: Routes.posCatalogAdmin, page: () => const CatalogAdminHubView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posModifierGroups, page: () => const ModifierGroupsView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posPriceBooks, page: () => const PriceBooksView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posCatalogNewProduct, page: () => const NewProductView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posCatalogCategories, page: () => const CatalogCategoriesView(), middlewares: [PosAccessMiddleware()]),
+    GetPage(name: Routes.posCatalogImport, page: () => const CsvImportView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanInactive, page: () => const PosPlanInactiveView(), middlewares: [PosAccessMiddleware()]),
     GetPage(name: Routes.posPlanStatus, page: () => const PosPlanStatusView(), middlewares: [PosAccessMiddleware(), OwnerAccessMiddleware()]),
   ];

@@ -107,6 +107,11 @@ class InvOverviewView extends StatelessWidget {
           badge: o.lowStockCount,
           onTap: () => Get.toNamed(Routes.posStockList, arguments: const {'lowOnly': true}),
         ),
+        // G4.6: lots close to (or past) their expiry, with write-off; stock moving between locations
+        const SizedBox(height: Space.s2),
+        HubRow(key: const Key('invRowExpiry'), icon: Icons.event_busy_outlined, title: 'Expiring lots', subtitle: 'Expired, within 7 days, within 30 days', onTap: () => Get.toNamed(Routes.posExpiry)),
+        const SizedBox(height: Space.s2),
+        HubRow(key: const Key('invRowTransfers'), icon: Icons.local_shipping_outlined, title: 'Transfers', subtitle: 'Send stock between locations and receive it', onTap: () => Get.toNamed(Routes.posTransfers)),
         if (o.canManage) ...[
           const SizedBox(height: Space.s2),
           HubRow(

@@ -5,6 +5,7 @@ import 'package:solvexo_pos/utils/money.dart';
 import 'dart:async';
 
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
+import 'package:solvexo_pos/app/components/denomination_sheet.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
 import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/components/custom_text_field.dart';
@@ -117,6 +118,19 @@ class PosSettingsController extends GetxController {
   String _sessionId  = '';
   String _registerId = '';
   String _storeId    = '';
+
+  /// G4.6: the notes / coins counted at close (sent only while they add up to the closing amount)
+  final RxList<Denomination> closingDenominations = <Denomination>[].obs;
+
+  Future<void> countClosingCash() async {
+    final rows = await DenominationSheet.open(initial: closingDenominations, title: 'Count the drawer');
+    if (rows == null) return;
+    closingDenominations.assignAll(rows);
+    closingCashController.text = Money.plain(Money.fromMinor(denominationTotal(rows)));
+  }
+
+  List<Map<String, int>>? _closingDenoms(double amount) =>
+      closingDenominations.isNotEmpty && denominationTotal(closingDenominations) == Money.toMinor(amount) ? denominationsJson(closingDenominations) : null;
 
   final TextEditingController closingCashController =
       TextEditingController(text: '0');
@@ -624,6 +638,19 @@ class PosSettingsController extends GetxController {
               fillColor: AppColors.background,
               prefixIcon: const CustomText(text: '\$', fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
             ),
+            // G4.6: count the drawer note by note (the server checks the notes add up to the amount)
+            if (denominationsFor(Money.currency) != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Obx(
+                  () => TextButton.icon(
+                    key: const Key('countClosingCash'),
+                    onPressed: countClosingCash,
+                    icon: const Icon(Icons.calculate_outlined, size: 18),
+                    label: Text(closingDenominations.isEmpty ? 'Count notes & coins' : 'Counted ${closingDenominations.fold<int>(0, (n, d) => n + d.count)} notes & coins · edit'),
+                  ),
+                ),
+              ),
             const SizedBox(height: 14),
             const CustomText(
               text: 'Card total from the terminal slip (optional).',
@@ -708,20 +735,27 @@ class PosSettingsController extends GetxController {
     if (isClosing.value) return; // double-submit protection
     isClosing.value = true;
     try {
+      final denoms = _closingDenoms(closingCash);
       var result = slip == null
-          ? await _posRepo.closeSession(sessionId: _sessionId, closingCash: closingCash)
-          : await _posRepo.closeSession(sessionId: _sessionId, closingCash: closingCash, cardTotalFromSlip: slip);
+          ? await _posRepo.closeSession(sessionId: _sessionId, closingCash: closingCash, denominations: denoms)
+          : await _posRepo.closeSession(sessionId: _sessionId, closingCash: closingCash, cardTotalFromSlip: slip, denominations: denoms);
       if (!result.success && _posRepo.lastErrorCode == 'CARD_VARIANCE_APPROVAL_REQUIRED' && slip != null) {
         // the slip total differs from what the till recorded: only a manager may close the shift with that difference
         final token = await ManagerApproval.request(reason: result.message ?? 'The card total on the slip differs from the card total recorded at the till. A manager must approve closing the shift with this difference.', repository: _posRepo);
         if (token == null) return;
-        result = await _posRepo.closeSession(sessionId: _sessionId, closingCash: closingCash, cardTotalFromSlip: slip, approverToken: token);
+        result = await _posRepo.closeSession(sessionId: _sessionId, closingCash: closingCash, cardTotalFromSlip: slip, approverToken: token, denominations: denoms);
       }
       final session = result.session;
       if (!result.success || session == null) {
+        if (_posRepo.lastErrorCode == 'DENOMINATION_MISMATCH' || _posRepo.lastErrorCode == 'DENOMINATION_TWICE') {
+          closingDenominations.clear();
+          CustomAppSnackbar.error('The notes and coins counted do not add up to the closing cash. Count again, or enter the amount only.');
+          return;
+        }
         CustomAppSnackbar.error(_friendlyError(result.message ?? ''));
         return;
       }
+      closingDenominations.clear();
       // Fire-and-forget — the local session close doesn't wait on this, but
       // it's the one clear point where this device's PIN session is ending.
       unawaited(_posRepo.pinLogout(_storeId));

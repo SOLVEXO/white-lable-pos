@@ -357,3 +357,37 @@ String cashErrorMessage(String? code, {String? fallback}) => switch (code) {
   'POS_PIN_REQUIRED' => 'Sign in with your PIN first.',
   _ => fallback ?? 'Something went wrong. Please try again.',
 };
+
+/// G4.6: the register's last closed shift, shown when the next one opens. Money in minor units with the response's currency + exponent.
+class LastClose {
+  const LastClose({required this.currency, required this.exponent, this.closedAt, this.closedByName, this.countedMinor, this.expectedMinor, this.varianceMinor, this.forced = false, this.denominations = const []});
+  final String currency;
+  final int exponent;
+  final DateTime? closedAt;
+  final String? closedByName;
+  final int? countedMinor, expectedMinor, varianceMinor;
+  final bool forced;
+  final List<({int valueMinor, int count})> denominations;
+
+  /// null when the register was never closed
+  static LastClose? fromJson(Map<String, dynamic> j) {
+    final l = j['lastClose'];
+    if (l is! Map) return null;
+    int? n(dynamic v) => v is num ? v.toInt() : null;
+    return LastClose(
+      currency: '${j['currency'] ?? 'USD'}'.toUpperCase(),
+      exponent: j['currencyExponent'] is num ? (j['currencyExponent'] as num).toInt() : 2,
+      closedAt: DateTime.tryParse('${l['closedAt'] ?? ''}')?.toLocal(),
+      closedByName: l['closedByName'] as String?,
+      countedMinor: n(l['countedMinor']),
+      expectedMinor: n(l['expectedMinor']),
+      varianceMinor: n(l['varianceMinor']),
+      forced: l['forced'] == true,
+      denominations: [
+        for (final d in (l['denominations'] as List? ?? const []))
+          if (d is Map) (valueMinor: n(d['valueMinor']) ?? 0, count: n(d['count']) ?? 0),
+      ],
+    );
+  }
+}
+

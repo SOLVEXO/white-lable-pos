@@ -234,24 +234,22 @@ class CatalogProduct {
   }
 }
 
-/// The dashboard importer's report, read loosely (it counts created / updated / refused rows and lists the refusals).
+/// The dashboard importer's report (`BulkImportData`: total, created, updated, skipped, failedCount, failed [{row, error}], skippedRows).
 class ImportReport {
-  const ImportReport({this.created = 0, this.updated = 0, this.failed = 0, this.errors = const []});
-  final int created, updated, failed;
+  const ImportReport({this.total = 0, this.created = 0, this.updated = 0, this.skipped = 0, this.failed = 0, this.errors = const []});
+  final int total, created, updated, skipped, failed;
+
+  /// "Row 4: price is required" (the server reports at most 1,000; [failed] is always the true count)
   final List<String> errors;
   factory ImportReport.fromJson(Map<String, dynamic> j) {
-    final s = j['summary'] is Map ? (j['summary'] as Map).cast<String, dynamic>() : j;
-    final errs = j['errors'] ?? j['failedRows'] ?? s['errors'];
+    final rows = _maps(j['failed']);
     return ImportReport(
-      created: _int(s['created'] ?? s['inserted']),
-      updated: _int(s['updated']),
-      failed: _int(s['failed'] ?? s['skipped'] ?? (errs is List ? errs.length : 0)),
-      errors: errs is List
-          ? [
-              for (final e in errs.take(50))
-                if (e is Map) '${e['row'] != null ? 'Row ${e['row']}: ' : ''}${e['message'] ?? e['error'] ?? e['reason'] ?? e}' else '$e',
-            ]
-          : const [],
+      total: _int(j['total']),
+      created: _int(j['created']),
+      updated: _int(j['updated']),
+      skipped: _int(j['skipped']),
+      failed: j['failedCount'] is num ? _int(j['failedCount']) : rows.length,
+      errors: [for (final r in rows.take(50)) '${r['row'] != null ? 'Row ${r['row']}: ' : ''}${r['error'] ?? 'not imported'}'],
     );
   }
 }

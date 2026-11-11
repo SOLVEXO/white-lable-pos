@@ -75,6 +75,7 @@ class PosMoreHubView extends StatelessWidget {
             HubRow(icon: Icons.bar_chart_rounded, title: 'Daily report', subtitle: 'Sales, tenders and top products', onTap: () => Get.toNamed(Routes.posDailyReport), locked: true),
             HubRow(icon: Icons.date_range_rounded, title: 'Date-range report', subtitle: 'Any period', onTap: () => Get.toNamed(Routes.posRangeReport), locked: true),
             HubRow(icon: Icons.inventory_2_outlined, title: 'Catalog', subtitle: 'Price, barcode, HS code, category, stock', onTap: () => Get.toNamed(Routes.posCatalog), locked: true),
+            HubRow(icon: Icons.sell_outlined, title: 'Products & pricing', subtitle: 'New products, categories, modifiers, price books, CSV import', onTap: () => Get.toNamed(Routes.posCatalogAdmin)),
             HubRow(icon: Icons.history_toggle_off_rounded, title: 'Shift history', subtitle: 'Past shifts and cash differences', onTap: () => Get.toNamed(Routes.posSessionHistory), locked: true),
           ]),
         if (a.canManage)
