@@ -4,7 +4,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 
 **Tiers:** `owner` = the owner's own session only · `manager-with-limit` = a manager or the owner (some actions have per-store approval limits) · `cashier` = any PIN-signed employee (approval limits may ask for a manager) · `public` = no PIN session (device, PIN login, public receipt).
 
-**Declared:** 156 routes — owner 27, manager-with-limit 73, cashier 49, public 7. Other GET routes (no cost / settings data): 45.
+**Declared:** 159 routes — owner 30, manager-with-limit 73, cashier 49, public 7. Other GET routes (no cost / settings data): 45.
 
 | Method | Route | Tier | Handler | Guards |
 |---|---|---|---|---|
@@ -87,6 +87,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 | POST | `/api/pos/offline-discards` | manager-with-limit | PosController.recordOfflineDiscard | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | GET | `/api/pos/permissions/:storeId` | manager-with-limit | PosPermissionsStoreController.get | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | PUT | `/api/pos/permissions/:storeId` | owner | PosPermissionsStoreController.update | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| POST | `/api/pos/permissions/:storeId/preset` | owner | PosPermissionsStoreController.applyPreset | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | POST | `/api/pos/permissions/:storeId/reset` | owner | PosPermissionsStoreController.reset | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | POST | `/api/pos/pin-login` | public | PosController.pinLogin | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | POST | `/api/pos/pin-logout` | public | PosController.pinLogout | FeatureFlagGuard + PosAuthGuard + RolesGuard |
@@ -132,6 +133,8 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 | PATCH | `/api/pos/shifts/:storeId/:shiftId` | owner | PosController.updateShift | FeatureFlagGuard + JwtAuthGuard + RolesGuard |
 | GET | `/api/pos/store/settings/:storeId` | manager-with-limit | PosStoreController.getSettings | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | PATCH | `/api/pos/store/settings/:storeId` | owner | PosStoreController.setSettings | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| POST | `/api/pos/store/settings/:storeId/receipt-logo` | owner | PosStoreController.uploadLogo | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| POST | `/api/pos/store/settings/:storeId/receipt-logo/remove` | owner | PosStoreController.removeLogo | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | GET | `/api/pos/store/time-zone/:storeId` | cashier | PosStoreController.timeZone | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | PATCH | `/api/pos/store/time-zone/:storeId` | owner | PosStoreController.setTimeZone | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | GET | `/api/pos/supply/orders/:storeId` | cashier | PosSupplyController.orders | FeatureFlagGuard + PosAuthGuard + RolesGuard |
