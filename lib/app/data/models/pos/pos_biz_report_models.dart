@@ -357,13 +357,22 @@ String paymentMethodLabel(String m) => switch (m) {
 };
 
 class PaymentsReport extends BizReport {
-  const PaymentsReport(super.head, {this.methods = const [], this.netMinor = 0});
+  const PaymentsReport(super.head, {this.methods = const [], this.netMinor = 0, this.cardTerminal});
   final List<PaymentRow> methods;
   final int netMinor;
+  /// G5.4: card payments taken on a separate bank terminal (part of the card row), shown as their own line
+  final PaymentRow? cardTerminal;
   @override
   ReportKind get kind => ReportKind.payments;
   factory PaymentsReport.fromJson(Map<String, dynamic> j) =>
-      PaymentsReport(ReportHead.fromJson(j), methods: [for (final m in _maps(j['methods'])) PaymentRow.fromJson(m)], netMinor: _int(j['netMinor']));
+      PaymentsReport(
+        ReportHead.fromJson(j),
+        methods: [for (final m in _maps(j['methods'])) PaymentRow.fromJson(m)],
+        netMinor: _int(j['netMinor']),
+        cardTerminal: j['cardExternalTerminal'] is Map && _int((j['cardExternalTerminal'] as Map)['payments']) > 0
+            ? PaymentRow.fromJson({...(j['cardExternalTerminal'] as Map).cast<String, dynamic>(), 'method': 'card_terminal', 'sharePercent': 0})
+            : null,
+      );
 }
 
 // ── 7 · cashiers ──────────────────────────────────────────────────────────────

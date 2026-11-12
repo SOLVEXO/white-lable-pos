@@ -351,6 +351,14 @@ class _Payments extends StatelessWidget {
               value: m(x.netMinor),
               detail: 'Paid ${m(x.paidMinor)} · refunded ${m(x.refundedMinor)}',
             ),
+          if (r.cardTerminal != null)
+            ReportRow(
+              key: const Key('pay_card_terminal'),
+              title: 'of which on a bank terminal',
+              subtitle: '${r.cardTerminal!.payments} payment${r.cardTerminal!.payments == 1 ? '' : 's'} · part of Card',
+              value: m(r.cardTerminal!.netMinor),
+              detail: 'Paid ${m(r.cardTerminal!.paidMinor)} · refunded ${m(r.cardTerminal!.refundedMinor)}',
+            ),
         ],
       ),
     );

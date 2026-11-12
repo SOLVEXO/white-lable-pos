@@ -6,7 +6,9 @@ import 'package:get/get.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_biz_report_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_connectors_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
@@ -116,5 +118,17 @@ void main() {
       expect(find.byKey(const Key('paySetupError')), findsOneWidget);
       expect(find.byKey(const Key('paySetupReload')), findsOneWidget);
     });
+  });
+
+  test('shift close and payments report read the bank-terminal line (minor units with the exponent)', () {
+    final r = PosSessionReportModel.fromJson({
+      'session': <String, dynamic>{}, 'currency': 'PKR', 'currencyExponent': 2,
+      'summary': <String, dynamic>{'cardExternalTerminal': {'count': 2, 'totalMinor': 250050, 'approvalCodes': ['A1', 'B2'], 'terminals': ['HBL #1']}},
+    });
+    expect([r.cardTerminalCount, r.cardTerminalTotal, r.cardTerminalApprovalCodes], [2, 2500.5, ['A1', 'B2']]);
+    expect(PosSessionReportModel.fromJson({'session': <String, dynamic>{}, 'summary': <String, dynamic>{}}).cardTerminalCount, 0);
+    final p = PaymentsReport.fromJson({'currency': 'PKR', 'currencyExponent': 2, 'methods': [], 'cardExternalTerminal': {'payments': 1, 'paidMinor': 1000, 'refundedMinor': 0, 'netMinor': 1000}});
+    expect(p.cardTerminal!.netMinor, 1000);
+    expect(PaymentsReport.fromJson({'currency': 'PKR', 'currencyExponent': 2, 'methods': [], 'cardExternalTerminal': {'payments': 0}}).cardTerminal, isNull);
   });
 }

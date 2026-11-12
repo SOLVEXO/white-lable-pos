@@ -191,6 +191,10 @@ class PosSessionReportModel {
   final double refundsTotal;
   final PosPaymentBreakdown byPaymentMethod;
   final PosSessionCashFlow cashFlow;
+  /// G5.4: card payments taken on a separate bank terminal (also inside the card total) — their own line for the close
+  final int cardTerminalCount;
+  final double cardTerminalTotal;
+  final List<String> cardTerminalApprovalCodes;
 
   const PosSessionReportModel({
     required this.session,
@@ -202,6 +206,9 @@ class PosSessionReportModel {
     required this.refundsTotal,
     required this.byPaymentMethod,
     required this.cashFlow,
+    this.cardTerminalCount = 0,
+    this.cardTerminalTotal = 0,
+    this.cardTerminalApprovalCodes = const [],
   });
 
   // Flat pass-throughs kept for simple call sites (e.g. POS Settings shift stats).
@@ -221,7 +228,20 @@ class PosSessionReportModel {
       refundsTotal: MoneyJson.read(summary, 'refundsTotal'),
       byPaymentMethod: PosPaymentBreakdown.fromJson(summary['byPaymentMethod'] as Map<String, dynamic>?),
       cashFlow: PosSessionCashFlow.fromJson(summary['cashFlow'] as Map<String, dynamic>?),
+      cardTerminalCount: (summary['cardExternalTerminal'] is Map ? ((summary['cardExternalTerminal'] as Map)['count'] as num?)?.toInt() : null) ?? 0,
+      cardTerminalTotal: summary['cardExternalTerminal'] is Map
+          ? (((summary['cardExternalTerminal'] as Map)['totalMinor'] as num?) ?? 0) / _pow10((data['currencyExponent'] as num?)?.toInt() ?? 2)
+          : 0,
+      cardTerminalApprovalCodes: summary['cardExternalTerminal'] is Map ? [for (final c in ((summary['cardExternalTerminal'] as Map)['approvalCodes'] as List? ?? const [])) '$c'] : const [],
     );
+  }
+
+  static num _pow10(int e) {
+    num v = 1;
+    for (var i = 0; i < e; i++) {
+      v *= 10;
+    }
+    return v;
   }
 }
 

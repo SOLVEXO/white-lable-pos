@@ -166,6 +166,13 @@ class _PaymentBreakdown extends StatelessWidget {
         _PayRow(label: 'Cash', count: b.cash.count, amount: b.cash.total),
         const SizedBox(height: 8),
         _PayRow(label: 'Card', count: b.card.count, amount: b.card.total),
+        // G5.4: the part of the card total taken on a separate bank terminal — to match against the terminal's own settlement slip
+        if (report.cardTerminalCount > 0) ...[
+          const SizedBox(height: 8),
+          _PayRow(key: const Key('cardTerminalRow'), label: '  on bank terminal', count: report.cardTerminalCount, amount: report.cardTerminalTotal),
+          if (report.cardTerminalApprovalCodes.isNotEmpty)
+            Align(alignment: Alignment.centerLeft, child: CustomText(text: '  Approval codes: ${report.cardTerminalApprovalCodes.join(', ')}', fontSize: AppFontSize.verySmall, color: AppColors.black2)),
+        ],
         const SizedBox(height: 8),
         _PayRow(label: 'Other', count: b.other.count, amount: b.other.total),
       ]),
@@ -177,7 +184,7 @@ class _PayRow extends StatelessWidget {
   final String label;
   final int count;
   final double amount;
-  const _PayRow({required this.label, required this.count, required this.amount});
+  const _PayRow({super.key, required this.label, required this.count, required this.amount});
 
   @override
   Widget build(BuildContext context) {
