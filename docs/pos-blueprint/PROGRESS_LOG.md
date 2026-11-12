@@ -53,3 +53,31 @@ Working mode since 2026-11-10: one heavy job at a time (backend gate / full `flu
 
 | G5.1 backend | API_PUBLIC_URL boot check (+ preflight, runbook); on-behalf clocking (member / manager PIN, audited in the same transaction); stock by location + `inventory/locations`; orders by register; supplier products supplied (`lastUnitCostMinor` = cost); staff profile; `team/members`; cash-movement photo (`poscashattachments`) | api 7df5d4a, (members), d7a07c4 | see CI | the owner-session employees / locations lists refuse device tokens: two POS reads added |
 | G5.1 app | QR only from the server base; per-document print notice; clock someone else; About / Help / Hardware check; store-select restyle (sub-agent, reviewed); stock by location; orders filters; products supplied; continuous scan, scan-to-add / receive; slip photo; staff profile; share link; `clearPreference` serialized (keychain race) | app bd9cccd, b1037f2 + follow-ups | see CI | two mocked simulator flows stay known-failing (un-mockable getProfile 401) |
+
+## Integration flows (simulator) — last pass
+
+Commits are app (pos) commits; the dev stack ran the API at `d7a07c4` (G5.1). "Mocked" = real app on the simulator with repositories mocked; the rest are real backend.
+
+| Flow | File | Kind | Scenarios | Last passed on | Date |
+|---|---|---|---|---|---|
+| Core POS flows | `real_backend_pos_flows_test.dart` | real | 11 | cf6b4f4 | 2026-11-11 |
+| App launch (login → store → device → PIN → open register) | `real_backend_ui_test.dart` | real | 1 | cf6b4f4 | 2026-11-11 |
+| G4 (integrity, reports, Draft PO) | `g4_flow_test.dart` | real | 3 | cf6b4f4 | 2026-11-11 |
+| G4.8 + G4.9 | `g48_flow_test.dart` | real | 9 | cf6b4f4 | 2026-11-11 |
+| G5.1 | `g51_flow_test.dart` | real | 3 | cf6b4f4 | 2026-11-11 |
+| G2.4 checkout | `g24_checkout_flow_test.dart` | real | 5 | b1037f2 | 2026-11-11 |
+| G2.5 returns | `g25_returns_flow_test.dart` | real | 4 | b1037f2 | 2026-11-11 |
+| G2.7 offline return on another till | `g27_offline_return_other_till_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
+| G3.1 inventory | `g31_inventory_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
+| G3.2 / G3.3 lots, customers, credit, loyalty | `g32_g33_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
+| G3.4 supply | `g34_supply_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
+| G3.5 cash | `g35_cash_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
+| G3.6 team | `g36_team_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
+| Raast QR (stack with `E2E_QR_TTL=10`) | `real_backend_raast_test.dart` | real | 4 | cf6b4f4 | 2026-11-11 |
+| Offline sync | `offline_sync_test.dart` | mocked | 2 | b1037f2 | 2026-11-11 |
+| Phase 2 device flow | `phase2_device_flow_test.dart` | mocked | 1 | b1037f2 | 2026-11-11 |
+| Phase 2 fresh flow | `phase2_fresh_flow_test.dart` | mocked | 1 | b1037f2 | 2026-11-11 |
+| Checkout flow (mocked) | `pos_checkout_flow_test.dart` | mocked | 1 | **known-failing**: un-mockable `getProfile` 401 forces a logout (documented in the file); covered by the real core flows | — |
+| Phase 3 sale flows (mocked) | `phase3_sale_flows_test.dart` | mocked | 1 | **known-failing**: same cause | — |
+
+Screenshot passes (`*_screens_shots_test.dart`) are not flows; the G5.1 one passed on 2026-11-12 (16 shots in `g5_1_screenshots/phone`).
