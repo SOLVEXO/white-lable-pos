@@ -307,6 +307,11 @@ class PosHomeController extends GetxController {
   final List<String> paymentMethods = PosPaymentMethod.all;
   final TextEditingController tenderedController = TextEditingController();
   final TextEditingController paymentReferenceController = TextEditingController();
+  // G5.4: card on a separate bank terminal (the store's switch): approval code from the slip (required), last 4 digits (optional), terminal name
+  final RxBool cardExternalTerminal = false.obs;
+  final TextEditingController cardApprovalController = TextEditingController();
+  final TextEditingController cardLast4Controller = TextEditingController();
+  final TextEditingController cardTerminalController = TextEditingController();
 
   // ── Computed ──────────────────────────────────────────────────────────────
   /// Display labels for the category filter row: `'All'` plus every
@@ -725,6 +730,9 @@ class PosHomeController extends GetxController {
     discountController.dispose();
     tenderedController.dispose();
     paymentReferenceController.dispose();
+    cardApprovalController.dispose();
+    cardLast4Controller.dispose();
+    cardTerminalController.dispose();
     for (final l in splitLines) {
       l.dispose();
     }
@@ -759,6 +767,32 @@ class PosHomeController extends GetxController {
       }
     }
     currencySymbol.value = Money.symbol(); // from the store's currency code, never free text
+    unawaited(_loadConnectors());
+  }
+
+  /// G5.4: which provider-dependent features the store has on (offline: keep what we last knew; the server never blocks an offline sale on them).
+  Future<void> _loadConnectors() async {
+    if (storeId.value.isEmpty) return;
+    final c = await _posRepo.getConnectors(storeId.value);
+    if (c != null) cardExternalTerminal.value = c.cardExternalTerminal;
+  }
+
+  /// G5.4: the terminal details for a card line (empty fields left out).
+  Map<String, dynamic> _cardTerminalFields(String approval) => {
+        if (approval.trim().isNotEmpty) 'approvalCode': approval.trim(),
+        if (cardLast4Controller.text.trim().isNotEmpty) 'last4': cardLast4Controller.text.trim(),
+        if (cardTerminalController.text.trim().isNotEmpty) 'terminalLabel': cardTerminalController.text.trim(),
+      };
+
+  /// G5.4: what the tenders send (tests).
+  @visibleForTesting
+  List<Map<String, dynamic>>? paymentLinesForTest() => _paymentPayload().payments;
+
+  /// G5.4: with the switch on, a card payment needs the slip's approval code (the server checks it too).
+  bool get cardApprovalMissing {
+    if (!cardExternalTerminal.value) return false;
+    if (isSplitPayment.value) return splitLines.any((l) => l.method.value == PosPaymentMethod.card && l.amountValue > 0 && l.reference.text.trim().isEmpty);
+    return selectedPayment.value == PosPaymentMethod.card && cardApprovalController.text.trim().isEmpty;
   }
 
   /// Re-tries the server for the catalog and settings (the 'Refresh' on the stale-data bar).
@@ -1074,6 +1108,8 @@ class PosHomeController extends GetxController {
     isPercentDiscount.value = false;
     tenderedController.clear();
     paymentReferenceController.clear();
+    cardApprovalController.clear();
+    cardLast4Controller.clear(); // the terminal name stays for the next sale
     selectedPayment.value = PosPaymentMethod.cash;
     isSplitPayment.value = false;
     for (final l in splitLines) {
@@ -1097,6 +1133,8 @@ class PosHomeController extends GetxController {
               'amount': splitLines[i].amountValue,
               if (splitLines[i].method.value == PosPaymentMethod.raastQr && _qrConfirmed[i] != null) 'intentId': _qrConfirmed[i]!.intentId,
               if (splitLines[i].method.value != PosPaymentMethod.cash && splitLines[i].method.value != PosPaymentMethod.raastQr && splitLines[i].reference.text.trim().isNotEmpty) 'reference': splitLines[i].reference.text.trim(),
+              // G5.4: on a split, the card row's reference IS the terminal approval code
+              if (cardExternalTerminal.value && splitLines[i].method.value == PosPaymentMethod.card) ..._cardTerminalFields(splitLines[i].reference.text),
             },
       ];
       return (payments: lines, amountTendered: null, reference: null, method: splitLines.first.method.value);
@@ -1105,6 +1143,9 @@ class PosHomeController extends GetxController {
     if (method == PosPaymentMethod.raastQr) {
       // the sale carries the CONFIRMED payment's id; the server checks it is paid, matches the amount and is not used elsewhere
       return (payments: [{'method': method, 'amount': chargeTotal ?? total, if (_qrConfirmed[0] != null) 'intentId': _qrConfirmed[0]!.intentId}], amountTendered: null, reference: null, method: method);
+    }
+    if (method == PosPaymentMethod.card && cardExternalTerminal.value) {
+      return (payments: [{'method': method, 'amount': chargeTotal ?? total, ..._cardTerminalFields(cardApprovalController.text)}], amountTendered: null, reference: null, method: method);
     }
     return (
       payments: null,
@@ -1796,6 +1837,7 @@ class PosHomeController extends GetxController {
       _expiredApproverToken = null;
       return 'A manager must approve selling expired stock. Ask the manager again.';
     }
+    if (code == 'CARD_APPROVAL_REQUIRED') return 'Enter the approval code from the card terminal slip.';
     if (code != null && customerCodes.contains(code)) return customerErrorMessage(code);
     if (code != null && catalogSaleCodes.contains(code)) return catalogErrorMessage(code, message: message);
     return _friendlyError(message ?? '');

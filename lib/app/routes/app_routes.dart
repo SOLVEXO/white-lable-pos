@@ -58,6 +58,7 @@ abstract class Routes {
   static const posOfflineMode = '/pos/offline-mode';
   static const posPermissions = '/pos/permissions';
   static const posKyb = '/pos/business-verification';
+  static const posPaymentsSetup = '/pos/payments-setup'; // G5.4
   static const posTaxInvoice = '/pos/tax-invoice';
   static const posReturn = '/pos/return';
   static const posCatalog = '/pos/catalog';

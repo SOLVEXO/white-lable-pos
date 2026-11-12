@@ -83,6 +83,8 @@ import '../modules/pos_catalog/views/pos_catalog_view.dart';
 import '../modules/pos_tax_profile/pos_tax_profile.dart';
 import '../modules/pos_kyb/bindings/pos_kyb_binding.dart';
 import '../modules/pos_kyb/views/pos_kyb_view.dart';
+import '../modules/pos_payments_setup/bindings/pos_payments_setup_binding.dart';
+import '../modules/pos_payments_setup/views/pos_payments_setup_view.dart';
 import '../modules/pos_offline/bindings/pos_offline_binding.dart';
 import '../modules/pos_offline/views/pos_offline_view.dart';
 import '../modules/pos_permissions/bindings/pos_permissions_binding.dart';
@@ -289,6 +291,13 @@ class AppPages {
       name: Routes.posKyb,
       page: () => PosKybView(),
       binding: PosKybBinding(),
+      middlewares: [OwnerAccessMiddleware()],
+    ),
+    // G5.4: Raast on/off + card on a bank terminal + card gateway status (owner switches; behind the owner gate)
+    GetPage(
+      name: Routes.posPaymentsSetup,
+      page: () => PosPaymentsSetupView(),
+      binding: PosPaymentsSetupBinding(),
       middlewares: [OwnerAccessMiddleware()],
     ),
     // What works offline, what doesn't, the sync queue — reachable in restricted mode too (it only reads and syncs)

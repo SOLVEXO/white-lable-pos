@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter/services.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/cart_removal_undo.dart';
 import 'package:solvexo_pos/app/modules/pos_home/utils/cash_suggestions.dart';
@@ -343,14 +344,41 @@ class _ReferenceField extends StatelessWidget {
   final String method;
 
   @override
+  Widget build(BuildContext context) => Obx(() {
+    // G5.4: the store takes cards on a separate bank terminal → the slip's approval code (required), last 4 digits and terminal name
+    if (method == PosPaymentMethod.card && c.cardExternalTerminal.value) return _CardTerminalFields(c: c);
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.s2),
+      child: AppTextField(
+        key: const Key('paymentReference'),
+        label: method == PosPaymentMethod.card ? 'Card auth code (optional)' : 'Reference / transaction # (optional)',
+        controller: c.paymentReferenceController,
+        prefixIcon: Icons.tag_rounded,
+        textInputAction: TextInputAction.done,
+      ),
+    );
+  });
+}
+
+/// G5.4: card on an external terminal — what the slip says.
+class _CardTerminalFields extends StatelessWidget {
+  const _CardTerminalFields({required this.c});
+  final PosHomeController c;
+
+  @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: Space.s2),
-    child: AppTextField(
-      key: const Key('paymentReference'),
-      label: method == PosPaymentMethod.card ? 'Card auth code (optional)' : 'Reference / transaction # (optional)',
-      controller: c.paymentReferenceController,
-      prefixIcon: Icons.tag_rounded,
-      textInputAction: TextInputAction.done,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppTextField(key: const Key('cardApprovalCode'), label: 'Approval code (required)', controller: c.cardApprovalController, prefixIcon: Icons.verified_rounded, textInputAction: TextInputAction.next),
+        const SizedBox(height: Space.s2),
+        Row(children: [
+          Expanded(child: AppTextField(key: const Key('cardLast4'), label: 'Last 4 (optional)', controller: c.cardLast4Controller, prefixIcon: Icons.credit_card_rounded, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(4)])),
+          const SizedBox(width: Space.s2),
+          Expanded(child: AppTextField(key: const Key('cardTerminal'), label: 'Terminal', controller: c.cardTerminalController, prefixIcon: Icons.point_of_sale_rounded, textInputAction: TextInputAction.done)),
+        ]),
+      ],
     ),
   );
 }
@@ -466,7 +494,7 @@ class _SplitLineCard extends StatelessWidget {
             ),
             if (method != PosPaymentMethod.cash && method != PosPaymentMethod.raastQr && method != PosPaymentMethod.storeCredit) ...[
               const SizedBox(height: Space.s2),
-              AppTextField(key: Key('splitRef-$index'), label: 'Reference (optional)', controller: line.reference, prefixIcon: Icons.tag_rounded),
+              Obx(() => AppTextField(key: Key('splitRef-$index'), label: c.cardExternalTerminal.value && line.method.value == PosPaymentMethod.card ? 'Approval code (required)' : 'Reference (optional)', controller: line.reference, prefixIcon: Icons.tag_rounded)),
             ],
           ],
         );

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:solvexo_pos/app/data/models/pos/pos_connectors_models.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_audit_log_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
@@ -2731,6 +2732,16 @@ class PosRepository {
   Future<({bool success, String? code, String? message})> sendReceipt(String storeId, String saleId, {required String channel, String? to, bool givenForSale = false}) async {
     final r = await _adminWrite('receiptSend', 'POST', '${ApiConstants.apiPrefix}/pos/receipt-delivery/$storeId/$saleId', {'channel': channel, if (to != null && to.trim().isNotEmpty) 'to': to.trim(), if (givenForSale) 'consent': 'given_for_sale'});
     return (success: r.success, code: r.code, message: (r.extra?['message'] is String ? r.extra!['message'] as String : null) ?? r.message);
+  }
+
+  /// G5.4 / G5.7: the store's provider-dependent switches + provider status (read-only; switches change via store settings `connectors`, owner only).
+  Future<ConnectorsStatus?> getConnectors(String storeId) =>
+      _invGet('connectors', '${ApiConstants.apiPrefix}/pos/connectors/$storeId', (d) => ConnectorsStatus.fromJson(d as Map));
+
+  /// Owner: flips one or more connector switches (audited server-side).
+  Future<({bool success, String? code, String? message})> setConnectors(String storeId, Map<String, bool> patch) async {
+    final r = await updateStoreSettings(storeId, {'connectors': patch});
+    return (success: r.success, code: r.code, message: r.message);
   }
 
   // ── G5.2 · the product page and editing an existing product ─────────────────────────────────────────────────────────────────────────
