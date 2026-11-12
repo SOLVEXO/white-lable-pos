@@ -8,6 +8,7 @@ import 'package:solvexo_pos/utils/pos_totals.dart';
 import 'dart:async';
 
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_connectors_models.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
 import 'package:solvexo_pos/app/data/local/catalog_pricing_cache.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_catalog_admin_models.dart';
@@ -773,7 +774,12 @@ class PosHomeController extends GetxController {
   /// G5.4: which provider-dependent features the store has on (offline: keep what we last knew; the server never blocks an offline sale on them).
   Future<void> _loadConnectors() async {
     if (storeId.value.isEmpty) return;
-    final c = await _posRepo.getConnectors(storeId.value);
+    ConnectorsStatus? c;
+    try {
+      c = await _posRepo.getConnectors(storeId.value);
+    } catch (_) {
+      return; // keep what we knew; selling never depends on this read
+    }
     if (c != null) cardExternalTerminal.value = c.cardExternalTerminal;
   }
 
