@@ -122,6 +122,8 @@ class ReceiptData {
   final String? fiscalNumber;
   final String? fiscalQr;
   final bool fiscalPending;
+  /// G5.6: the store's receipt logo (only when the designer's logo switch is on); the printer uses the till's cached bitmap of it
+  final String? logoUrl;
 
   /// The server's sale id (null for a provisional offline receipt): the digital receipt link is asked for with it.
   final String? saleId;
@@ -162,6 +164,7 @@ class ReceiptData {
     this.fiscalNumber,
     this.fiscalQr,
     this.fiscalPending = false,
+    this.logoUrl,
   });
 
   /// The note printed on a provisional (not yet synced) receipt.
@@ -203,6 +206,7 @@ class ReceiptData {
         fiscalNumber: fiscalNumber,
         fiscalQr: fiscalQr,
         fiscalPending: fiscalPending,
+        logoUrl: logoUrl,
       );
 
   Map<String, dynamic> toJson() => {
@@ -240,6 +244,7 @@ class ReceiptData {
         if (fiscalNumber != null) 'fiscalNumber': fiscalNumber,
         if (fiscalQr != null) 'fiscalQr': fiscalQr,
         if (fiscalPending) 'fiscalPending': true,
+        if (logoUrl != null) 'logoUrl': logoUrl,
       };
 
   factory ReceiptData.fromJson(Map<String, dynamic> j) => ReceiptData(
@@ -277,6 +282,7 @@ class ReceiptData {
         fiscalNumber: j['fiscalNumber'] as String?,
         fiscalQr: j['fiscalQr'] as String?,
         fiscalPending: j['fiscalPending'] == true,
+        logoUrl: j['logoUrl'] as String?,
       );
 
   /// How a refund slice is handed back, per tender.
@@ -381,6 +387,7 @@ class ReceiptData {
       fiscalNumber: sale.invoice?.fiscalConfirmed == true ? sale.invoice!.fiscalNumber : null,
       fiscalQr: sale.invoice?.fiscalConfirmed == true ? sale.invoice!.fiscalQr : null,
       fiscalPending: sale.invoice?.fiscalPending == true,
+      logoUrl: settings?.receiptLogoUrlToPrint,
       // G4.8 receipt designer switches (defaults: QR on, barcode off, points on)
       // G4.9: the offline-built link first (the same QR online or offline, at checkout and on reprint); the token link only for a sale without a client key
       // G5.1: only the server-provided base + client key (no fallback to any other link — [receiptUrl] is no longer printed)
@@ -453,6 +460,7 @@ class ReceiptData {
       footer: receiptFooterText(settings, clean),
       offlineNote: offlinePendingNote,
       fiscalPending: fiscalPending,
+      logoUrl: settings?.receiptLogoUrlToPrint,
       qrPayload: printedReceiptQr(settings, clientKey),
       qrWanted: settings?.receiptOptions.showQr ?? true,
     );

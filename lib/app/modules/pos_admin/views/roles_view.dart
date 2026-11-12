@@ -35,6 +35,42 @@ class _RolesViewState extends State<RolesView> {
     if (ok == true) await c.save();
   }
 
+  /// G5.6: pick a preset → the server's preview of what changes → confirm.
+  Future<void> _preset() async {
+    final presets = c.matrix.value?.presets ?? const <RolePreset>[];
+    if (presets.isEmpty) return;
+    final picked = await showModalBottomSheet<RolePreset>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          key: const Key('presetList'),
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(Space.s4, 0, Space.s4, Space.s4),
+          children: [
+            Text('Role presets', style: ctx.type.subtitle),
+            const SizedBox(height: Space.s1),
+            Text('A preset replaces your custom permissions. You will see exactly what changes before anything is saved.', style: ctx.type.bodySmall.copyWith(color: ctx.palette.textSecondary)),
+            const SizedBox(height: Space.s2),
+            for (final p in presets)
+              ListTile(
+                key: Key('preset_${p.key}'),
+                contentPadding: EdgeInsets.zero,
+                title: Row(children: [Flexible(child: Text(p.label)), if (p.proposed) ...[const SizedBox(width: Space.s2), const StatusBadge('Proposed', tone: StatusTone.warning)]]),
+                subtitle: Text(p.summary),
+                onTap: () => Navigator.of(ctx).pop(p),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final diff = await c.previewPreset(picked.key);
+    if (diff == null || !mounted) return;
+    final ok = await PermPreviewSheet.open(title: 'Apply "${picked.label}"', diff: diff, labelOf: c.labelOf, confirmLabel: 'Apply preset');
+    if (ok == true) await c.applyPreset(picked);
+  }
+
   Future<void> _reset() async {
     final diff = await c.previewReset();
     if (diff == null || !mounted) return;
@@ -47,7 +83,10 @@ class _RolesViewState extends State<RolesView> {
     return InvScaffold(
       title: 'Roles & permissions',
       maxWidth: 900,
-      actions: [Obx(() => c.canEdit ? TextButton(key: const Key('permReset'), onPressed: c.busy.value ? null : _reset, child: const Text('Reset to defaults')) : const SizedBox.shrink())],
+      actions: [
+        Obx(() => c.canEdit && (c.matrix.value?.presets.isNotEmpty ?? false) ? TextButton(key: const Key('permPresets'), onPressed: c.busy.value ? null : _preset, child: const Text('Presets')) : const SizedBox.shrink()),
+        Obx(() => c.canEdit ? TextButton(key: const Key('permReset'), onPressed: c.busy.value ? null : _reset, child: const Text('Reset to defaults')) : const SizedBox.shrink()),
+      ],
       body: Obx(() {
         final m = c.matrix.value;
         if (!reportsOnlineRx().value && m == null) return const ReportsNeedsInternet(subject: 'Roles & permissions');

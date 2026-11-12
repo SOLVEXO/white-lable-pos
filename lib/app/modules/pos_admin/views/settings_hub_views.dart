@@ -1,4 +1,8 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:solvexo_pos/app/components/owner_unlock_button.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart';
@@ -10,6 +14,7 @@ import 'package:solvexo_pos/app/modules/pos_reports/controllers/reports_common.d
 import 'package:solvexo_pos/app/modules/pos_reports/views/report_widgets.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/core/design/design.dart';
+import 'package:solvexo_pos/utils/receipt_logo.dart';
 
 /// The hub's controller is shared by its screens; a screen opened on its own creates it.
 StoreSettingsController _settingsC(StoreSettingsController? given) =>
@@ -227,6 +232,8 @@ class ReceiptDesignerView extends StatelessWidget {
                 value: d.flag(k),
                 onChanged: edit ? (v) => c.setReceiptFlag(k, v) : null,
               ),
+            const InvSectionTitle('Logo'),
+            _LogoSection(c: c, edit: edit),
             const InvSectionTitle('Your text'),
             _ReceiptText(key: ValueKey('header_${c.receiptRevision.value}'), fieldKey: 'header', label: 'Header (under the store name)', initial: d.header, max: 300, enabled: edit, c: c),
             _ReceiptText(key: ValueKey('promoText_${c.receiptRevision.value}'), fieldKey: 'promoText', label: 'Promotion line', initial: d.promoText, max: 200, enabled: edit, c: c),
@@ -250,7 +257,7 @@ class ReceiptDesignerView extends StatelessWidget {
           final preview = Column(
             children: [
               const InvSectionTitle('Preview'),
-              ReceiptPreview(options: d, storeName: s.businessName ?? 'Your store', address: s.businessAddress, taxId: s.businessTaxId),
+              ReceiptPreview(options: d, storeName: s.businessName ?? 'Your store', address: s.businessAddress, taxId: s.businessTaxId, logo: c.logoPreview.value),
             ],
           );
           return [
@@ -310,8 +317,10 @@ class _ReceiptTextState extends State<_ReceiptText> {
 
 /// A sample receipt drawn from the designer's options (58 mm is narrower). It shows what each switch does; the printer prints the real sale.
 class ReceiptPreview extends StatelessWidget {
-  const ReceiptPreview({super.key, required this.options, required this.storeName, this.address, this.taxId});
+  const ReceiptPreview({super.key, required this.options, required this.storeName, this.address, this.taxId, this.logo});
   final ReceiptOptions options;
+  /// G5.6: the uploaded logo as the printer will print it (null → the placeholder icon)
+  final LogoBitmap? logo;
   final String storeName;
   final String? address, taxId;
 
@@ -342,7 +351,7 @@ class ReceiptPreview extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (o.showLogo) const Icon(Icons.storefront_rounded, key: Key('previewLogo'), color: ink, size: 28),
+            if (o.showLogo) logo != null ? Center(child: LogoBitmapImage(key: const Key('previewLogoBitmap'), bitmap: logo!, width: (o.defaultPaperWidth == 58 ? 220 : 300) * 0.66)) : const Icon(Icons.storefront_rounded, key: Key('previewLogo'), color: ink, size: 28),
             center(storeName, bold: true),
             if (o.showStoreAddress && (address ?? '').isNotEmpty) center(address!),
             if (o.showTaxId) center('NTN ${taxId ?? '1234567-8'}'),
@@ -547,5 +556,97 @@ class _BackupSyncViewState extends State<BackupSyncView> {
         );
       }),
     );
+  }
+}
+
+
+/// G5.6: upload / replace / remove the receipt logo (owner), with what goes wrong said in place.
+class _LogoSection extends StatelessWidget {
+  const _LogoSection({required this.c, required this.edit});
+  final StoreSettingsController c;
+  final bool edit;
+
+  Future<void> _pick() async {
+    final x = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 2048, imageQuality: 95);
+    if (x != null) await c.uploadLogo(File(x.path));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Obx(() {
+      final has = c.settings.value?.receiptLogoUrl != null;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            has ? 'Printed in black and white (dithered) at the top of the receipt when "Store logo" is on. The preview shows the exact dots.' : 'No logo yet. Upload a square or wide logo (JPEG, PNG or WebP, up to 2 MB). Dark on a light background prints best.',
+            key: const Key('logoHint'),
+            style: context.type.caption.copyWith(color: p.textSecondary),
+          ),
+          if (c.logoError.value != null) Padding(padding: const EdgeInsets.only(top: Space.s2), child: Text(c.logoError.value!, key: const Key('logoError'), style: context.type.body.copyWith(color: p.danger))),
+          if (edit)
+            Padding(
+              padding: const EdgeInsets.only(top: Space.s2),
+              child: Row(children: [
+                Expanded(child: OutlinedButton.icon(key: const Key('logoUpload'), onPressed: c.logoBusy.value ? null : _pick, icon: const Icon(Icons.upload_rounded), label: Text(has ? 'Replace logo' : 'Upload logo'))),
+                if (has) ...[
+                  const SizedBox(width: Space.s2),
+                  Expanded(child: OutlinedButton.icon(key: const Key('logoRemove'), onPressed: c.logoBusy.value ? null : c.removeLogo, icon: const Icon(Icons.delete_outline_rounded), label: const Text('Remove'))),
+                ],
+              ]),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+/// G5.6: draws a [LogoBitmap] dot for dot (what the thermal printer will print).
+class LogoBitmapImage extends StatefulWidget {
+  const LogoBitmapImage({super.key, required this.bitmap, required this.width});
+  final LogoBitmap bitmap;
+  final double width;
+  @override
+  State<LogoBitmapImage> createState() => _LogoBitmapImageState();
+}
+
+class _LogoBitmapImageState extends State<LogoBitmapImage> {
+  ui.Image? _img;
+
+  @override
+  void initState() {
+    super.initState();
+    _decode();
+  }
+
+  @override
+  void didUpdateWidget(LogoBitmapImage old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.bitmap, widget.bitmap)) _decode();
+  }
+
+  void _decode() {
+    final b = widget.bitmap;
+    ui.decodeImageFromPixels(b.toRgba(), b.width, b.height, ui.PixelFormat.rgba8888, (img) {
+      if (!mounted) return img.dispose();
+      setState(() {
+        _img?.dispose();
+        _img = img;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _img?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final b = widget.bitmap;
+    final h = widget.width * b.height / b.width;
+    return SizedBox(width: widget.width, height: h, child: _img == null ? const SizedBox.shrink() : RawImage(image: _img, fit: BoxFit.contain, filterQuality: FilterQuality.none));
   }
 }

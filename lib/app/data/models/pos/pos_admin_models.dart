@@ -108,12 +108,26 @@ String permAreaLabel(String area) => switch (area) {
 };
 
 class PermissionMatrix {
-  const PermissionMatrix({required this.version, required this.canEdit, this.actions = const []});
+  const PermissionMatrix({required this.version, required this.canEdit, this.actions = const [], this.presets = const []});
   final int version;
   final bool canEdit;
   final List<PermAction> actions;
-  factory PermissionMatrix.fromJson(Map<String, dynamic> j) =>
-      PermissionMatrix(version: _int(j['version']), canEdit: j['canEdit'] == true, actions: [for (final a in _maps(j['actions'])) PermAction.fromJson(a)]);
+  /// G5.6: role presets the owner can apply in one go (proposed, pending sign-off)
+  final List<RolePreset> presets;
+  factory PermissionMatrix.fromJson(Map<String, dynamic> j) => PermissionMatrix(
+        version: _int(j['version']),
+        canEdit: j['canEdit'] == true,
+        actions: [for (final a in _maps(j['actions'])) PermAction.fromJson(a)],
+        presets: [for (final p in _maps(j['presets'])) RolePreset.fromJson(p)],
+      );
+}
+
+/// G5.6: a named set of permissions (e.g. "Strict (owner away)"); applying it replaces the store's custom permissions.
+class RolePreset {
+  const RolePreset({required this.key, required this.label, required this.summary, this.status = 'proposed'});
+  final String key, label, summary, status;
+  bool get proposed => status == 'proposed';
+  factory RolePreset.fromJson(Map<String, dynamic> j) => RolePreset(key: '${j['key'] ?? ''}', label: '${j['label'] ?? ''}', summary: '${j['summary'] ?? ''}', status: '${j['status'] ?? 'proposed'}');
 }
 
 /// One line of the server's preview: what changes for an action (`roles` or `approval`), before → after.
@@ -232,7 +246,7 @@ class ReceiptOptions {
   };
 
   /// switches the thermal / PDF receipt does not print yet (the setting is kept; the preview shows it)
-  static const notPrintedYet = {'showLogo'}; // G4.8: QR, barcode and points print now; the logo waits for the vector / 1024 px masters
+  static const notPrintedYet = <String>{}; // G5.6: the logo prints now too (upload it in the designer)
 
   bool flag(String k) => toJson()[k] == true;
 
@@ -314,8 +328,10 @@ class SecurityPrefs {
 }
 
 class StoreSettings {
-  const StoreSettings({required this.receipt, this.alerts = const {}, required this.security, this.businessName, this.businessAddress, this.businessTaxId, this.timeZone, this.canEdit = false});
+  const StoreSettings({required this.receipt, this.alerts = const {}, required this.security, this.businessName, this.businessAddress, this.businessTaxId, this.timeZone, this.canEdit = false, this.receiptLogoUrl});
   final ReceiptOptions receipt;
+  /// G5.6: the uploaded receipt logo (null = none)
+  final String? receiptLogoUrl;
   final Map<String, bool> alerts;
   final SecurityPrefs security;
   final String? businessName, businessAddress, businessTaxId, timeZone;
@@ -334,6 +350,7 @@ class StoreSettings {
       businessTaxId: _str(pr['businessTaxId']),
       timeZone: _str(j['timeZone']),
       canEdit: j['canEdit'] == true,
+      receiptLogoUrl: _str(_map(j['receipt'])['logoUrl']),
     );
   }
 }

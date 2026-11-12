@@ -38,6 +38,10 @@ class PosSettingsModel {
 
   /// G4.9: the store's public id and the base of the receipt link a till builds OFFLINE (`<base><sale client key>`) — cached with the settings
   final String? storePublicId;
+
+  /// G5.6: the receipt logo the owner uploaded (null = none); printed when the designer's logo switch is on
+  final String? receiptLogoUrl;
+  String? get receiptLogoUrlToPrint => receiptOptions.showLogo ? receiptLogoUrl : null;
   final String? receiptLinkBase;
 
   const PosSettingsModel({
@@ -66,6 +70,7 @@ class PosSettingsModel {
     this.hideCostsFromManagers = false,
     this.storePublicId,
     this.receiptLinkBase,
+    this.receiptLogoUrl,
   });
 
   String get taxRatePercentLabel => '${(taxRate * 100).toStringAsFixed(taxRate * 100 % 1 == 0 ? 0 : 1)}%';
@@ -96,6 +101,7 @@ class PosSettingsModel {
         hideCostsFromManagers: (json['securityPrefs'] is Map && json['securityPrefs']['hideCostsFromManagers'] == true) || json['hideCostsFromManagers'] == true,
         storePublicId: json['storePublicId'] as String?,
         receiptLinkBase: json['receiptLinkBase'] as String?,
+        receiptLogoUrl: json['receiptLogoUrl'] as String?,
       );
 
   /// The same settings with the pricing fields the server just told us about (a quote answered with a newer tax rate).
@@ -110,6 +116,7 @@ class PosSettingsModel {
         hideCostsFromManagers: hideCostsFromManagers,
         storePublicId: storePublicId,
         receiptLinkBase: receiptLinkBase,
+        receiptLogoUrl: receiptLogoUrl,
       );
 
   /// For the on-device settings cache (round-trips through [fromJson]).
@@ -138,6 +145,7 @@ class PosSettingsModel {
         'requirePinForReprint': requirePinForReprint,
         'hideCostsFromManagers': hideCostsFromManagers,
         'storePublicId': storePublicId,
+        'receiptLogoUrl': receiptLogoUrl,
         'receiptLinkBase': receiptLinkBase,
       };
 

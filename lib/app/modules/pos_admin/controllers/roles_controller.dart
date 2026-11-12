@@ -164,6 +164,19 @@ class RolesController extends GetxController {
     return r != null;
   }
 
+  /// G5.6: a preset's effect on this store (the server's diff; nothing saved).
+  Future<List<PermDiff>?> previewPreset(String key) async {
+    if (busy.value) return null;
+    return _call(() async => _repo.applyRolePreset(await reportsStoreId(_storeIdOverride), key, preview: true), preview: true);
+  }
+
+  Future<bool> applyPreset(RolePreset p) async {
+    if (busy.value) return false;
+    final r = await _call(() async => _repo.applyRolePreset(await reportsStoreId(_storeIdOverride), p.key, expectedVersion: matrix.value?.version ?? 0));
+    if (r != null) notice.value = '"${p.label}" applied. The new permissions apply on every till at once.';
+    return r != null;
+  }
+
   Future<List<PermDiff>?> _call(Future<({bool success, String? code, String? message, PermissionMatrix? matrix, List<PermDiff> diff})> Function() run, {bool preview = false}) async {
     saveError.value = null;
     notice.value = null;

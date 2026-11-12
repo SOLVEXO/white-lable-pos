@@ -2643,6 +2643,12 @@ class PosRepository {
     return _permResult(r, preview);
   }
 
+  /// G5.6 owner only: apply a role preset ([preview] = the diff only; otherwise saved when the version still is [expectedVersion]).
+  Future<({bool success, String? code, String? message, PermissionMatrix? matrix, List<PermDiff> diff})> applyRolePreset(String storeId, String preset, {bool preview = false, int? expectedVersion}) async {
+    final r = await _adminWrite('permissionsPreset', 'POST', '${_perms(storeId)}/preset', {'preset': preset, if (preview) 'preview': true, 'expectedVersion': ?expectedVersion});
+    return _permResult(r, preview);
+  }
+
   ({bool success, String? code, String? message, PermissionMatrix? matrix, List<PermDiff> diff}) _permResult(
     ({bool success, String? message, String? code, Map<String, dynamic>? data, Map<String, dynamic>? extra}) r,
     bool preview,
@@ -2662,6 +2668,26 @@ class PosRepository {
   /// Owner only. [patch] = `{receipt?: {...}, alerts?: {...}, security?: {...}}` — only the keys that change.
   Future<({bool success, String? code, String? message, StoreSettings? settings})> updateStoreSettings(String storeId, Map<String, dynamic> patch) async {
     final r = await _adminWrite('storeSettingsUpdate', 'PATCH', '${ApiConstants.apiPrefix}/pos/store/settings/$storeId', patch);
+    return (success: r.success, code: r.code, message: r.extra?['message'] as String? ?? r.message, settings: r.data == null ? null : StoreSettings.fromJson(r.data!));
+  }
+
+  /// G5.6: the receipt logo (owner only). The server checks the file by content and resizes it; tills make the printable bitmap.
+  Future<({bool success, String? code, String? message, StoreSettings? settings})> uploadReceiptLogo(String storeId, File file) async {
+    lastErrorCode = null;
+    try {
+      final form = FormData.fromMap({'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last)});
+      final res = await _client.post('${ApiConstants.apiPrefix}/pos/store/settings/$storeId/receipt-logo', data: form, requiresAuth: true, headers: await _employeeAuthHeaders());
+      final d = _data(res);
+      return (success: _ok(res) && d is Map, code: null, message: null, settings: d is Map ? StoreSettings.fromJson(d.cast<String, dynamic>()) : null);
+    } on DioException catch (e) {
+      _logDioError('receiptLogoUpload', e);
+      lastErrorCode = _dioCode(e);
+      return (success: false, code: lastErrorCode, message: _dioMessage(e), settings: null);
+    }
+  }
+
+  Future<({bool success, String? code, String? message, StoreSettings? settings})> removeReceiptLogo(String storeId) async {
+    final r = await _adminWrite('receiptLogoRemove', 'POST', '${ApiConstants.apiPrefix}/pos/store/settings/$storeId/receipt-logo/remove', const {});
     return (success: r.success, code: r.code, message: r.extra?['message'] as String? ?? r.message, settings: r.data == null ? null : StoreSettings.fromJson(r.data!));
   }
 

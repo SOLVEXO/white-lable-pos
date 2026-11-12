@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/receipt_logo.dart';
 import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -771,6 +772,12 @@ class PosHomeController extends GetxController {
     }
     currencySymbol.value = Money.symbol(); // from the store's currency code, never free text
     unawaited(_loadConnectors());
+    // G5.6: have the receipt logo bitmap ready for both paper widths before the first print (offline: the cached one)
+    final logo = settings.value?.receiptLogoUrlToPrint;
+    if (logo != null) {
+      unawaited(ReceiptLogoStore.warm(logo, 58));
+      unawaited(ReceiptLogoStore.warm(logo, 80));
+    }
   }
 
   /// G5.4: which provider-dependent features the store has on (offline: keep what we last knew; the server never blocks an offline sale on them).

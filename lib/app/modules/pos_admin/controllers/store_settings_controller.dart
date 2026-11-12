@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
@@ -7,6 +10,7 @@ import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/app/data/services/pending_team_sync_service.dart';
 import 'package:solvexo_pos/app/modules/pos_reports/controllers/reports_common.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
+import 'package:solvexo_pos/utils/receipt_logo.dart';
 
 /// What is still on THIS device, waiting to reach the server.
 class LocalQueues {
@@ -102,13 +106,67 @@ class StoreSettingsController extends GetxController {
 
   void _take(StoreSettings s) {
     settings.value = s;
+    unawaited(refreshLogoPreview(s.receiptLogoUrl));
     if (receiptDraft.value.toJson().toString() != s.receipt.toJson().toString()) receiptRevision.value++;
     receiptDraft.value = s.receipt;
   }
 
   // ── receipt designer ──────────────────────────────────────────────────────
   void setReceiptFlag(String k, bool v) => receiptDraft.value = receiptDraft.value.withFlag(k, v);
-  void setPaperWidth(int w) => receiptDraft.value = receiptDraft.value.copyWith(defaultPaperWidth: w);
+  void setPaperWidth(int w) {
+    receiptDraft.value = receiptDraft.value.copyWith(defaultPaperWidth: w);
+    unawaited(refreshLogoPreview(settings.value?.receiptLogoUrl));
+  }
+
+  // ── G5.6: the receipt logo (owner) ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  /// exactly the dots the printer will print, for the preview's paper width (null = no logo / not loaded)
+  final Rxn<LogoBitmap> logoPreview = Rxn<LogoBitmap>();
+  final RxBool logoBusy = false.obs;
+  final RxnString logoError = RxnString();
+  Future<LogoBitmap?> Function(String url, int paperMm) logoLoader = ReceiptLogoStore.warm;
+
+  Future<void> refreshLogoPreview(String? url) async {
+    if (url == null) {
+      logoPreview.value = null;
+      return;
+    }
+    logoPreview.value = await logoLoader(url, receiptDraft.value.defaultPaperWidth);
+  }
+
+  Future<void> uploadLogo(File file) async {
+    if (logoBusy.value) return;
+    logoBusy.value = true;
+    logoError.value = null;
+    final r = await _repo.uploadReceiptLogo(await reportsStoreId(_storeIdOverride), file);
+    logoBusy.value = false;
+    if (!r.success || r.settings == null) {
+      logoError.value = logoErrorMessage(r.code, r.message);
+      return;
+    }
+    _take(r.settings!);
+    notice.value = 'Logo saved. Tills print it on the next receipt.';
+  }
+
+  Future<void> removeLogo() async {
+    if (logoBusy.value) return;
+    logoBusy.value = true;
+    logoError.value = null;
+    final r = await _repo.removeReceiptLogo(await reportsStoreId(_storeIdOverride));
+    logoBusy.value = false;
+    if (!r.success || r.settings == null) {
+      logoError.value = logoErrorMessage(r.code, r.message);
+      return;
+    }
+    _take(r.settings!);
+    notice.value = 'Logo removed.';
+  }
+
+  static String logoErrorMessage(String? code, String? message) => switch (code) {
+        'FILE_TYPE' => 'Use a JPEG, PNG or WebP image.',
+        'FILE_TOO_LARGE' => 'The logo can be at most 2 MB.',
+        'POS_ACTION_FORBIDDEN' => 'Only the owner can change the logo.',
+        _ => settingsErrorMessage(code, message: message ?? 'Could not save the logo. Try again.'),
+      };
 
   /// header / footer / promo: an empty field clears the line
   void setReceiptText(String key, String v) => receiptDraft.value = ReceiptOptions.fromJson({...receiptDraft.value.toJson(), key: v.trim().isEmpty ? null : v});

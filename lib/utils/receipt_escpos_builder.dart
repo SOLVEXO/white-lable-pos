@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/receipt_logo.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:solvexo_pos/utils/receipt_data.dart';
@@ -76,8 +77,12 @@ class ReceiptEscPosBuilder {
       }
     }
 
+    // G5.6: the store's receipt logo (designer switch on + a logo uploaded) — from the till's cache only; no logo cached → printed without it
+    final logo = data.logoUrl == null ? null : ReceiptLogoStore.cached(data.logoUrl, paperMm);
+
     void one() {
       bytes.addAll(g.reset());
+      if (logo != null) bytes.addAll(logo.escPos());
       if (data.banner != null) big('*** ${data.banner} ***');
       if (data.offlineNote != null) center('*** ${data.offlineNote} ***', bold: true);
       if (data.reprintNumber != null) {
