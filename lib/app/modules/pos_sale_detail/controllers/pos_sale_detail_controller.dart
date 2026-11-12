@@ -12,6 +12,7 @@ import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
 import 'package:solvexo_pos/utils/pos_role.dart';
 import 'package:solvexo_pos/utils/receipt_pdf_builder.dart';
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/modules/pos_sale_detail/widgets/send_receipt_sheet.dart';
 import 'package:solvexo_pos/app/data/services/reprint_gate.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -121,6 +122,32 @@ class PosSaleDetailController extends GetxController {
       return;
     }
     await (share ?? (p) async => SharePlus.instance.share(p))(ShareParams(text: link, subject: 'Receipt ${sale.value?.saleNumber ?? ''}'));
+  }
+
+  /// G5.3: the send sheet — share link, WhatsApp to the customer's number, e-mail / SMS when the store has them on.
+  Future<void> openSendReceipt() async {
+    final s = sale.value;
+    if (s == null) return;
+    final link = await receiptLink();
+    if (link == null) {
+      CustomAppSnackbar.warning('No receipt link yet — connect to the internet once so the till can get it.');
+      return;
+    }
+    String? phone, email;
+    if ((s.customerId ?? '').isNotEmpty) {
+      final prof = await _posRepo.getCustomerProfile(s.storeId, s.customerId!).catchError((_) => null);
+      phone = prof?.customer.phone;
+      email = prof?.customer.email;
+    }
+    await SendReceiptSheet.open(
+      storeId: s.storeId,
+      saleId: s.id,
+      link: link,
+      storeName: (_settings?.businessName ?? '').trim().isEmpty ? 'Your shop' : _settings!.businessName!.trim(),
+      total: Money.format(s.total, currency: s.currency, exponent: s.currencyExponent),
+      customerPhone: phone,
+      customerEmail: email,
+    );
   }
 
   void shareReceipt() {

@@ -60,7 +60,7 @@ class PosSaleDetailView extends StatelessWidget {
               // G5.1: share the public receipt link (share sheet)
               GestureDetector(
                 key: const Key('saleShareLink'),
-                onTap: () => c.shareReceiptLink(),
+                onTap: () => c.openSendReceipt(), // G5.3: share / WhatsApp / e-mail / SMS
                 child: Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: Icon(Icons.link_rounded, color: AppColors.primaryColor, size: 20),

@@ -19,6 +19,7 @@ dependencies:
   intl: ^0.20.2
   mobile_scanner: ^7.2.0
   share_plus: ^12.0.2
+  url_launcher: ^6.3.1 # G5.3: WhatsApp (wa.me) receipt links — approved
   shimmer: ^3.0.0
   flutter_svg: ^2.2.3
   image_picker: ^1.2.1

@@ -4,7 +4,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 
 **Tiers:** `owner` = the owner's own session only · `manager-with-limit` = a manager or the owner (some actions have per-store approval limits) · `cashier` = any PIN-signed employee (approval limits may ask for a manager) · `public` = no PIN session (device, PIN login, public receipt).
 
-**Declared:** 155 routes — owner 27, manager-with-limit 73, cashier 48, public 7. Other GET routes (no cost / settings data): 43.
+**Declared:** 156 routes — owner 27, manager-with-limit 73, cashier 49, public 7. Other GET routes (no cost / settings data): 44.
 
 | Method | Route | Tier | Handler | Guards |
 |---|---|---|---|---|
@@ -93,6 +93,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 | GET | `/api/pos/products/:storeId` | cashier | PosController.getPosProducts | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | GET | `/api/pos/products/barcode/:storeId/:barcode` | cashier | PosController.getProductByBarcode | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | GET | `/api/pos/products/search` | cashier | PosController.searchProducts | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| POST | `/api/pos/receipt-delivery/:storeId/:saleId` | cashier | PosReceiptDeliveryController.send | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | POST | `/api/pos/registers/:storeId` | owner | PosController.addRegister | FeatureFlagGuard + JwtAuthGuard + RolesGuard |
 | DELETE | `/api/pos/registers/:storeId/:registerId` | owner | PosController.removeRegister | FeatureFlagGuard + JwtAuthGuard + RolesGuard |
 | PATCH | `/api/pos/registers/:storeId/:registerId` | owner | PosController.updateRegister | FeatureFlagGuard + JwtAuthGuard + RolesGuard |

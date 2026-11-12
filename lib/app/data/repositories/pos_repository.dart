@@ -2721,6 +2721,18 @@ class PosRepository {
     return (success: r.success, message: r.message, code: r.code, order: _poOf(r.data));
   }
 
+  // ── G5.3 · receipts out of the app ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  /// Which delivery channels the store has switched on (each is off until the admin / owner turns it on). Null on failure.
+  Future<({bool email, bool sms})?> getReceiptChannels(String storeId) =>
+      _invGet('receiptChannels', '${ApiConstants.apiPrefix}/pos/receipt-delivery/$storeId', (d) => (email: d['email'] == true, sms: d['sms'] == true));
+
+  /// Sends the receipt's public link (store name + total + link only). [to] omitted = the contact on the customer's record; another contact needs
+  /// [givenForSale] (the customer gave it for this receipt).
+  Future<({bool success, String? code, String? message})> sendReceipt(String storeId, String saleId, {required String channel, String? to, bool givenForSale = false}) async {
+    final r = await _adminWrite('receiptSend', 'POST', '${ApiConstants.apiPrefix}/pos/receipt-delivery/$storeId/$saleId', {'channel': channel, if (to != null && to.trim().isNotEmpty) 'to': to.trim(), if (givenForSale) 'consent': 'given_for_sale'});
+    return (success: r.success, code: r.code, message: (r.extra?['message'] is String ? r.extra!['message'] as String : null) ?? r.message);
+  }
+
   // ── G5.2 · the product page and editing an existing product ─────────────────────────────────────────────────────────────────────────
   String _prod(String storeId, String productId) => '${ApiConstants.apiPrefix}/pos/catalog-admin/products/$storeId/$productId';
 
