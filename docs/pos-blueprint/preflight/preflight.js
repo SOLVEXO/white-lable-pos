@@ -184,6 +184,10 @@ async function main() {
 
     const pu = publicUrlProblem(process.env.API_PUBLIC_URL);
     out.g51 = { apiPublicUrl: { ok: pu === null, problem: pu } }; // the API refuses to start outside development when this is not ok
+    // G5.2.0b: RECEIPT_PUBLIC_URL is optional (unset → receipts use API_PUBLIC_URL); when set it must pass the same rules
+    const rv = process.env.RECEIPT_PUBLIC_URL;
+    const ru = rv && rv.trim() ? publicUrlProblem(rv) : null;
+    out.g52 = { receiptPublicUrl: { set: !!(rv && rv.trim()), ok: ru === null, problem: ru } };
     console.log(JSON.stringify(out, null, 2));
   } finally {
     await client.close();

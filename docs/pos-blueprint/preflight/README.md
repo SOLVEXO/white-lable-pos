@@ -29,3 +29,6 @@ Since G3 the report has a `g3` block: documents in `purchaseorders`, `supplierre
 
 ## G5.1 section — `API_PUBLIC_URL`
 Run the script with the production API origin in the environment too: `API_PUBLIC_URL='https://api.solvexo.store' MONGO_URI=… node …/preflight.js`. The report's `g51.apiPublicUrl` says `ok: true`, or gives the reason it isn't. The reasons are: not set, not https, a local or private address, credentials in the URL, or more than an origin. The value itself is never printed. From G5.1 on, **the API refuses to start outside development when this check fails**, because every receipt QR carries this origin.
+
+## G5.2.0b section — `RECEIPT_PUBLIC_URL`
+Optional. Pass it like `API_PUBLIC_URL` (`RECEIPT_PUBLIC_URL='https://solvexo.store' …`). The report's `g52.receiptPublicUrl` says whether it is set and, if so, whether it passes the same rules. When it's set and fails, the API refuses to start. When it's unset, receipt links use `API_PUBLIC_URL`.

@@ -153,3 +153,29 @@ All additive; nothing existing changes shape.
 | `GET /api/pos/cash/movements/:storeId/:requestId/receipt` | same | A 5-minute link (`Cache-Control: no-store`), audited `cash_movement_receipt_viewed`. The daybook flags cash in / out lines with `requestId` + `hasReceipt`. |
 
 **Boot check:** outside development the API refuses to start without a valid public https `API_PUBLIC_URL` (see `G1B_RUNBOOK.md` §11). **Not built:** role presets (their contents are a decision for Sir Atiq).
+
+
+---
+
+# G5.2.0b — receipt links on the web domain (hand-off to the web team)
+
+**API:** a new optional env var `RECEIPT_PUBLIC_URL` (the customer-facing web origin, e.g. `https://solvexo.store`). When it's set, every receipt QR and share link the API hands out is built on it:
+- `receiptLinkBase` in `GET /api/pos/settings/:storeId` → `https://solvexo.store/r/s/<store slug>/`;
+- the token link → `https://solvexo.store/r/<token>`, plus `/invoice` and `/credit-note/<number>` under it.
+
+When it's unset, everything stays on `API_PUBLIC_URL`. The pages themselves are **still served by the API**.
+
+**What the web app must do before `RECEIPT_PUBLIC_URL` is set:**
+1. **Proxy, not redirect,** every path under `/r/` to `API_PUBLIC_URL`, keeping the path and query: `https://solvexo.store/r/<anything>` → `https://api.solvexo.store/r/<anything>`. A redirect would also work, but a proxy keeps the customer on the store's domain.
+2. **Keep the status codes:**
+   - `200` for the receipt, invoice and credit-note pages;
+   - `200` for the **"Your receipt is syncing"** page;
+   - `404` for the single **"not available"** page (unknown, revoked, expired or malformed).
+
+   Don't replace the API's 404 page with the web app's own 404, and don't turn 404 into 200.
+3. **Don't cache:** the API sends `Cache-Control: no-store`. Respect it at the CDN and edge, above all for the "syncing" page, which turns into the real receipt as soon as the sale syncs (the page also refreshes itself every 30 s).
+4. **Pass the other headers through unchanged:** `Content-Type: text/html`, `X-Robots-Tag: noindex, nofollow`, `Referrer-Policy: no-referrer`, `Content-Security-Policy` and `X-Content-Type-Options`. Add no scripts, analytics or cookies to these pages.
+5. **Rate limits:** the API limits these routes per client IP (40/min) and reads the client IP from `X-Forwarded-For` (`TRUST_PROXY_HOPS`). Forward the real client IP. If the web app adds a proxy hop, raise `TRUST_PROXY_HOPS` by one on the API.
+6. **Check:** `curl -i https://solvexo.store/r/s/<slug>/pos-0000000000000-000000000000000000000000` → `404` with the "not available" page; a real sale's QR → `200`.
+
+After the rewrite is live: set `RECEIPT_PUBLIC_URL` on the API and restart. Newly printed QR codes use the web domain; older ones keep working on the API domain.
