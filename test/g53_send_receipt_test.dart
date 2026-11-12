@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/modules/pos_sale_detail/widgets/send_receipt_sheet.dart';
 import 'package:solvexo_pos/core/design/design.dart';
