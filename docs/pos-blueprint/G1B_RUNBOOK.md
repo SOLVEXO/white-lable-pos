@@ -172,6 +172,11 @@ Order: **API first, then the apps.** Everything is additive; old app builds keep
 5. **Smoke:** a sale with a customer prints "Points balance"; turn the Wi-Fi off, ring a sale, scan its QR from another phone → "Your receipt is syncing"; Wi-Fi on, wait for sync, scan again → the receipt. Print a tax invoice from the documents screen → "ORIGINAL", again → "REPRINT #1".
 6. **Rollback:** previous API; `posreprintevents` and the new optional fields stay, unread. Printed QR codes of the `/r/s/` form then answer 404 until the API is back on G4.9.
 
+## Deploy log
+| Date | What | Commit / tag | By |
+|---|---|---|---|
+| 2026-11-12 | `solvexo-api` `main` pushed: merge of feature/jamibranch (Solvexo POS backend G1–G5.1) on top of main `6995b5b`. The API service auto-deploys from `main`; the deploy is checked by Jami. `NODE_ENV=production` and `API_PUBLIC_URL` confirmed set on that service by Jami. **Not run:** backfills §2–4 and §6–8, the insert-only grants, any deploy script. Backup tags: `backup/main-pre-pos-merge` (`6995b5b`), `backup/jamibranch-pre-main-merge` (`d7a07c4`). | `c889af0`, tag `pos-backend-g5.1` (tree = CI-green `d9d69ec`) | Claude (push), Jami (deploy check) |
+
 ## Who does what
 | Step | You | Me |
 |---|---|---|

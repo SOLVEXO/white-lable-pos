@@ -81,3 +81,5 @@ Commits are app (pos) commits; the dev stack ran the API at `d7a07c4` (G5.1). "M
 | Phase 3 sale flows (mocked) | `phase3_sale_flows_test.dart` | mocked | 1 | **known-failing**: same cause | — |
 
 Screenshot passes (`*_screens_shots_test.dart`) are not flows; the G5.1 one passed on 2026-11-12 (16 shots in `g5_1_screenshots/phone`).
+
+| MERGE-1 | backend only: main merged into feature/jamibranch (7 conflicts, all resolved as unions; 3 test-side follow-ups for main's changes), CI green on `d9d69ec`; then feature/jamibranch merged into main with `--no-ff` (identical tree) and pushed on Jami's GO. Backfills and grants not run. The pos app repo is not merged. | api `c889af0` (main), tag `pos-backend-g5.1`; backups `backup/main-pre-pos-merge`, `backup/jamibranch-pre-main-merge` | CI green on `d9d69ec` | deploy checked by Jami |
