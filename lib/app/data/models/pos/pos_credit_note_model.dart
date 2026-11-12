@@ -1,3 +1,18 @@
+/// G5.5: a document's fiscal block (the tax authority's number + QR) as the server reports it. `pending` = the store fiscalises and this document
+/// is not confirmed yet (the print says "Fiscal pending"); `not_enabled` = the store does not fiscalise (nothing printed).
+class PosFiscalInfo {
+  const PosFiscalInfo({this.status = 'not_enabled', this.number, this.qrPayload, this.testMode = false});
+  final String status;
+  final String? number;
+  final String? qrPayload;
+  final bool testMode;
+  bool get confirmed => status == 'confirmed' && number != null;
+  bool get pending => status == 'pending';
+  static PosFiscalInfo? fromJson(dynamic j) => j is Map
+      ? PosFiscalInfo(status: j['status'] as String? ?? 'not_enabled', number: j['externalInvoiceNumber'] as String?, qrPayload: j['qrPayload'] as String?, testMode: j['testMode'] == true)
+      : null;
+}
+
 /// A credit note: the document every return and void produces (own per-store number, linked to the original invoice and lines).
 /// Money is in minor units of [currency] ([exponent] decimals) — exactly as the server stored it.
 class PosCreditNoteLine {
@@ -54,6 +69,9 @@ class PosCreditNote {
   /// G4.9: printed at least once (its original is out) — the next print is a reprint
   final bool printed;
 
+  /// G5.5: the fiscal block (null when the server did not send one)
+  final PosFiscalInfo? fiscal;
+
   const PosCreditNote({
     required this.id,
     required this.number,
@@ -79,6 +97,7 @@ class PosCreditNote {
     this.backfilledAt,
     this.backfilledFrom,
     this.printed = false,
+    this.fiscal,
   });
 
   factory PosCreditNote.fromJson(Map<String, dynamic> j) {
@@ -108,6 +127,7 @@ class PosCreditNote {
       backfilledAt: (j['backfill'] is Map && (j['backfill'] as Map)['backfilledAt'] != null) ? DateTime.tryParse((j['backfill'] as Map)['backfilledAt'].toString()) : null,
       backfilledFrom: (j['backfill'] is Map) ? '${(j['backfill'] as Map)['originalType']} ${(j['backfill'] as Map)['originalId']}' : null,
       printed: j['printed'] == true,
+      fiscal: PosFiscalInfo.fromJson(j['fiscal']),
     );
   }
 }
@@ -122,6 +142,9 @@ class PosSaleDocuments {
 
   /// G4.9: the tax invoice has been printed at least once (its original is out)
   bool get invoicePrinted => invoiceJson?['printed'] == true;
+
+  /// G5.5: the invoice's fiscal block (the latest attempt)
+  PosFiscalInfo? get invoiceFiscal => PosFiscalInfo.fromJson(invoiceJson?['fiscal']);
 
   factory PosSaleDocuments.fromJson(Map<String, dynamic> j) => PosSaleDocuments(
         saleNumber: j['saleNumber'] as String? ?? '',

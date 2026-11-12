@@ -4,7 +4,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 
 **Tiers:** `owner` = the owner's own session only · `manager-with-limit` = a manager or the owner (some actions have per-store approval limits) · `cashier` = any PIN-signed employee (approval limits may ask for a manager) · `public` = no PIN session (device, PIN login, public receipt).
 
-**Declared:** 156 routes — owner 27, manager-with-limit 73, cashier 49, public 7. Other GET routes (no cost / settings data): 44.
+**Declared:** 156 routes — owner 27, manager-with-limit 73, cashier 49, public 7. Other GET routes (no cost / settings data): 45.
 
 | Method | Route | Tier | Handler | Guards |
 |---|---|---|---|---|

@@ -29,8 +29,10 @@ enum DocLineKind { text, rule, blank, qr }
 ///  * [qrPayload] — the QR code, printed under the totals;
 ///  * [logo] — a monochrome logo, printed at the very top (reserved: the ESC/POS image slot is added with the logo work).
 class FiscalSlots {
-  const FiscalSlots({this.invoiceNumber, this.qrPayload, this.logo});
+  const FiscalSlots({this.invoiceNumber, this.qrPayload, this.logo, this.pending = false});
   final String? invoiceNumber;
+  /// G5.5: the store fiscalises and this document is not confirmed yet → "Fiscal pending" (a reprint after confirmation shows the number + QR)
+  final bool pending;
   final String? qrPayload;
   final List<int>? logo;
 }
@@ -60,7 +62,7 @@ class TaxDocumentEscPos {
 
   static List<DocLine> _wrapped(String t, int cols, {String indent = ''}) => [for (final l in ReceiptEscPosBuilder.wrap(t, cols - indent.length)) DocLine('$indent$l')];
 
-  static List<DocLine> _fiscalNumber(FiscalSlots f) => f.invoiceNumber == null ? const [] : [DocLine('FBR Invoice No', align: PosAlign.center), DocLine(f.invoiceNumber!, align: PosAlign.center, bold: true)];
+  static List<DocLine> _fiscalNumber(FiscalSlots f) => f.invoiceNumber == null ? (f.pending ? const [DocLine('Fiscal pending', align: PosAlign.center, bold: true)] : const []) : [DocLine('FBR Invoice No', align: PosAlign.center), DocLine(f.invoiceNumber!, align: PosAlign.center, bold: true)];
 
   static List<DocLine> _fiscalQr(FiscalSlots f) => f.qrPayload == null ? const [] : [const DocLine.blank(), DocLine.qr(f.qrPayload!)];
 

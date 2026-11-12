@@ -95,12 +95,13 @@ class PosDocumentsController extends GetxController {
   Future<void> shareInvoicePdf() => _guard(() async {
         final s = sale.value;
         if (s == null) return;
-        final bytes = await TaxDocumentPdf.invoice(sale: s);
+        final f = documents.value?.invoiceFiscal;
+        final bytes = await TaxDocumentPdf.invoice(sale: s, fiscalNumber: f?.confirmed == true ? f!.number : null, fiscalPending: f?.pending == true);
         await _share(ShareParams(files: [XFile.fromData(Uint8List.fromList(bytes), name: 'invoice-${s.invoice?.number ?? s.saleNumber}.pdf', mimeType: 'application/pdf')], subject: 'Tax invoice ${s.invoice?.number ?? s.saleNumber}'));
       });
 
   Future<void> shareCreditNotePdf(PosCreditNote n) => _guard(() async {
-        final bytes = await TaxDocumentPdf.creditNote(note: n);
+        final bytes = await TaxDocumentPdf.creditNote(note: n, fiscalNumber: n.fiscal?.confirmed == true ? n.fiscal!.number : null, fiscalPending: n.fiscal?.pending == true);
         await _share(ShareParams(files: [XFile.fromData(Uint8List.fromList(bytes), name: 'credit-note-${n.number}.pdf', mimeType: 'application/pdf')], subject: 'Credit note ${n.number}'));
       });
 
@@ -135,18 +136,25 @@ class PosDocumentsController extends GetxController {
     }
   }
 
+  /// G5.5: what the print's fiscal band shows — the confirmed number + QR, "Fiscal pending", or nothing (store does not fiscalise).
+  static FiscalSlots slotsOf(PosFiscalInfo? f) => f == null
+      ? const FiscalSlots()
+      : f.confirmed
+          ? FiscalSlots(invoiceNumber: f.number, qrPayload: f.qrPayload)
+          : FiscalSlots(pending: f.pending);
+
   Future<void> printInvoice() async {
     final s = sale.value;
     if (s == null) return;
     final r = await _recordReprint('invoice', s.id);
     if (r == null) return;
-    return _print('invoice:${s.id}', (cols) => TaxDocumentEscPos.invoice(s, cols: cols, reprintNumber: r.number, original: r.original, copy: r.copy));
+    return _print('invoice:${s.id}', (cols) => TaxDocumentEscPos.invoice(s, cols: cols, fiscal: slotsOf(documents.value?.invoiceFiscal), reprintNumber: r.number, original: r.original, copy: r.copy));
   }
 
   Future<void> printCreditNote(PosCreditNote n) async {
     final r = await _recordReprint('credit_note', n.id);
     if (r == null) return;
-    return _print('credit_note:${n.id}', (cols) => TaxDocumentEscPos.creditNote(n, cols: cols, reprintNumber: r.number, original: r.original, copy: r.copy));
+    return _print('credit_note:${n.id}', (cols) => TaxDocumentEscPos.creditNote(n, cols: cols, fiscal: slotsOf(n.fiscal), reprintNumber: r.number, original: r.original, copy: r.copy));
   }
 
   Future<void> printReturnReceipt(PosCreditNote n) => _print('credit_note:${n.id}', (cols) => TaxDocumentEscPos.returnReceipt(n, cols: cols, saleNumber: sale.value?.saleNumber));

@@ -89,6 +89,15 @@ class ReceiptPdfBuilder {
             if (data.pointsEarned != null) row('Points earned', '${data.pointsEarned}', size: 9),
             if (data.pointsRedeemed != null) row('Points redeemed', '${data.pointsRedeemed}', size: 9),
             if (data.pointsBalance != null) row('Points balance', '${data.pointsBalance}', size: 9), // G4.9: after this sale
+            // G5.5: fiscal block
+            if (data.fiscalNumber != null) ...[
+              pw.SizedBox(height: 8),
+              center('FBR Invoice No ${data.fiscalNumber}', size: 9),
+              if (data.fiscalQr != null) pw.Center(child: pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: data.fiscalQr!, width: 72, height: 72)),
+            ] else if (data.fiscalPending) ...[
+              pw.SizedBox(height: 8),
+              center('Fiscal pending', size: 9),
+            ],
             if (data.footer != null) ...[
               pw.SizedBox(height: 10),
               pw.Divider(),

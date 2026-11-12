@@ -310,6 +310,8 @@ class PosHomeController extends GetxController {
   final TextEditingController paymentReferenceController = TextEditingController();
   // G5.4: card on a separate bank terminal (the store's switch): approval code from the slip (required), last 4 digits (optional), terminal name
   final RxBool cardExternalTerminal = false.obs;
+  /// G5.5: the store fiscalises (an offline receipt prints "Fiscal pending"; online the server's answer decides)
+  final RxBool fiscalOn = false.obs;
   final TextEditingController cardApprovalController = TextEditingController();
   final TextEditingController cardLast4Controller = TextEditingController();
   final TextEditingController cardTerminalController = TextEditingController();
@@ -780,7 +782,10 @@ class PosHomeController extends GetxController {
     } catch (_) {
       return; // keep what we knew; selling never depends on this read
     }
-    if (c != null) cardExternalTerminal.value = c.cardExternalTerminal;
+    if (c != null) {
+      cardExternalTerminal.value = c.cardExternalTerminal;
+      fiscalOn.value = c.fiscalOn;
+    }
   }
 
   /// G5.4: the terminal details for a card line (empty fields left out).
@@ -1372,6 +1377,7 @@ class PosHomeController extends GetxController {
       }
       if (cashEntries.isNotEmpty) tenders.add((method: PosPaymentMethod.cash, amount: remaining < 0 ? 0 : remaining, reference: null));
       final receipt = ReceiptData.forOfflineSale(
+        fiscalPending: fiscalOn.value, // G5.5
         provisionalNumber: number,
         madeAt: _pendingAt ?? DateTime.now(),
         settings: settings.value,

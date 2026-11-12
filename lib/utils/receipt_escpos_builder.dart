@@ -121,6 +121,17 @@ class ReceiptEscPosBuilder {
       if (data.pointsRedeemed != null) row('Points redeemed', '${data.pointsRedeemed}');
       if (data.pointsBalance != null) row('Points balance', '${data.pointsBalance}'); // G4.9: after this sale
 
+      // G5.5: the fiscal block — the tax authority's number + QR once confirmed, else "Fiscal pending" (a reprint after confirmation shows the number)
+      if (data.fiscalNumber != null) {
+        bytes.addAll(g.hr());
+        center('FBR Invoice No');
+        center(data.fiscalNumber!, bold: true);
+        if (data.fiscalQr != null) bytes.addAll(g.qrcode(data.fiscalQr!, size: paperMm == 58 ? QRSize.size4 : QRSize.size5));
+      } else if (data.fiscalPending) {
+        bytes.addAll(g.hr());
+        center('Fiscal pending', bold: true);
+      }
+
       if (data.footer != null) {
         bytes.addAll(g.hr());
         center(data.footer!);

@@ -43,7 +43,7 @@ class TaxDocumentPdf {
       ];
 
   /// [fiscalNumber] stays null until a fiscal integration exists; the band is then simply absent.
-  static Future<Uint8List> invoice({required PosSaleModel sale, String? storeName, String? fiscalNumber}) async {
+  static Future<Uint8List> invoice({required PosSaleModel sale, String? storeName, String? fiscalNumber, bool fiscalPending = false}) async {
     final doc = pw.Document(theme: await _theme());
     final inv = sale.invoice;
     final exp = sale.currencyExponent;
@@ -83,12 +83,13 @@ class TaxDocumentPdf {
         for (final p in sale.payments) _row(_tenderLabel(p.method), m(p.amount), size: 9),
         // reserved for the fiscal block (invoice number from the tax authority, QR, logo) — printed only when one exists
         if (fiscalNumber != null) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('FBR invoice no. $fiscalNumber', style: const pw.TextStyle(fontSize: 9))),
+        if (fiscalNumber == null && fiscalPending) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('Fiscal pending', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold))), // G5.5
       ]),
     ));
     return doc.save();
   }
 
-  static Future<Uint8List> creditNote({required PosCreditNote note, String? storeName, String? fiscalNumber}) async {
+  static Future<Uint8List> creditNote({required PosCreditNote note, String? storeName, String? fiscalNumber, bool fiscalPending = false}) async {
     final doc = pw.Document(theme: await _theme());
     String m(int v) => _m(v, note.currency, note.exponent);
     final when = note.createdAt == null ? '' : DateFormat('yyyy-MM-dd HH:mm').format(note.createdAt!.toLocal());
@@ -119,6 +120,7 @@ class TaxDocumentPdf {
         pw.Text('Refunded to', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
         for (final t in note.tenders) _row(_tenderLabel(t.method), m(t.amountMinor), size: 9),
         if (fiscalNumber != null) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('FBR invoice no. $fiscalNumber', style: const pw.TextStyle(fontSize: 9))),
+        if (fiscalNumber == null && fiscalPending) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('Fiscal pending', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold))), // G5.5
       ]),
     ));
     return doc.save();

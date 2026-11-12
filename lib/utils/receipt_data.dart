@@ -118,6 +118,10 @@ class ReceiptData {
   /// keeps the provisional number on the real receipt so a customer holding the offline paper can be matched to it.
   final String? offlineNote;
   final String? offlineRef;
+  /// G5.5: the tax authority's invoice number + QR once confirmed; [fiscalPending] → "Fiscal pending" (store fiscalises, not confirmed yet)
+  final String? fiscalNumber;
+  final String? fiscalQr;
+  final bool fiscalPending;
 
   /// The server's sale id (null for a provisional offline receipt): the digital receipt link is asked for with it.
   final String? saleId;
@@ -155,6 +159,9 @@ class ReceiptData {
     this.offlineNote,
     this.offlineRef,
     this.saleId,
+    this.fiscalNumber,
+    this.fiscalQr,
+    this.fiscalPending = false,
   });
 
   /// The note printed on a provisional (not yet synced) receipt.
@@ -193,6 +200,9 @@ class ReceiptData {
         offlineNote: clearOfflineNote ? null : (offlineNote ?? this.offlineNote),
         offlineRef: offlineRef ?? this.offlineRef,
         saleId: saleId,
+        fiscalNumber: fiscalNumber,
+        fiscalQr: fiscalQr,
+        fiscalPending: fiscalPending,
       );
 
   Map<String, dynamic> toJson() => {
@@ -227,6 +237,9 @@ class ReceiptData {
         if (footer != null) 'footer': footer,
         if (offlineNote != null) 'offlineNote': offlineNote,
         if (offlineRef != null) 'offlineRef': offlineRef,
+        if (fiscalNumber != null) 'fiscalNumber': fiscalNumber,
+        if (fiscalQr != null) 'fiscalQr': fiscalQr,
+        if (fiscalPending) 'fiscalPending': true,
       };
 
   factory ReceiptData.fromJson(Map<String, dynamic> j) => ReceiptData(
@@ -261,6 +274,9 @@ class ReceiptData {
         footer: j['footer'] as String?,
         offlineNote: j['offlineNote'] as String?,
         offlineRef: j['offlineRef'] as String?,
+        fiscalNumber: j['fiscalNumber'] as String?,
+        fiscalQr: j['fiscalQr'] as String?,
+        fiscalPending: j['fiscalPending'] == true,
       );
 
   /// How a refund slice is handed back, per tender.
@@ -362,6 +378,9 @@ class ReceiptData {
       footer: receiptFooterText(settings, clean),
       offlineRef: offlineRef,
       saleId: sale.id.isEmpty ? null : sale.id,
+      fiscalNumber: sale.invoice?.fiscalConfirmed == true ? sale.invoice!.fiscalNumber : null,
+      fiscalQr: sale.invoice?.fiscalConfirmed == true ? sale.invoice!.fiscalQr : null,
+      fiscalPending: sale.invoice?.fiscalPending == true,
       // G4.8 receipt designer switches (defaults: QR on, barcode off, points on)
       // G4.9: the offline-built link first (the same QR online or offline, at checkout and on reprint); the token link only for a sale without a client key
       // G5.1: only the server-provided base + client key (no fallback to any other link — [receiptUrl] is no longer printed)
@@ -397,6 +416,7 @@ class ReceiptData {
     String? cashier,
     String customer = 'Walk-in',
     String? clientKey, // G4.9: the queued sale's client key → the receipt QR (resolves to "syncing", then the receipt)
+    bool fiscalPending = false, // G5.5: the store fiscalises → an offline receipt is always "Fiscal pending"
   }) {
     String m(num v) => '$currency ${NumberFormat.decimalPatternDigits(locale: 'en_US', decimalDigits: exponent).format(Money.round(v, exponent))}';
     String? clean(String? x) => (x ?? '').trim().isEmpty ? null : x!.trim();
@@ -432,6 +452,7 @@ class ReceiptData {
       isCopy: false,
       footer: receiptFooterText(settings, clean),
       offlineNote: offlinePendingNote,
+      fiscalPending: fiscalPending,
       qrPayload: printedReceiptQr(settings, clientKey),
       qrWanted: settings?.receiptOptions.showQr ?? true,
     );

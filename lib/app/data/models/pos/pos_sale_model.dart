@@ -330,7 +330,13 @@ class PosInvoiceInfo {
   final String? sellerAddress;
   final String? sellerNtn;
   final String? sellerStrn;
-  const PosInvoiceInfo({required this.number, this.issuedAt, this.offlineRef, this.sellerName, this.sellerAddress, this.sellerNtn, this.sellerStrn});
+  /// G5.5: the fiscal block (`not_enabled` / `pending` / `confirmed` / `rejected`), the tax authority's number and QR once confirmed
+  final String fiscalStatus;
+  final String? fiscalNumber;
+  final String? fiscalQr;
+  const PosInvoiceInfo({required this.number, this.issuedAt, this.offlineRef, this.sellerName, this.sellerAddress, this.sellerNtn, this.sellerStrn, this.fiscalStatus = 'not_enabled', this.fiscalNumber, this.fiscalQr});
+  bool get fiscalConfirmed => fiscalStatus == 'confirmed' && fiscalNumber != null;
+  bool get fiscalPending => fiscalStatus == 'pending';
 
   factory PosInvoiceInfo.fromJson(Map<String, dynamic> j) {
     final s = (j['seller'] as Map?)?.cast<String, dynamic>() ?? const {};
@@ -342,6 +348,9 @@ class PosInvoiceInfo {
       sellerAddress: s['address'] as String?,
       sellerNtn: s['ntn'] as String?,
       sellerStrn: s['strn'] as String?,
+      fiscalStatus: (j['fiscal'] is Map ? (j['fiscal'] as Map)['status'] as String? : null) ?? 'not_enabled',
+      fiscalNumber: j['fiscal'] is Map ? (j['fiscal'] as Map)['externalInvoiceNumber'] as String? : null,
+      fiscalQr: j['fiscal'] is Map ? (j['fiscal'] as Map)['qrPayload'] as String? : null,
     );
   }
 }
