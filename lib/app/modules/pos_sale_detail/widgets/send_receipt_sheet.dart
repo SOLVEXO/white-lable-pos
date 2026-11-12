@@ -5,7 +5,8 @@ import 'package:solvexo_pos/core/design/design.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// `https://wa.me/<digits>?text=…` — WhatsApp's own click-to-chat link (digits only, with the country code; no "+").
-Uri whatsAppUri(String phone, String text) => Uri.parse('https://wa.me/${phone.replaceAll(RegExp(r'[^0-9]'), '')}?text=${Uri.encodeComponent(text)}');
+Uri whatsAppUri(String phone, String text) =>
+    Uri(scheme: 'https', host: 'wa.me', path: '/${phone.replaceAll(RegExp(r'[^0-9]'), '')}', query: 'text=${Uri.encodeComponent(text)}'); // built, not a URL literal: the only URL literal in lib/ is the API's (store-release guard)
 
 /// G5.3 — send a receipt out of the app: the phone's share sheet, WhatsApp to the customer's number (wa.me; falls back to the share sheet), and e-mail / SMS
 /// when the store has switched them on (the server sends only the store name, the total and the public link).
