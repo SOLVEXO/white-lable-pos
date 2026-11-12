@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/modules/pos_catalog_admin/views/product_page_view.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/modules/pos_catalog/controllers/pos_catalog_controller.dart';
 import 'package:solvexo_pos/core/design/design.dart';
@@ -97,7 +98,10 @@ class PosCatalogItemView extends StatelessWidget {
     final t = context.type;
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(title: Text(product.name), backgroundColor: p.background, foregroundColor: p.textPrimary, elevation: 0),
+      appBar: AppBar(title: Text(product.name), backgroundColor: p.background, foregroundColor: p.textPrimary, elevation: 0, actions: [
+        // G5.2: the full product page (photos, details, every variant, stock by location; managers edit)
+        TextButton.icon(key: const Key('openProductPage'), onPressed: () => Get.to<void>(() => ProductPageView(productId: product.productId)), icon: const Icon(Icons.inventory_2_outlined), label: const Text('Product page')),
+      ]),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(

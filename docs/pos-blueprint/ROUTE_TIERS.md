@@ -4,7 +4,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 
 **Tiers:** `owner` = the owner's own session only · `manager-with-limit` = a manager or the owner (some actions have per-store approval limits) · `cashier` = any PIN-signed employee (approval limits may ask for a manager) · `public` = no PIN session (device, PIN login, public receipt).
 
-**Declared:** 149 routes — owner 27, manager-with-limit 68, cashier 47, public 7. Other GET routes (no cost / settings data): 43.
+**Declared:** 155 routes — owner 27, manager-with-limit 73, cashier 48, public 7. Other GET routes (no cost / settings data): 43.
 
 | Method | Route | Tier | Handler | Guards |
 |---|---|---|---|---|
@@ -29,7 +29,13 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 | PATCH | `/api/pos/catalog-admin/price-books/:storeId/:id` | manager-with-limit | PosCatalogAdminController.priceBookUpdate | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | POST | `/api/pos/catalog-admin/price-books/:storeId/customers/:customerId` | manager-with-limit | PosCatalogAdminController.assignBook | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | POST | `/api/pos/catalog-admin/products/:storeId` | manager-with-limit | PosCatalogAdminController.createProduct | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| GET | `/api/pos/catalog-admin/products/:storeId/:productId` | cashier | PosProductEditController.view | FeatureFlagGuard + PosAuthGuard + RolesGuard |
+| PATCH | `/api/pos/catalog-admin/products/:storeId/:productId` | manager-with-limit | PosProductEditController.update | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| POST | `/api/pos/catalog-admin/products/:storeId/:productId/images` | manager-with-limit | PosProductEditController.addImage | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| POST | `/api/pos/catalog-admin/products/:storeId/:productId/images/primary` | manager-with-limit | PosProductEditController.primaryImage | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| POST | `/api/pos/catalog-admin/products/:storeId/:productId/images/remove` | manager-with-limit | PosProductEditController.removeImage | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | POST | `/api/pos/catalog-admin/products/:storeId/:productId/variants` | manager-with-limit | PosCatalogAdminController.addVariant | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
+| PATCH | `/api/pos/catalog-admin/products/:storeId/:productId/variants/:variantId` | manager-with-limit | PosProductEditController.updateVariant | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | POST | `/api/pos/catalog-admin/products/:storeId/:productId/variants/:variantId/archive` | manager-with-limit | PosCatalogAdminController.archiveVariant | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
 | PATCH | `/api/pos/catalog/:storeId/variants/:variantId` | manager-with-limit | PosController.updateCatalogVariant | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | POST | `/api/pos/catalog/:storeId/variants/:variantId/stock` | manager-with-limit | PosController.adjustCatalogStock | FeatureFlagGuard + PosAuthGuard + RolesGuard |

@@ -8,7 +8,12 @@ import 'package:solvexo_pos/app/modules/pos_supply/controllers/supply_common.dar
 
 /// One line being received: how many arrived good and how many damaged, plus the lot number / expiry when the product tracks lots.
 class ReceiveLine {
-  ReceiveLine({required this.name, this.poItemId, this.variantId, this.sku, this.optionsLabel = '', this.remaining, bool showLot = false, this.costText = ''}) : showLot = showLot.obs;
+  ReceiveLine({required this.name, this.poItemId, this.variantId, this.sku, this.optionsLabel = '', this.remaining, bool showLot = false, this.costText = '', this.trackSerials = false}) : showLot = showLot.obs;
+
+  /// G5.2: serial-tracked — one serial number per unit (good first, then damaged), typed or scanned one per line
+  final bool trackSerials;
+  final RxString serialsText = ''.obs;
+  List<String> get serials => serialsText.value.split(RegExp(r'[\n,]')).map((x) => x.trim()).where((x) => x.isNotEmpty).toList();
   final String name, optionsLabel;
   final String? poItemId, variantId, sku;
 
@@ -106,7 +111,7 @@ class ReceiveController extends GetxController {
         cur.value = d.order.cur ?? d.cur;
         lines.assignAll([
           for (final i in d.order.items)
-            if (i.remaining > 0) ReceiveLine(name: i.name, poItemId: i.id, variantId: i.variantId, sku: i.sku, optionsLabel: i.optionsLabel, remaining: i.remaining, showLot: i.trackLots),
+            if (i.remaining > 0) ReceiveLine(name: i.name, poItemId: i.id, variantId: i.variantId, sku: i.sku, optionsLabel: i.optionsLabel, remaining: i.remaining, showLot: i.trackLots, trackSerials: i.trackSerials),
         ]);
       }
     }
@@ -118,7 +123,7 @@ class ReceiveController extends GetxController {
   /// Direct receiving: add an existing product as a line (the search tells us whether it tracks lots).
   void addProduct(InvRow row) {
     if (lines.any((l) => l.variantId == row.variantId)) return;
-    final l = ReceiveLine(name: row.productName, variantId: row.variantId, sku: row.sku.isEmpty ? null : row.sku, optionsLabel: row.optionsLabel, showLot: row.trackLots);
+    final l = ReceiveLine(name: row.productName, variantId: row.variantId, sku: row.sku.isEmpty ? null : row.sku, optionsLabel: row.optionsLabel, showLot: row.trackLots, trackSerials: row.trackSerials);
     if (row.costMinor != null && exponent != null) l.costTextRx.value = supplyMinorToText(row.costMinor!, exponent!);
     l.good.value = 1;
     lines.add(l);
@@ -170,6 +175,7 @@ class ReceiveController extends GetxController {
         'qtyDamaged': l.damaged.value,
         if (lot.isNotEmpty) 'lotNumber': lot,
         if (l.expiry.value != null) 'expiryDate': _isoDay(l.expiry.value!),
+        if (l.trackSerials) 'serialNumbers': l.serials,
       };
       if (direct) {
         final c = exponent == null ? null : supplyMinorFromText(l.costTextRx.value, exponent!, allowZero: true);

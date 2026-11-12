@@ -166,6 +166,7 @@ class PoLine {
     this.unitCostMinor,
     this.lineTotalMinor,
     this.trackLots = false,
+    this.trackSerials = false,
   });
   final String id, variantId, productId, name;
   final String? sku;
@@ -177,6 +178,9 @@ class PoLine {
 
   /// the variant tracks lots (the server states it on every PO line): the receive screen shows the lot number and expiry up front
   final bool trackLots;
+
+  /// G5.2: serial-tracked — one serial number per unit when received
+  final bool trackSerials;
 
   String get optionsLabel => options.join(' · ');
 
@@ -198,6 +202,7 @@ class PoLine {
     unitCostMinor: _int(j['unitCostMinor']),
     lineTotalMinor: _int(j['lineTotalMinor']),
     trackLots: j['trackLots'] == true,
+    trackSerials: j['trackSerials'] == true,
   );
 }
 
@@ -609,6 +614,9 @@ String supplyErrorMessage(String? code, {String? fallback}) => switch (code) {
   'NO_OPEN_SHIFT' => 'Paying cash from the drawer needs an open shift.',
   'COST_NOT_ALLOWED' => 'A cashier receives at the purchase-order cost. Costs cannot be entered here.',
   'SERIALS_NOT_SUPPORTED' => 'This product is serial-tracked. Receive it from the dashboard so each serial number is recorded.',
+  'SERIALS_REQUIRED' => 'Enter one serial number for each unit you receive.',
+  'SERIAL_DUPLICATE' => 'The same serial number is entered twice.',
+  'SERIAL_EXISTS' => 'A serial number is already on record — check the numbers.',
   'UNLIMITED_STOCK' => 'This product has unlimited stock, so there is nothing to receive.',
   'POS_OWNER_REQUIRED' => 'This amount is above the manager limit. The store owner must do this.',
   'POS_APPROVAL_REQUIRED' => 'A manager must approve this.',

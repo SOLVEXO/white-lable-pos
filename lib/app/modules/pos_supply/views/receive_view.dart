@@ -29,9 +29,11 @@ class ReceiveLineCard extends StatefulWidget {
 class _ReceiveLineCardState extends State<ReceiveLineCard> {
   late final _lot = TextEditingController(text: widget.line.lotNumber.value);
   late final _cost = TextEditingController(text: widget.line.costTextRx.value);
+  late final _serials = TextEditingController(text: widget.line.serialsText.value);
 
   @override
   void dispose() {
+    _serials.dispose();
     _lot.dispose();
     _cost.dispose();
     super.dispose();
@@ -105,6 +107,15 @@ class _ReceiveLineCardState extends State<ReceiveLineCard> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
                   onChanged: (s) => l.costTextRx.value = s,
+                ),
+              ],
+              // G5.2: serial-tracked items — one serial per unit, typed or scanned (a scanner types into the box and presses Enter)
+              if (l.trackSerials) ...[
+                const SizedBox(height: Space.s3),
+                AppTextField(key: Key('recvSerials_$key'), label: 'Serial numbers (one per line)', controller: _serials, mono: true, maxLines: 4, onChanged: (s) => l.serialsText.value = s),
+                Padding(
+                  padding: const EdgeInsets.only(top: Space.s1),
+                  child: Text('${l.serials.length} of ${l.total} serial numbers', key: Key('recvSerialCount_$key'), style: t.caption.copyWith(color: l.serials.length == l.total ? p.successFg : p.warningFg)),
                 ),
               ],
               if (l.showLot.value) ...[

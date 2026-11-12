@@ -110,6 +110,7 @@ class InvRow {
     this.damaged = 0,
     this.unlimited = false,
     this.trackLots = false,
+    this.trackSerials = false,
     this.reorderPoint,
     this.out = false,
     this.low = false,
@@ -129,6 +130,9 @@ class InvRow {
   final List<String> options;
   final int stock, committed, damaged;
   final bool unlimited, trackLots, out, low;
+
+  /// G5.2: serial-tracked (receiving asks one serial per unit)
+  final bool trackSerials;
   final int? reorderPoint, costMinor, valueMinor;
   /// G3.2: units of lots already past their expiry date, and the nearest expiry among the lots still in stock
   final int expiredUnits;
@@ -155,6 +159,7 @@ class InvRow {
     damaged: _int(j['damaged']) ?? 0,
     unlimited: j['unlimited'] == true,
     trackLots: j['trackLots'] == true,
+    trackSerials: j['trackSerials'] == true,
     reorderPoint: _int(j['reorderPoint']),
     out: j['out'] == true,
     low: j['low'] == true,

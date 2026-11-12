@@ -4,6 +4,7 @@ import 'package:solvexo_pos/app/data/models/pos/pos_audit_log_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_customer_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_inventory_models.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_product_page_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/store_location_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_supply_models.dart';
@@ -2718,6 +2719,43 @@ class PosRepository {
   Future<({bool success, String? message, String? code, PurchaseOrder? order})> draftPoFromLowStock(String storeId, String supplierId, {List<String>? variantIds}) async {
     final r = await _supplyWrite('poFromLowStock', 'POST', '${_sup(storeId, 'orders')}/from-low-stock', {'supplierId': supplierId, if (variantIds != null && variantIds.isNotEmpty) 'variantIds': variantIds});
     return (success: r.success, message: r.message, code: r.code, order: _poOf(r.data));
+  }
+
+  // ── G5.2 · the product page and editing an existing product ─────────────────────────────────────────────────────────────────────────
+  String _prod(String storeId, String productId) => '${ApiConstants.apiPrefix}/pos/catalog-admin/products/$storeId/$productId';
+
+  Future<ProductPage?> getProductPage(String storeId, String productId) => _invGet('productPage', _prod(storeId, productId), ProductPage.fromJson);
+
+  /// [body]: name, description, categoryId, status (only what changes).
+  Future<({bool success, String? code, String? message, ProductPage? data})> updateProductDetails(String storeId, String productId, Map<String, dynamic> body) async =>
+      _catResult(await _adminWrite('productUpdate', 'PATCH', _prod(storeId, productId), body), ProductPage.fromJson);
+
+  /// [body]: sku, costMinor (int or null), reorderPoint (int or null).
+  Future<({bool success, String? code, String? message, ProductPage? data})> updateProductVariant(String storeId, String productId, String variantId, Map<String, dynamic> body) async =>
+      _catResult(await _adminWrite('productVariantUpdate', 'PATCH', '${_prod(storeId, productId)}/variants/$variantId', body), ProductPage.fromJson);
+
+  Future<({bool success, String? code, String? message, ProductPage? data})> removeProductImage(String storeId, String productId, String url) async =>
+      _catResult(await _adminWrite('productImageRemove', 'POST', '${_prod(storeId, productId)}/images/remove', {'url': url}), ProductPage.fromJson);
+
+  Future<({bool success, String? code, String? message, ProductPage? data})> makeProductImagePrimary(String storeId, String productId, String url) async =>
+      _catResult(await _adminWrite('productImagePrimary', 'POST', '${_prod(storeId, productId)}/images/primary', {'url': url}), ProductPage.fromJson);
+
+  /// A product photo (multipart `file`; JPEG / PNG / WebP checked by content on the server, ≤ 8 MB; stored resized).
+  Future<({bool success, String? code, String? message, ProductPage? data})> uploadProductImage(String storeId, String productId, File file) async {
+    lastErrorCode = null;
+    try {
+      final form = FormData.fromMap({'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last)});
+      final res = await _client.post('${_prod(storeId, productId)}/images', data: form, requiresAuth: true, headers: await _employeeAuthHeaders());
+      final d = _data(res);
+      return (success: _ok(res) && d is Map, code: null, message: null, data: d is Map ? ProductPage.fromJson(d.cast<String, dynamic>()) : null);
+    } on DioException catch (e) {
+      _logDioError('productImageUpload', e);
+      lastErrorCode = _dioCode(e);
+      return (success: false, code: lastErrorCode, message: _dioMessage(e), data: null);
+    } catch (e) {
+      debugPrint('❌ productImageUpload: $e');
+      return (success: false, code: null, message: 'Could not upload the photo.', data: null);
+    }
   }
 
   // ── G4.5 · products & pricing (catalog-admin) ──────────────────────────────────────────────────────────────────────────────────────────
