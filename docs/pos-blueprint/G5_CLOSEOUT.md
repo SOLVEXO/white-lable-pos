@@ -53,3 +53,72 @@ G4.7 (khata) stays parked. API details: [`G4_8_ADMIN_API.md`](G4_8_ADMIN_API.md)
 - [ ] A cash-out with a slip photo → the photo opens from the daybook (staging storage).
 - [ ] Share link from a sale → open it on another phone.
 - [ ] A till that has never been online since install prints receipts without a QR; after one online start it prints the QR.
+
+## G5.2–G5.7: integrations, provider-ready features, khata out of scope
+
+All backend changes are additive. No existing response changed shape, and every provider-dependent feature is **OFF** per store until switched on. Money is in minor units with currency and exponent, ledgers and records are append-only, and audit rows are written in the same transaction. Every new route declares its tier (ROUTE_TIERS.md: 163 declared routes, plus the remaining GET routes counted separately). The cost registry, money-contract and currency guards are green.
+
+### Commits
+| Sub-phase | solvexo-api | pos | Sync conflicts |
+|---|---|---|---|
+| G5.2.0 (merge main, Node pin) | 87bdb76 (main merged earlier in c889af0) | f9b1d7b (docs) | none at the time. `origin/main` has since moved 27 commits (AI-studio removal, scheduler fixes): no overlap with POS files, not merged in this phase |
+| G5.2.0b RECEIPT_PUBLIC_URL | 753d4d5 | f9b1d7b | — |
+| G5.2 product page, serials, khata out of scope | 8f61282 | 8cb0e04 | — |
+| G5.3 WhatsApp / e-mail / SMS, link lifetime | acde835 | 3bf41c4, 8880e63, e118306 (two CI guard fixes) | — |
+| G5.4 card on an external terminal, Payments setup | 8915b7c (with G5.5 scaffolding: same files) | b755477, c6103c4, b36b662 | — |
+| G5.5 fiscal provider (mock) | 8915b7c, 56690b7 | 353d955 | — |
+| G5.6 receipt logo, role presets | 3156598 | 97c9136, 9f1b9e5 | — |
+| G5.7 integrations, accounting export, API keys | 33e43a7, ba8f370 (dev stack only) | 4c677c3 | — |
+
+### What was built
+| # | Item | Backend | App |
+|---|---|---|---|
+| 3–6 | RECEIPT_PUBLIC_URL | Optional and boot-checked; falls back to API_PUBLIC_URL; used for every receipt QR and link; `Store.receiptBaseUrl` reserved (null) | Till config carries the base; preflight and runbook §11; web hand-off in the admin API doc |
+| 7 | Khata | **Out of scope (product decision)** in the audit. The POS app has no khata entry point, placeholder or flag. Main's own `src/khata` module (Uzair's, with POS udhaar routes) is **not removed**: deleting it would change live behaviour on main and touch its ledger. This needs an explicit decision (see TO ADD LATER) | — |
+| 8 | Product page / edit / photos | `GET/PATCH catalog-admin/products/:storeId/:productId`, variant SKU / cost / reorder point (cost obeys hide-costs), photos checked by content and resized, all audited | Product page with cached thumbnails, edit sheets |
+| 9 | Remaining non-provider Partials | Serial numbers at receiving (unique, same transaction; older tills get `SERIALS_NOT_SUPPORTED`) | Serials field on receive |
+| 10 | WhatsApp | — | wa.me with the customer's number via url_launcher (approved); falls back to the share sheet |
+| 11 | E-mail / SMS receipts | Link only; consent (on file / given for this sale); 3 per sale per hour, 500 per store per day; append-only `posreceiptdeliveries` plus audit; main's mailer and the store's SMS gateway (`sendTransactional`, additive) | Shown only when the store has them on |
+| 12 | PDF view | Receipt and invoice PDFs already exist and are shared (the share sheet previews them) | An in-app **viewer** needs a package: **deferred** |
+| 13 | Receipt-link lifetime | Per store, at least 30 days, the return window by default; existing links keep theirs | — |
+| 14 | Card on an external terminal | Approval code (required live when on), last4, terminal label; refunds and credit notes reference the code; shift close and payments report lines | Payment sheet fields, shift close line, payments report line |
+| 15 | Card gateway | Interface, mock, not-configured adapter, `connectors.cardGateway` off | "Not available yet" in Payments setup |
+| 16 | Raast payments setup | `raastDisabled` switch (KYB gate `disabled_by_store`), `KybGateService.status()`, PayFast / 1LINK typed TODOs | Payments setup: KYB status, test-mode badge, on / off, errors |
+| 17–18 | Fiscal | Interface, mock (outage switch), not-configured adapters; append-only `posfiscalrecords` plus audit; hooks after sale, complete, refund and void; 2-minute retry sweep; the block laid over `invoice.fiscal` / `creditNote.fiscal` | "Fiscal pending" / FBR number + QR on receipt, invoice and credit note (thermal and PDF); offline receipts print "Fiscal pending" |
+| 19 | Receipt logo | Owner upload / remove (content-checked, ≤ 2 MB, resized), audited | Dithered 1-bit bitmap per paper width with dart:ui (no new package), cached; printed when "Store logo" is on; designer preview shows the exact dots; app icon masters listed in APP_ICON_MASTERS.md |
+| 20 | Role presets | Standard / Small shop / Strict, **proposed**; owner-only apply with preview, version guard and audit | Roles → Presets → diff → apply |
+| 21 | Integrations screen | `GET /api/pos/connectors/:storeId` | Owner → Integrations |
+| 22 | Accounting CSV | Store time zone; minor units with currency and exponent plus formatted amounts; cost columns only when visible; formula-safe; audited | Export → share sheet |
+| 23 | API keys | Owner only; read-only scopes; shown once; SHA-256 stored; expiry ≤ 365 days; revocable; 60 per minute per key; every use audited; external API `/api/pos/ext/v1/*` (no cost data); API_KEYS.md | Create (show once, Copy), list, revoke |
+
+### Found and fixed along the way
+1. **The till's connectors read broke 128 existing checkout tests.** Their mocked repositories had no stub for the new read. The read is now fail-safe (a failed read keeps what the till knew), which also protects real tills on a bad network.
+2. **Two app CI guards:** an unused import, and a second URL literal in `lib/` (the store-release guard allows only the API's), so the wa.me link is now built with `Uri(...)`.
+3. **The cost registry scan** flagged the export's `withCost` / `costsIncluded` flags; they are classified as not cost.
+4. The tier test walks controller prototypes, so the external controller's repository getter became a method.
+
+### Not done / deferred
+- In-app PDF viewer (needs `printing` or `pdfx`).
+- Daybook: card-terminal payments don't move drawer cash, so they appear on the shift close and in the payments report, not in the cash daybook.
+- The real FBR / Raast / card-gateway adapters, which need external inputs (below).
+
+### TO ADD LATER: external inputs
+| Input | Needed from | Where it plugs in | Once it arrives |
+|---|---|---|---|
+| `RECEIPT_PUBLIC_URL` + the web `/r/*` rewrite | Web team (rewrite on solvexo.store), then ops (env on the API service) | `src/common/api-origin.ts`; hand-off in the admin API doc (G5.2.0b) | Deploy the rewrite, check it with the curl in the hand-off, set `RECEIPT_PUBLIC_URL=https://solvexo.store` on the API, run preflight `g52.receiptPublicUrl`. New receipts carry the web origin; old QRs keep working on the API origin |
+| Card gateway provider | Owner: choose a provider; provider: API docs, sandbox keys | `src/pos/connectors/card-gateway.ts` (`CARD_GATEWAY_NEEDS`), `connectors.cardGateway` | Write the adapter next to the mock, set `CARD_GATEWAY_PROVIDER`, test in sandbox, then turn the flag on per store |
+| Raast docs / sandbox (PayFast or 1LINK) | Provider: integration docs, sandbox merchant, webhook signing | `src/pos/connectors/raast-adapters.ts` (`RAAST_PROVIDER_NEEDS`), payments-core provider registry | Implement the adapter behind the existing payments-core interface, set `PAYMENTS_PROVIDER_POS`, run the Raast flows against sandbox |
+| FBR route + documents | Owner + tax advisor (route decision), FBR / PRAL or integrator (spec, sandbox, IP whitelisting) | `src/pos/connectors/fiscal.ts`; FBR_INTEGRATION_NEEDS.md lists each item | Add the adapter, add encrypted per-store credentials, wrap the sweep in `JobLeaseService`, set `FISCAL_PROVIDER`, run a sandbox store end to end |
+| App icon masters | Brand owner / designer | `assets/icon/*` (APP_ICON_MASTERS.md) | Replace the PNGs, run the two generators, check on devices |
+| Role preset sign-off | Sir Atiq | `src/pos/pos-role-presets.ts`, ROLE_PRESETS.md | Adjust the overrides, set `status: 'approved'`; the app drops the "Proposed" badge |
+| Messaging credentials | Ops: SMTP for the API's mailer; each store's SMS gateway in Messaging channels | main's `EmailService`, `SmsGatewayService.sendTransactional` | Configure them, then turn on `emailReceipts` / `smsReceipts` per store; the till shows the buttons |
+| Deferred packages | Approval | In-app PDF viewer (`printing` or `pdfx`) | Approve, then add a viewer on sale detail / expense |
+| Khata decision on main's module | Owner (with Uzair) | main's `src/khata` (not POS) | Decide whether to retire it; the POS side needs nothing |
+| Real-device checks | Jami, with hardware | Logo on 58 mm and 80 mm printers; WhatsApp on a phone with WhatsApp; external card terminal slip; e-mail / SMS with real credentials | Run the checklist below and note the results |
+| Merge main again | Jami (go) | 27 new main commits, no POS overlap | Merge before the next backend release; CI |
+
+### Real-device checklist (additions)
+- Print a receipt with a logo on 58 mm and on 80 mm paper. Check the logo is centred and the dithering is legible.
+- WhatsApp: on a phone with WhatsApp, the chat opens with the customer's number and the link; without WhatsApp, the share sheet opens.
+- Card terminal: approval code from a real slip; the shift close line matches the terminal's settlement.
+- Integrations: the CSV opens in Excel / Numbers with the right columns, and the time zone is the store's.

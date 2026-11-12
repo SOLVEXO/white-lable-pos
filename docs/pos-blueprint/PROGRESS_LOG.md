@@ -53,33 +53,41 @@ Working mode since 2026-11-10: one heavy job at a time (backend gate / full `flu
 
 | G5.1 backend | API_PUBLIC_URL boot check (+ preflight, runbook); on-behalf clocking (member / manager PIN, audited in the same transaction); stock by location + `inventory/locations`; orders by register; supplier products supplied (`lastUnitCostMinor` = cost); staff profile; `team/members`; cash-movement photo (`poscashattachments`) | api 7df5d4a, (members), d7a07c4 | see CI | the owner-session employees / locations lists refuse device tokens: two POS reads added |
 | G5.1 app | QR only from the server base; per-document print notice; clock someone else; About / Help / Hardware check; store-select restyle (sub-agent, reviewed); stock by location; orders filters; products supplied; continuous scan, scan-to-add / receive; slip photo; staff profile; share link; `clearPreference` serialized (keychain race) | app bd9cccd, b1037f2 + follow-ups | see CI | two mocked simulator flows stay known-failing (un-mockable getProfile 401) |
+| G5.2.0 / 0b | main merged (earlier, MERGE-1); engines.node 20.x read by both CI workflows; RECEIPT_PUBLIC_URL (optional, boot-checked, falls back to API_PUBLIC_URL) on every receipt QR / link; Store.receiptBaseUrl reserved; web /r/* hand-off; preflight + runbook §11 | api 87bdb76, 753d4d5 · app f9b1d7b | green | — |
+| G5.2 | product page + editing an existing product (details, variant SKU / cost / reorder, photos; audited; hide-costs); serials at receiving; khata out of scope (audit; no POS entry points; main's src/khata untouched — decision needed) | api 8f61282 · app 8cb0e04 | green | — |
+| G5.3 | WhatsApp (url_launcher, approved) → share-sheet fallback; e-mail / SMS receipts (link only, consent, rate limits, append-only log + audit); per-store link lifetime ≥ 30 days; in-app PDF viewer deferred (package) | api acde835 · app 3bf41c4 + 8880e63, e118306 | app CI failed twice on guards (unused import; a second URL literal in lib/) → fixed | — |
+| G5.4 | card on an external terminal (approval code required live when on; refunds reference it; shift close + payments report lines); card gateway interface + mock; Raast on/off + Payments setup screen; PayFast / 1LINK typed TODOs | api 8915b7c · app b755477 + c6103c4, b36b662 | app CI: the new connectors read broke 128 mocked checkout tests → made fail-safe | — |
+| G5.5 | fiscal provider interface + mock + not-configured adapters; append-only posfiscalrecords + audit; hooks after sale / complete / refund / void; retry sweep; block laid over invoice.fiscal / creditNote.fiscal; "Fiscal pending" on prints and offline receipts; FBR_INTEGRATION_NEEDS.md | api 8915b7c, 56690b7 · app 353d955 | see CI | no PRAL field guessed |
+| G5.6 | receipt logo (owner upload, dithered 1-bit bitmap per paper width via dart:ui, cached, printed, preview); role presets (proposed) with owner apply + preview + audit; ROLE_PRESETS.md, APP_ICON_MASTERS.md | api 3156598 · app 97c9136, 9f1b9e5 | see CI | — |
+| G5.7 | Integrations screen; accounting CSV (store tz, minor + formatted, cost obeys hide-costs, audited); store API keys (owner, read-only scopes, shown once, hashed, expiry, revoke, 60/min per key, every use audited) + /api/pos/ext/v1; API_KEYS.md; dev upload stub for flows | api 33e43a7, ba8f370 · app 4c677c3 | see CI | — |
 
 ## Integration flows (simulator) — last pass
 
-Commits are app (pos) commits; the dev stack ran the API at `d7a07c4` (G5.1). "Mocked" = real app on the simulator with repositories mocked; the rest are real backend.
+Commits are app (pos) commits; the latest pass ran the dev stack at API `ba8f370` (G5.7, with `DEV_UPLOAD_STUB` and `RECEIPT_PUBLIC_URL=http://127.0.0.1:3102`). "Mocked" = real app on the simulator with repositories mocked; the rest are real backend.
 
 | Flow | File | Kind | Scenarios | Last passed on | Date |
 |---|---|---|---|---|---|
-| Core POS flows | `real_backend_pos_flows_test.dart` | real | 11 | cf6b4f4 | 2026-11-11 |
-| App launch (login → store → device → PIN → open register) | `real_backend_ui_test.dart` | real | 1 | cf6b4f4 | 2026-11-11 |
-| G4 (integrity, reports, Draft PO) | `g4_flow_test.dart` | real | 3 | cf6b4f4 | 2026-11-11 |
-| G4.8 + G4.9 | `g48_flow_test.dart` | real | 9 | cf6b4f4 | 2026-11-11 |
-| G5.1 | `g51_flow_test.dart` | real | 3 | cf6b4f4 | 2026-11-11 |
-| G2.4 checkout | `g24_checkout_flow_test.dart` | real | 5 | b1037f2 | 2026-11-11 |
-| G2.5 returns | `g25_returns_flow_test.dart` | real | 4 | b1037f2 | 2026-11-11 |
-| G2.7 offline return on another till | `g27_offline_return_other_till_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
-| G3.1 inventory | `g31_inventory_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
-| G3.2 / G3.3 lots, customers, credit, loyalty | `g32_g33_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
-| G3.4 supply | `g34_supply_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
-| G3.5 cash | `g35_cash_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
-| G3.6 team | `g36_team_flow_test.dart` | real | 1 | b1037f2 | 2026-11-11 |
-| Raast QR (stack with `E2E_QR_TTL=10`) | `real_backend_raast_test.dart` | real | 4 | cf6b4f4 | 2026-11-11 |
-| Offline sync | `offline_sync_test.dart` | mocked | 2 | b1037f2 | 2026-11-11 |
-| Phase 2 device flow | `phase2_device_flow_test.dart` | mocked | 1 | b1037f2 | 2026-11-11 |
-| Phase 2 fresh flow | `phase2_fresh_flow_test.dart` | mocked | 1 | b1037f2 | 2026-11-11 |
+| **G5.2–G5.7** (RECEIPT_PUBLIC_URL QR, product edit + photo, WhatsApp / share, card terminal sale + refund + shift close, fiscal mock online + offline, logo receipt, role preset, accounting export, API key create / use / revoke) | `g52_g57_flow_test.dart` | real | 8 | b36b662 | 2026-11-12 |
+| Core POS flows | `real_backend_pos_flows_test.dart` | real | 11 | b36b662 | 2026-11-12 |
+| App launch (login → store → device → PIN → open register) | `real_backend_ui_test.dart` | real | 1 | b36b662 | 2026-11-12 |
+| G4 (integrity, reports, Draft PO) | `g4_flow_test.dart` | real | 3 | b36b662 | 2026-11-12 |
+| G4.8 + G4.9 | `g48_flow_test.dart` | real | 9 | b36b662 | 2026-11-12 |
+| G5.1 | `g51_flow_test.dart` | real | 3 | b36b662 | 2026-11-12 |
+| G2.4 checkout | `g24_checkout_flow_test.dart` | real | 5 | b36b662 | 2026-11-12 |
+| G2.5 returns | `g25_returns_flow_test.dart` | real | 4 | b36b662 | 2026-11-12 |
+| G2.7 offline return on another till | `g27_offline_return_other_till_test.dart` | real | 1 | b36b662 | 2026-11-12 |
+| G3.1 inventory | `g31_inventory_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
+| G3.2 / G3.3 lots, customers, credit, loyalty | `g32_g33_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
+| G3.4 supply | `g34_supply_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
+| G3.5 cash | `g35_cash_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
+| G3.6 team | `g36_team_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
+| Raast QR (stack with `E2E_QR_TTL=10`) | `real_backend_raast_test.dart` | real | 4 | b36b662 | 2026-11-12 |
+| Offline sync | `offline_sync_test.dart` | mocked | 2 | b36b662 | 2026-11-12 |
+| Phase 2 device flow | `phase2_device_flow_test.dart` | mocked | 1 | b36b662 | 2026-11-12 |
+| Phase 2 fresh flow | `phase2_fresh_flow_test.dart` | mocked | 1 | b36b662 | 2026-11-12 |
 | Checkout flow (mocked) | `pos_checkout_flow_test.dart` | mocked | 1 | **known-failing**: un-mockable `getProfile` 401 forces a logout (documented in the file); covered by the real core flows | — |
 | Phase 3 sale flows (mocked) | `phase3_sale_flows_test.dart` | mocked | 1 | **known-failing**: same cause | — |
 
-Screenshot passes (`*_screens_shots_test.dart`) are not flows; the G5.1 one passed on 2026-11-12 (16 shots in `g5_1_screenshots/phone`).
+Screenshot passes (`*_screens_shots_test.dart`) are not flows; the G5.1 one passed on 2026-11-12 (16 shots in `g5_1_screenshots/phone`); the G5.2–G5.7 one passed on 2026-11-12 (14 shots in `g5_7_screenshots/phone`, light + dark).
 
 | MERGE-1 | backend only: main merged into feature/jamibranch (7 conflicts, all resolved as unions; 3 test-side follow-ups for main's changes), CI green on `d9d69ec`; then feature/jamibranch merged into main with `--no-ff` (identical tree) and pushed on Jami's GO. Backfills and grants not run. The pos app repo is not merged. | api `c889af0` (main), tag `pos-backend-g5.1`; backups `backup/main-pre-pos-merge`, `backup/jamibranch-pre-main-merge` | CI green on `d9d69ec` | deploy checked by Jami |

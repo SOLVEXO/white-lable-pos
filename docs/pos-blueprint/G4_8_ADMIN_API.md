@@ -179,3 +179,61 @@ When it's unset, everything stays on `API_PUBLIC_URL`. The pages themselves are 
 6. **Check:** `curl -i https://solvexo.store/r/s/<slug>/pos-0000000000000-000000000000000000000000` → `404` with the "not available" page; a real sale's QR → `200`.
 
 After the rewrite is live: set `RECEIPT_PUBLIC_URL` on the API and restart. Newly printed QR codes use the web domain; older ones keep working on the API domain.
+
+# G5.3–G5.7 additions (for the admin panel)
+
+All changes are **additive**: no existing response changed shape, and every new feature is **OFF** until switched on.
+
+## 9. Connector switches (per store)
+`PATCH /api/pos/store/settings/:storeId` accepts a new section `{ connectors: { <flag>: boolean } }`. It is owner only and audited as `store_settings_changed` with before and after. `GET` of the same route returns `connectors`, and `GET /api/pos/connectors/:storeId` returns the switches plus the server's provider status.
+
+| Flag | Default | What it turns on | Works today? |
+|---|---|---|---|
+| `emailReceipts` | false | "E-mail receipt" on the till (link only, consent, rate-limited) | Yes, through main's mailer |
+| `smsReceipts` | false | "SMS receipt" (the store's own SMS gateway, `sendTransactional`) | Yes, when the store's SMS channel is configured |
+| `cardExternalTerminal` | false | The approval code becomes **required** on live card sales (offline replays are accepted and audited) | Yes |
+| `cardGateway` | false | Reserved for in-app card payments | No provider yet (mock in dev) |
+| `fiscal` | false | FBR fiscalisation of invoices and credit notes | **Mock only** in dev; production answers "not configured" (FBR_INTEGRATION_NEEDS.md) |
+| `raastDisabled` | false | The owner switches Raast QR **off** for the store (the KYB gate answers `disabled_by_store`) | Yes |
+
+`GET /api/pos/connectors/:storeId` returns `{ flags, cardGateway: { provider, testMode, configured, needs }, fiscal: { provider, testMode, configured }, raast: { kybStatus, enabled, reason, providerKey, testMode, disabledByStore, adaptersPending } }`. It is tier cashier and returns no secrets.
+
+## 10. Receipt-link lifetime
+`PATCH /api/pos/store/settings/:storeId { receiptLinks: { days: 30–3650 | null } }`. `null` means the return window, never less than 30 days. It applies to sales made after the change; older links keep 30 days.
+
+## 11. Receipt delivery log
+`posreceiptdeliveries` (append-only): one row per e-mail or SMS send, with the masked recipient, its hash, the consent basis, the status and the error. Limits: 3 per sale per hour and 500 per store per day.
+
+## 12. Card on an external terminal
+- Card tender lines may carry `approvalCode`, `last4` and `terminalLabel`. Stored on `sale.payments[].terminal` and `pospayments.terminal`.
+- Refund and credit-note card tenders carry `approvalCodeRef` (and `externalTerminal: true` on refunds).
+- Session report `summary.cardExternalTerminal { count, totalMinor, approvalCodes, terminals }` and payments report `cardExternalTerminal { payments, paidMinor, refundedMinor, netMinor }` are additive.
+
+## 13. Fiscal records
+- `posfiscalrecords` (append-only): one row per attempt (`documentType` invoice | credit_note, `attempt`, `status` confirmed | pending | rejected, `fiscalInvoiceNumber`, `qrPayload`, `error`, `providerKey`, `testMode`). Each row is audited (`fiscal_<status>`) in the same transaction.
+- Responses lay the latest attempt over the **existing** `invoice.fiscal` / `creditNote.fiscal` object, with the same keys plus `testMode`.
+- A 2-minute sweep retries pending attempts (env `POS_FISCAL_SWEEP_CRON`). Env `FISCAL_PROVIDER` chooses the provider.
+
+## 14. Receipt logo (owner)
+`POST /api/pos/store/settings/:storeId/receipt-logo` (multipart `file`: JPEG, PNG or WebP, ≤ 2 MB, resized to ≤ 1024 px) and `POST …/receipt-logo/remove`. Stored as `PosSettings.receiptLogoUrl` and shown as `receipt.logoUrl` (read-only in PATCH). Audited as `receipt_logo_changed` / `receipt_logo_removed`.
+
+## 15. Role presets (proposed)
+`GET /api/pos/permissions/:storeId` adds `presets [{ key, label, summary, status: 'proposed' }]`. `POST /api/pos/permissions/:storeId/preset { preset, preview?, expectedVersion? }` is owner only, version-guarded, and audited as `permissions_preset_applied` with the diff. See ROLE_PRESETS.md; the admin panel should show "proposed" until it is signed off.
+
+## 16. Accounting export and API keys
+See API_KEYS.md. Routes:
+- `GET /api/pos/reports/accounting-export/:storeId` (manager-with-limit)
+- `GET|POST /api/pos/api-keys/:storeId` and `POST …/:keyId/revoke` (owner)
+- `GET /api/pos/ext/v1/{sales,inventory,accounting-export}` (store API key)
+
+The admin panel can list keys per store through the owner routes, but it never sees a secret. Env: `API_KEY_RATE_PER_MIN` (default 60).
+
+## 17. New env (all optional)
+| Env | Default | Notes |
+|---|---|---|
+| `RECEIPT_PUBLIC_URL` | API_PUBLIC_URL | Customer-facing receipt origin (G5.2.0b) |
+| `FISCAL_PROVIDER` | `mock` outside production, none in production | Any real key answers "not configured" until an adapter exists |
+| `POS_FISCAL_SWEEP_CRON` | `*/2 * * * *` | |
+| `CARD_GATEWAY_PROVIDER` | `mock` outside production | Same rule |
+| `API_KEY_RATE_PER_MIN` | 60 | |
+| `DEV_UPLOAD_STUB` | unset | **Dev stack only**; ignored when NODE_ENV=production |

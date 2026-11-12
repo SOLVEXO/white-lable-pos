@@ -1,6 +1,6 @@
-# Blueprint gap audit — after G5.1
+# Blueprint gap audit — after G5.7
 
-Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Documents only; no code changed for this audit.
+Date: 2026-11-12 (first written after G4.9, statuses updated after G5.1 and G5.7). Documents only; no code changed for this audit.
 
 **Blueprint:** Sir Atiq's package, `Solvexo_POS_UI_Developer_Package`. It contains the README, `DEVELOPMENT_ROADMAP.md` (3 phases, 10 engineering rules, 6 acceptance targets), `app/index.html` (101 routes), the design tokens and the brand assets.
 
@@ -18,25 +18,27 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 
 ## 1. Summary
 
-**101 routes:** Done 85 · Partial 7 · Missing 1 · Blocked 6 · out of scope 2.
+**101 routes:** Done 94 · Partial 1 · Missing 0 · Blocked 3 · out of scope 3.
 
 | Area | Routes | Done | Partial | Missing | Blocked | Out of scope |
 |---|---|---|---|---|---|---|
 | 1. Launch & access | 9 | 7 | 0 | 0 | 0 | 2 |
-| 2. Sell & checkout | 22 | 18 | 3 | 0 | 1 | 0 |
+| 2. Sell & checkout | 22 | 22 | 0 | 0 | 0 | 0 |
 | 3. Orders & returns | 7 | 6 | 0 | 0 | 1 | 0 |
-| 4. Products & pricing | 7 | 5 | 2 | 0 | 0 | 0 |
+| 4. Products & pricing | 7 | 7 | 0 | 0 | 0 | 0 |
 | 5. Inventory | 11 | 11 | 0 | 0 | 0 | 0 |
-| 6. Customers | 5 | 4 | 0 | 0 | 1 | 0 |
-| 7. Supply & purchasing | 7 | 6 | 1 | 0 | 0 | 0 |
+| 6. Customers | 5 | 4 | 0 | 0 | 0 | 1 |
+| 7. Supply & purchasing | 7 | 7 | 0 | 0 | 0 | 0 |
 | 8. Cash & expenses | 5 | 4 | 1 | 0 | 0 | 0 |
 | 9. Reports | 9 | 9 | 0 | 0 | 0 | 0 |
 | 10. Team & shifts | 6 | 5 | 0 | 0 | 1 | 0 |
-| 11. Settings | 13 | 10 | 0 | 1 | 2 | 0 |
+| 11. Settings | 13 | 12 | 0 | 0 | 1 | 0 |
 
-**Blocked, by blocker:** card provider 1 · FBR 1 · khata confirmation 1 · Raast provider 1 · logo masters 1 · Sir Atiq decision on role presets 1.
+**Blocked, by blocker:** FBR 1 (fiscal adapter) · Raast provider 1 · Sir Atiq sign-off on role presets 1.
 
 **After G4.9 → after G5.1:** Done 73 → 85 · Partial 18 → 7 · Missing 3 → 1 · Blocked 5 → 6 (role presets moved to Blocked: decision).
+
+**After G5.1 → after G5.7:** Done 85 → 94 · Partial 7 → 1 · Missing 1 → 0 · Blocked 6 → 3 · Out of scope 2 → 3 (khata: out of scope by product decision; card on an external terminal, receipt logo, integrations done; FBR / Raast / role presets stay blocked on external inputs — see G5_CLOSEOUT "TO ADD LATER").
 
 **Workflows (21 roadmap items):** Done 14 · Partial 4 · Blocked 3. **Engineering rules (10):** Done 8 · Partial 1 · Blocked 1. **Acceptance targets (6):** Done 4 · Partial 2.
 
@@ -64,7 +66,7 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 | category-view | category chips on Sale | Done | — | — |
 | product-search | search on Sale (+ recent searches) | Done | — | — |
 | scan | camera + HID scanner + torch + continuous scan (G5.1) | Done | — | — |
-| product-detail | variant / option sheet | **Partial** | No product page (image, stock by location, details) — only the picker sheet | M |
+| product-detail | product page (G5.2): photos, details, variants, stock by location | **Done** | — (G5.2: managers edit details, a variant's SKU / cost / reorder point, photos; cost obeys hide-costs) | — |
 | variants (& modifiers) | option sheet + modifier groups (G4.5) | Done | — | — |
 | custom-item | custom item with manager limit (G2.4) | Done | — | — |
 | cart | cart panel / phone cart | Done | — | — |
@@ -75,12 +77,12 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 | parked-sales | /pos/held-sales | Done | — | — |
 | payment | payment sheet | Done | — | — |
 | cash-payment | cash keypad + quick amounts | Done | — | — |
-| card-payment | card recorded as "unverified" + slip at close | **Blocked** (card provider) | Card success is cashier-asserted; needs a terminal / gateway confirmation | M |
+| card-payment | card on an external bank terminal with the slip's approval code (G5.4) | **Done** | Approval code required live when the store switch is on, on the shift close / payments report, referenced by refunds. In-app card acceptance (gateway) waits for a provider (interface + mock, flag off) | — |
 | split-payment | split tender | Done | — | — |
 | credit-payment (store credit) | store-credit tender (G3.3) | Done | — | — |
 | payment-success | sale success view | Done | — | — |
-| receipt | thermal / PDF receipt (QR offline-built, barcode, points balance — G4.8/G4.9) | **Partial** — blocked part: logo masters (logo part only) | Logo printing waits for the masters; e-mail / SMS / WhatsApp delivery not built | M |
-| print-share | print + share sheet + share the receipt link (G5.1) | **Partial** | WhatsApp straight to the customer's number needs url_launcher (new package — ask); e-mail / SMS sending needs a provider | S |
+| receipt | thermal / PDF receipt (QR from RECEIPT_PUBLIC_URL, barcode, points balance, store logo, fiscal block) | **Done** | — (G5.6 logo printed as a dithered bitmap; G5.5 "Fiscal pending" / FBR number + QR; G5.3 e-mail / SMS / WhatsApp) | — |
+| print-share | print + share sheet + WhatsApp to the customer's number + e-mail / SMS (G5.3) | **Done** | In-app PDF *viewer* deferred (needs a package); the PDF is shared and previewed by the system share sheet | — |
 | offline | queue, banner, Needs attention, encrypted queue | Done | — | — |
 
 ### 2.3 Orders & returns (7)
@@ -89,7 +91,7 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 |---|---|---|---|---|
 | orders | /pos/orders (search by receipt / OFF number; cashier / register filters — G5.1) | Done | — | — |
 | order-detail | /pos/sale-detail | Done | — | — |
-| invoice (tax invoice) | /pos/tax-invoice + thermal + ORIGINAL / REPRINT (G4.9) | **Blocked** (FBR) | Invoice done; FBR invoice number / QR block reserved, not filled | L |
+| invoice (tax invoice) | /pos/tax-invoice + thermal + ORIGINAL / REPRINT + fiscal block (G5.5) | **Blocked** (FBR) | Fiscal provider interface, append-only records, offline "Fiscal pending", retry sweep and the printed block work with the mock; the real PRAL / integrator adapter needs the documents in FBR_INTEGRATION_NEEDS.md | L |
 | return-start | /pos/return | Done | — | — |
 | return-items | by line + qty, restock flag | Done | — | — |
 | refund-method | original tenders or store credit | Done | — | — |
@@ -100,8 +102,8 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 | Route | App screen | Status | What is left | Size |
 |---|---|---|---|---|
 | products | /pos/products, /pos/catalog | Done | — | — |
-| catalog-product | catalog edit (price / barcode / HS / category / stock) | **Partial** | Editing an existing product's name / description / variants beyond those fields; no images | M |
-| product-form | new product + variants (G4.5) | **Partial** | Product images not supported on the till (needs a storage decision for product media) | M |
+| catalog-product | catalog edit + product page edit (G5.2) | **Done** | — (name, description, category, status; variant SKU / cost / reorder point; photos) | — |
+| product-form | new product + variants (G4.5) + photos on the product page (G5.2) | **Done** | — | — |
 | categories | categories CRUD (G4.5) | Done | — | — |
 | modifiers | modifier groups (G4.5) | Done | — | — |
 | pricebook | price books, store-day validity (G4.5/G4.8) | Done | — | — |
@@ -131,7 +133,7 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 | customer-profile | /pos/customers/profile (balances, points, tier) | Done | — | — |
 | add-customer | add / edit, inline from the picker | Done | — | — |
 | loyalty | earn / redeem / reverse, tier, balance on receipt (G4.9) | Done | — | — |
-| customer-credit (on account / khata) | — (G4.7 parked) | **Blocked** (khata confirmation) | Credit limit, sale on account, take a payment — G4.7 is planned, not started | L |
+| customer-credit (on account / khata) | — | **Out of scope (product decision)** | Khata removed from the POS scope permanently (G5.2 brief); store credit stays. The POS app has no khata entry point. Main's separate `src/khata` backend module (not POS) is untouched — see G5_CLOSEOUT | — |
 
 ### 2.7 Supply & purchasing (7)
 
@@ -142,7 +144,7 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 | purchase-orders | /pos/supply/orders | Done | — | — |
 | purchase-order-detail | /pos/supply/order | Done | — | — |
 | new-purchase-order | /pos/supply/order-form (+ scan to add — G5.1) | Done | — | — |
-| receive-stock | /pos/supply/receive (partial, lots, no-PO, scan to receive — G5.1) | **Partial** | Serial-tracked items are dashboard-only | S |
+| receive-stock | /pos/supply/receive (partial, lots, no-PO, scan to receive, serial numbers — G5.2) | **Done** | — (one serial per unit, unique, same transaction; an older till gets SERIALS_NOT_SUPPORTED) | — |
 | supplier-payment | payables + ledger + payment | Done | — | — |
 
 ### 2.8 Cash & expenses (5)
@@ -175,7 +177,7 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 |---|---|---|---|---|
 | staff | /pos/team/roster, /seller/pos-management | Done | — | — |
 | staff-profile | team members → profile (last login, clocked in, sales — G5.1) | Done | — | — |
-| roles | /pos/roles (editable matrix, per-store limits — G4.2) | **Blocked** (Sir Atiq decision (preset contents)) | Presets (Owner-operated / Small team / Strict) — what each allows is not defined | S |
+| roles | /pos/roles (editable matrix, per-store limits — G4.2) + role presets (G5.6) | **Blocked** (Sir Atiq sign-off) | Three presets built and applicable (owner, preview, audited) but labelled **proposed** — ROLE_PRESETS.md awaits sign-off | S |
 | attendance | /pos/team/attendance + corrections + report | Done | — | — |
 | shift-summary | /pos/session-report, history | Done | — | — |
 | clock-in | /pos/team/clock + Home card; clock someone else with their PIN or a manager's (G5.4) | Done | — | — |
@@ -187,12 +189,12 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 | settings (hub) | /pos/settings-hub | Done | — | — |
 | store-profile | store profile + tax profile | Done | — | — |
 | register-settings | registers & devices | Done | — | — |
-| payments-settings | KYB + Raast setup | **Blocked** (Raast provider) | KYB flow done; Raast runs on the mock provider only — the real adapter needs sandbox docs | M |
+| payments-settings | Payments setup (G5.4): KYB status, test-mode badge, Raast on / off, card terminal switch | **Blocked** (Raast provider) | Screen done against the mock; PayFast / 1LINK adapters are typed TODOs needing sandbox docs | M |
 | tax-settings | /pos/tax-profile | Done | — | — |
-| receipt-settings | receipt designer | **Blocked** (logo masters) | Every switch prints except the logo | S |
+| receipt-settings | receipt designer + logo upload / preview (G5.6) | **Done** | — | — |
 | notifications | /pos/settings/notifications | Done | — | — |
 | hardware | printer & sound + Hardware check (test page, drawer, scanner — G5.1) | Done | — | — |
-| integrations | — | **Missing** | Accounting export, API keys — not designed beyond the template | L |
+| integrations | Integrations (G5.7): e-mail / SMS / fiscal switches, accounting CSV, API keys | **Done** | — (provider-backed items show their status; see TO ADD LATER) | — |
 | security | /pos/settings/security (auto-lock, PIN to reprint, hide costs) | Done | — | — |
 | backup-sync | /pos/settings/backup-sync + Needs attention | Done | — | — |
 | help | Help (static, shipped with the app — G5.1) | Done | — | — |
@@ -206,23 +208,23 @@ Date: 2026-11-11 (first written after G4.9, statuses updated after G5.1). Docume
 | 1.2 | Opening shift and cash float | Done | notes & coins, last close (G4.6) | — |
 | 1.3 | Product search and barcode entry | Done | continuous scan (G5.1); latency on real hardware is an acceptance measurement (§3) | — |
 | 1.4 | Cart, taxes, discounts and customer attachment | Done | server-priced, per-line tax, coupons, price books, modifiers | — |
-| 1.5 | Cash and card payments | **Blocked** (card provider) | cash, split, store credit, Raast (mock) done; card success is not gateway-confirmed | M |
-| 1.6 | Receipt printing and sharing | **Partial** | link sharing through the share sheet done (G5.1); logo (blocked: masters); WhatsApp to the customer's number (needs url_launcher); e-mail / SMS (needs a provider) | M |
+| 1.5 | Cash and card payments | **Blocked** (Raast provider, card gateway) | cash, split, store credit, card on an external terminal with approval code (G5.4), Raast (mock) done; real Raast adapter + in-app card gateway need providers | M |
+| 1.6 | Receipt printing and sharing | **Done** | logo, WhatsApp, e-mail / SMS, RECEIPT_PUBLIC_URL done (G5.2–G5.6); in-app PDF viewer deferred (package) | — |
 | 1.7 | Orders, returns and refunds | Done | (orders filters: §2.3) | — |
 | 1.8 | Basic products and stock on hand | Done | | — |
 | 1.9 | Offline sale queue and reliable synchronisation | Done | encrypted queue, idempotent replay, offline receipt link (G4.9); airplane-mode run on a real device pending | — |
 | 2.1 | Stock counts and adjustments | Done | | — |
 | 2.2 | Transfers between locations | Done | | — |
-| 2.3 | Customers, loyalty and credit ledger | **Blocked** (khata confirmation) | customers, loyalty and store credit done; credit on account (khata) = G4.7, parked | L |
+| 2.3 | Customers, loyalty and credit ledger | **Done** | customers, loyalty and store credit done; credit on account (khata) is out of scope by product decision | — |
 | 2.4 | Suppliers and purchase orders | Done | scan-to-add, products supplied (G5.1) | — |
-| 2.5 | Receiving stock | **Partial** | scan-to-receive done (G5.1); serials dashboard-only | S |
+| 2.5 | Receiving stock | **Done** | scan-to-receive (G5.1), serials at the till (G5.2) | — |
 | 2.6 | Expenses and daybook | **Partial** | photo on cash movements done (G5.1); in-app PDF receipt viewer (package approval) | S |
 | 2.7 | Staff shifts and attendance | Done | clocking someone else with their PIN or a manager's (G5.4) | — |
 | 3.1 | Sales, profit, tax and payment reports | Done | (FBR-filed tax figures: blocked with FBR) | — |
 | 3.2 | Product and category performance | Done | | — |
 | 3.3 | Cashier performance | Done | | — |
-| 3.4 | Roles and granular permissions | **Blocked** (Sir Atiq decision) | presets: what each preset allows is not defined | S |
-| 3.5 | Hardware, integrations, audit logs and backup controls | **Partial** | hardware check done (G5.1); integrations (L) missing | L |
+| 3.4 | Roles and granular permissions | **Blocked** (Sir Atiq sign-off) | presets built as proposed (G5.6); sign-off pending | S |
+| 3.5 | Hardware, integrations, audit logs and backup controls | **Done** | integrations (G5.7) | — |
 
 **Workflows (21):** Done 14 · Partial 4 · Blocked 3 · Missing 0.
 
@@ -270,11 +272,11 @@ Ordered by value; each phase is one stop.
 **G5.5: Integrations (L).** Accounting export (CSV / Xero / QuickBooks?) and API keys. Needs a product decision on scope first.
 
 **Blocked tracks**, started as soon as the blocker clears:
-- **G4.7 khata:** on Sir Atiq's go-ahead. Plan exists.
-- **FBR:** on the documents listed in `FBR_PLAN.md`. Fills the reserved invoice block, QR and the tax report's filed figures.
+- **Khata:** out of scope by product decision (G5.2 brief) — not a track any more.
+- **FBR:** scaffolding done (G5.5: provider interface, mock, append-only records, "Fiscal pending", retry); the real adapter waits on the documents in `FBR_INTEGRATION_NEEDS.md`.
 - **Raast provider:** on sandbox docs. A real adapter replaces the mock behind the same interface.
-- **Card terminal / gateway:** on a provider choice.
-- **Logo printing:** on the vector / 1024 px masters.
+- **Card gateway (in-app):** on a provider choice (interface + mock, flag off). Card on an external terminal is done (G5.4).
+- **App icon masters:** see `APP_ICON_MASTERS.md` (receipt logo printing is done — each store uploads its own).
 
 **G6: Release QA:**
 - the real-device checklist (§5.3);
@@ -355,5 +357,5 @@ Reads still use decimals.
   - FBR documents;
   - Raast sandbox docs;
   - card provider choice;
-  - logo masters;
-  - Sir Atiq's khata go-ahead.
+  - app icon masters;
+  - Sir Atiq's sign-off on the proposed role presets.
