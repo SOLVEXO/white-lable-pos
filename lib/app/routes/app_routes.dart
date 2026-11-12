@@ -59,6 +59,7 @@ abstract class Routes {
   static const posPermissions = '/pos/permissions';
   static const posKyb = '/pos/business-verification';
   static const posPaymentsSetup = '/pos/payments-setup'; // G5.4
+  static const posIntegrations = '/pos/integrations'; // G5.7
   static const posTaxInvoice = '/pos/tax-invoice';
   static const posReturn = '/pos/return';
   static const posCatalog = '/pos/catalog';

@@ -4,10 +4,12 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 
 **Tiers:** `owner` = the owner's own session only · `manager-with-limit` = a manager or the owner (some actions have per-store approval limits) · `cashier` = any PIN-signed employee (approval limits may ask for a manager) · `public` = no PIN session (device, PIN login, public receipt).
 
-**Declared:** 159 routes — owner 30, manager-with-limit 73, cashier 49, public 7. Other GET routes (no cost / settings data): 45.
+**Declared:** 163 routes — owner 32, manager-with-limit 74, cashier 49, public 8. Other GET routes (no cost / settings data): 48.
 
 | Method | Route | Tier | Handler | Guards |
 |---|---|---|---|---|
+| POST | `/api/pos/api-keys/:storeId` | owner | PosApiKeysController.create | FeatureFlagGuard + PosAuthGuard + RolesGuard |
+| POST | `/api/pos/api-keys/:storeId/:keyId/revoke` | owner | PosApiKeysController.revoke | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | GET | `/api/pos/audit-logs/:storeId` | manager-with-limit | PosController.getAuditLogs | FeatureFlagGuard + PosAuthGuard + RolesGuard + manager PIN |
 | GET | `/api/pos/audit/verify/:storeId` | manager-with-limit | PosAuditController.verify | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | GET | `/api/pos/cash/daybook/:storeId` | cashier | PosCashController.daybook | FeatureFlagGuard + PosAuthGuard + RolesGuard |
@@ -54,6 +56,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 | PATCH | `/api/pos/employees/:storeId/:employeeId` | owner | PosController.updateEmployeeV2 | FeatureFlagGuard + JwtAuthGuard + RolesGuard |
 | POST | `/api/pos/employees/:storeId/:employeeId/reset-pin` | owner | PosController.resetPin | FeatureFlagGuard + JwtAuthGuard + RolesGuard |
 | POST | `/api/pos/employees/:storeId/:employeeId/unlock-pin` | owner | PosController.unlockPin | FeatureFlagGuard + JwtAuthGuard + RolesGuard |
+| GET | `/api/pos/ext/v1/inventory` | public | PosExtController.inventory | PosApiKeyGuard |
 | GET | `/api/pos/inventory/:storeId` | cashier | PosController.posInventory | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | GET | `/api/pos/inventory/:storeId/low-stock` | cashier | PosController.posLowStock | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | POST | `/api/pos/inventory/adjust/:storeId/:variantId` | cashier | PosInventoryController.adjust | FeatureFlagGuard + PosAuthGuard + RolesGuard + PosEntitlementGuard |
@@ -98,6 +101,7 @@ Written by `solvexo-api/src/pos/pos-route-tiers.spec.ts` from Nest's route metad
 | POST | `/api/pos/registers/:storeId` | owner | PosController.addRegister | FeatureFlagGuard + JwtAuthGuard + RolesGuard |
 | DELETE | `/api/pos/registers/:storeId/:registerId` | owner | PosController.removeRegister | FeatureFlagGuard + JwtAuthGuard + RolesGuard |
 | PATCH | `/api/pos/registers/:storeId/:registerId` | owner | PosController.updateRegister | FeatureFlagGuard + JwtAuthGuard + RolesGuard |
+| GET | `/api/pos/reports/accounting-export/:storeId` | manager-with-limit | PosReportsController.accountingExport | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | GET | `/api/pos/reports/cashiers/:storeId` | cashier | PosReportsController.cashiers | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | GET | `/api/pos/reports/categories/:storeId` | manager-with-limit | PosReportsController.categories | FeatureFlagGuard + PosAuthGuard + RolesGuard |
 | GET | `/api/pos/reports/daily` | manager-with-limit | PosController.getDailyReport | FeatureFlagGuard + PosAuthGuard + RolesGuard + manager PIN |

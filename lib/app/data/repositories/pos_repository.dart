@@ -2770,6 +2770,34 @@ class PosRepository {
     return (success: r.success, code: r.code, message: r.message);
   }
 
+  // ── G5.7 · store API keys (owner) and the accounting export ───────────────────────────────────────────────────────────────────────────
+  Future<StoreApiKeys?> getApiKeys(String storeId) => _invGet('apiKeys', '${ApiConstants.apiPrefix}/pos/api-keys/$storeId', (d) => StoreApiKeys.fromJson(d));
+
+  /// Returns the full key ONCE (show it, let the owner copy it, never store it).
+  Future<({bool success, String? code, String? message, String? key, StoreApiKey? apiKey})> createApiKey(String storeId, {required String name, required List<String> scopes, required int expiresInDays}) async {
+    final r = await _adminWrite('apiKeyCreate', 'POST', '${ApiConstants.apiPrefix}/pos/api-keys/$storeId', {'name': name, 'scopes': scopes, 'expiresInDays': expiresInDays});
+    final d = r.data;
+    return (success: r.success, code: r.code, message: r.extra?['message'] as String? ?? r.message, key: d?['key'] as String?, apiKey: d?['apiKey'] is Map ? StoreApiKey.fromJson(d!['apiKey'] as Map) : null);
+  }
+
+  Future<({bool success, String? code, String? message})> revokeApiKey(String storeId, String keyId) async {
+    final r = await _adminWrite('apiKeyRevoke', 'POST', '${ApiConstants.apiPrefix}/pos/api-keys/$storeId/$keyId/revoke', const {});
+    return (success: r.success, code: r.code, message: r.extra?['message'] as String? ?? r.message);
+  }
+
+  /// The accounting CSV for [from]…[to] (store days, YYYY-MM-DD). Cost columns only when this caller may see cost (the server decides).
+  Future<({List<int>? bytes, String? code, String? message})> accountingExport(String storeId, {required String from, required String to}) async {
+    lastErrorCode = null;
+    try {
+      final res = await _client.get('${ApiConstants.apiPrefix}/pos/reports/accounting-export/$storeId', queryParameters: {'from': from, 'to': to}, requiresAuth: true, headers: await _employeeAuthHeaders(), responseType: ResponseType.bytes);
+      return (bytes: res.data as List<int>?, code: null, message: null);
+    } on DioException catch (e) {
+      _logDioError('accountingExport', e);
+      lastErrorCode = _dioCode(e);
+      return (bytes: null, code: lastErrorCode, message: _dioMessage(e));
+    }
+  }
+
   // ── G5.2 · the product page and editing an existing product ─────────────────────────────────────────────────────────────────────────
   String _prod(String storeId, String productId) => '${ApiConstants.apiPrefix}/pos/catalog-admin/products/$storeId/$productId';
 

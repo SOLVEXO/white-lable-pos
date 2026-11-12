@@ -83,6 +83,8 @@ import '../modules/pos_catalog/views/pos_catalog_view.dart';
 import '../modules/pos_tax_profile/pos_tax_profile.dart';
 import '../modules/pos_kyb/bindings/pos_kyb_binding.dart';
 import '../modules/pos_kyb/views/pos_kyb_view.dart';
+import '../modules/pos_integrations/bindings/pos_integrations_binding.dart';
+import '../modules/pos_integrations/views/pos_integrations_view.dart';
 import '../modules/pos_payments_setup/bindings/pos_payments_setup_binding.dart';
 import '../modules/pos_payments_setup/views/pos_payments_setup_view.dart';
 import '../modules/pos_offline/bindings/pos_offline_binding.dart';
@@ -298,6 +300,13 @@ class AppPages {
       name: Routes.posPaymentsSetup,
       page: () => PosPaymentsSetupView(),
       binding: PosPaymentsSetupBinding(),
+      middlewares: [OwnerAccessMiddleware()],
+    ),
+    // G5.7: e-mail / SMS receipts, fiscal, payments, accounting export, API keys (owner)
+    GetPage(
+      name: Routes.posIntegrations,
+      page: () => PosIntegrationsView(),
+      binding: PosIntegrationsBinding(),
       middlewares: [OwnerAccessMiddleware()],
     ),
     // What works offline, what doesn't, the sync queue — reachable in restricted mode too (it only reads and syncs)

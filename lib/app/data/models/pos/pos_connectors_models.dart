@@ -53,3 +53,43 @@ class ConnectorsStatus {
         raast: j['raast'] is Map ? RaastStatus.fromJson(j['raast'] as Map) : null,
       );
 }
+
+/// G5.7 — a store API key as the owner sees it (the secret is shown only once, at creation).
+class StoreApiKey {
+  const StoreApiKey({required this.id, required this.name, required this.prefix, required this.scopes, required this.status, this.createdAt, this.expiresAt, this.lastUsedAt});
+  final String id, name, prefix, status; // active | expired | revoked
+  final List<String> scopes;
+  final DateTime? createdAt, expiresAt, lastUsedAt;
+  bool get active => status == 'active';
+  static DateTime? _d(dynamic v) => v == null ? null : DateTime.tryParse('$v');
+  factory StoreApiKey.fromJson(Map j) => StoreApiKey(
+        id: '${j['id'] ?? ''}',
+        name: '${j['name'] ?? ''}',
+        prefix: '${j['prefix'] ?? ''}',
+        scopes: [for (final s in (j['scopes'] as List? ?? const [])) '$s'],
+        status: '${j['status'] ?? 'active'}',
+        createdAt: _d(j['createdAt']),
+        expiresAt: _d(j['expiresAt']),
+        lastUsedAt: _d(j['lastUsedAt']),
+      );
+
+  static String scopeLabel(String s) => switch (s) {
+        'sales:read' => 'Read sales',
+        'inventory:read' => 'Read stock',
+        'accounting:read' => 'Accounting export',
+        _ => s,
+      };
+}
+
+class StoreApiKeys {
+  const StoreApiKeys({this.keys = const [], this.scopes = const [], this.maxActive = 10, this.ratePerMinute = 60});
+  final List<StoreApiKey> keys;
+  final List<String> scopes;
+  final int maxActive, ratePerMinute;
+  factory StoreApiKeys.fromJson(Map j) => StoreApiKeys(
+        keys: [for (final k in (j['keys'] as List? ?? const [])) if (k is Map) StoreApiKey.fromJson(k)],
+        scopes: [for (final s in (j['scopes'] as List? ?? const [])) '$s'],
+        maxActive: (j['maxActive'] as num?)?.toInt() ?? 10,
+        ratePerMinute: (j['ratePerMinute'] as num?)?.toInt() ?? 60,
+      );
+}

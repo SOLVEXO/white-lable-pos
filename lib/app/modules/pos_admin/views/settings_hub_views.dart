@@ -65,6 +65,7 @@ class _SettingsHubViewState extends State<SettingsHubView> {
           HubSection('Store', [
             HubRow(icon: Icons.storefront_outlined, title: s?.businessName ?? 'Store profile', subtitle: s?.businessAddress ?? 'Name, address and tax ID (from the tax profile)', onTap: () => Get.toNamed(Routes.posTaxProfile), locked: true),
             HubRow(icon: Icons.public_rounded, title: 'Store time zone', subtitle: s?.timeZone ?? 'Decides when a business day starts and ends', onTap: () => Get.toNamed(Routes.posStoreTimeZone)),
+            HubRow(icon: Icons.hub_outlined, title: 'Integrations', subtitle: 'E-mail / SMS receipts, FBR, accounting export, API keys', onTap: () => Get.toNamed(Routes.posIntegrations), locked: true),
             HubRow(icon: Icons.payments_outlined, title: 'Payments setup', subtitle: 'Raast QR, card on a bank terminal', onTap: () => Get.toNamed(Routes.posPaymentsSetup), locked: true),
             HubRow(icon: Icons.verified_user_outlined, title: 'Business verification', subtitle: 'Needed for Raast QR payments', onTap: () => Get.toNamed(Routes.posKyb), locked: true),
           ]),

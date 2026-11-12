@@ -63,6 +63,8 @@ class OwnerRoutes {
     if (p.startsWith('/pos/permissions/') || p.startsWith('/pos/store/settings/') || p.startsWith('/pos/store/time-zone/')) return true;
     // G4.8: the manager-PIN reads (legacy reports, activity log) — the owner's session when it is live (an owner screen while a cashier is signed in)
     if (p == '/pos/reports/daily' || p == '/pos/reports/daily/export' || p == '/pos/reports/range' || p.startsWith('/pos/reports/register/') || p.startsWith('/pos/reports/employee/') || p.startsWith('/pos/audit-logs/')) return true;
+    // G5.7: store API keys are the owner's alone; the accounting export goes with the owner's session when it is live (an owner screen)
+    if (p.startsWith('/pos/api-keys/') || p.startsWith('/pos/reports/accounting-export/')) return true;
     if (p.startsWith('/inventory/') || p.startsWith('/activity-log/') || p.startsWith('/store/') || p.startsWith('/products/')) return true;
     return false;
   }
