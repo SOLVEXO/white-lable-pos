@@ -54,13 +54,14 @@ class PosIntegrationsView extends StatelessWidget {
                       c: c,
                       flag: 'fiscal',
                       icon: Icons.account_balance_outlined,
-                      title: 'FBR fiscal invoices',
+                      title: s.ui.fiscalTitle, // G6.1: the server names it
                       text: s.fiscal.configured
                           ? (s.fiscal.testMode ? 'Test mode: invoices get a test fiscal number. Not for real tax reporting.' : 'Invoices and credit notes are sent to the tax authority.')
-                          : 'Not available yet: the FBR connection is waiting for the route decision and documents. Receipts would show "Fiscal pending".',
+                          : 'Not available yet: the tax authority connection is not set up on the server. Receipts would show "Fiscal pending".',
                       on: s.fiscalOn,
                       badge: s.fiscal.testMode ? 'Test mode' : (s.fiscal.configured ? null : 'Not available'),
                     ),
+                    if ((c.fiscalIssues.value ?? const []).isNotEmpty) _FiscalIssuesCard(c: c), // G6.1
                     const SectionHeader('Payments'),
                     AppCard(
                       key: const Key('intPayments'),
@@ -300,6 +301,54 @@ class _NewKeySheetState extends State<_NewKeySheet> {
         const SizedBox(height: Space.s4),
         AppButton(key: const Key('apiKeyCreate'), label: 'Create key', onPressed: ok ? () => Navigator.of(context).pop((name: _name.text.trim(), scopes: [for (final s in widget.scopes) if (_scopes.contains(s)) s], days: _days)) : null),
       ]),
+    );
+  }
+}
+
+/// G6.1 — fiscal documents that need the owner: failed ones can be sent again; refused ones show the authority's reason.
+class _FiscalIssuesCard extends StatelessWidget {
+  const _FiscalIssuesCard({required this.c});
+  final PosIntegrationsController c;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
+    final items = c.fiscalIssues.value ?? const <FiscalIssue>[];
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.s2),
+      child: AppCard(
+        key: const Key('fiscalIssues'),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('${items.length} ${items.length == 1 ? 'document needs' : 'documents need'} attention', style: t.subtitle.copyWith(color: p.textPrimary)),
+          Text('Sales are complete either way. A failed document can be sent again after you check it.', style: t.caption.copyWith(color: p.textSecondary)),
+          for (final i in items)
+            Padding(
+              padding: const EdgeInsets.only(top: Space.s3),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Flexible(child: Text(i.documentNumber, style: t.body.copyWith(color: p.textPrimary))),
+                      const SizedBox(width: Space.s2),
+                      StatusBadge(i.status == 'rejected' ? 'Refused' : 'Not sent', tone: i.status == 'rejected' ? StatusTone.danger : StatusTone.warning),
+                    ]),
+                    if ((i.message ?? '').isNotEmpty) Text(i.message!, style: t.caption.copyWith(color: p.textSecondary)),
+                  ]),
+                ),
+                if (i.retryable)
+                  AppButton(
+                    key: Key('fiscalRetry-${i.documentId}'),
+                    label: 'Send again',
+                    expand: false,
+                    variant: AppButtonVariant.secondary,
+                    loading: c.retrying.value == i.documentId,
+                    onPressed: c.retrying.value != null ? null : () => c.retryFiscal(i),
+                  ),
+              ]),
+            ),
+        ]),
+      ),
     );
   }
 }

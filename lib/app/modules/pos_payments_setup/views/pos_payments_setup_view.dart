@@ -63,7 +63,7 @@ class PosPaymentsSetupView extends StatelessWidget {
                       icon: Icons.credit_score_rounded,
                       title: 'Card payments in the app',
                       provider: s.cardGateway,
-                      offText: 'Not available yet. Solvexo is choosing a card provider; until then, use a bank terminal.',
+                      offText: s.ui.cardGatewayStatusText ?? 'Not available yet. Solvexo is choosing a card provider; until then, use a bank terminal.', // G6.1: the server's words
                     ),
                   ],
                 ),
@@ -101,9 +101,11 @@ class _RaastCard extends StatelessWidget {
                 ? 'Customers can pay by scanning a Raast QR at the till.'
                 : r.disabledByStore
                     ? 'Raast QR is switched off for this store.'
-                    : r.reason == 'no_sub_merchant'
-                        ? 'Verified. Raast switches on once the payment provider finishes setting up your business.'
-                        : 'Raast is not available right now (${r.reason ?? 'unknown'}).';
+                    : (ConnectorUiStore.current.raastReasonText ?? '').isNotEmpty // G6.1: the server explains its own reason codes
+                        ? ConnectorUiStore.current.raastReasonText!
+                        : r.reason == 'no_sub_merchant'
+                            ? 'Verified. Raast switches on once the payment provider finishes setting up your business.'
+                            : 'Raast is not available right now (${r.reason ?? 'unknown'}).';
     return AppCard(
       key: const Key('raastCard'),
       radius: Radii.rMd,

@@ -65,6 +65,8 @@ class OwnerRoutes {
     if (p == '/pos/reports/daily' || p == '/pos/reports/daily/export' || p == '/pos/reports/range' || p.startsWith('/pos/reports/register/') || p.startsWith('/pos/reports/employee/') || p.startsWith('/pos/audit-logs/')) return true;
     // G5.7: store API keys are the owner's alone; the accounting export goes with the owner's session when it is live (an owner screen)
     if (p.startsWith('/pos/api-keys/') || p.startsWith('/pos/reports/accounting-export/')) return true;
+    // G6.1: the fiscal issues list and the owner's retry (Integrations → Fiscal) go with the owner's session when it is live
+    if (p.startsWith('/pos/fiscal/')) return true;
     if (p.startsWith('/inventory/') || p.startsWith('/activity-log/') || p.startsWith('/store/') || p.startsWith('/products/')) return true;
     return false;
   }

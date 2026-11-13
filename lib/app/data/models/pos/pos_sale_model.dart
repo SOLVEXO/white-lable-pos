@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart' show FiscalLine, PosFiscalInfo;
 import 'package:solvexo_pos/app/data/models/pos/pos_catalog_admin_models.dart' show ChosenModifier;
 import 'package:solvexo_pos/app/data/models/pos/pos_lot_models.dart';
 import 'package:solvexo_pos/utils/money_json.dart';
@@ -334,7 +335,15 @@ class PosInvoiceInfo {
   final String fiscalStatus;
   final String? fiscalNumber;
   final String? fiscalQr;
-  const PosInvoiceInfo({required this.number, this.issuedAt, this.offlineRef, this.sellerName, this.sellerAddress, this.sellerNtn, this.sellerStrn, this.fiscalStatus = 'not_enabled', this.fiscalNumber, this.fiscalQr});
+  /// G6.1: the whole fiscal block (contract v1: display lines, message, willRetry, logo); null when the server sent none
+  final PosFiscalInfo? fiscal;
+  /// G6.1: the seller's tax identifiers as the server labels them (`seller.taxIds` [{label, value}]); absent → NTN / STRN from the fields above
+  final List<FiscalLine> sellerTaxIds;
+  const PosInvoiceInfo({required this.number, this.issuedAt, this.offlineRef, this.sellerName, this.sellerAddress, this.sellerNtn, this.sellerStrn, this.fiscalStatus = 'not_enabled', this.fiscalNumber, this.fiscalQr, this.fiscal, this.sellerTaxIds = const []});
+  /// what the tax-invoice header prints under the seller: the server's labelled ids, or (older servers) NTN / STRN
+  List<FiscalLine> get sellerTaxLines => sellerTaxIds.isNotEmpty
+      ? sellerTaxIds
+      : [if ((sellerNtn ?? '').isNotEmpty) FiscalLine('NTN', sellerNtn!), if ((sellerStrn ?? '').isNotEmpty) FiscalLine('STRN', sellerStrn!)];
   bool get fiscalConfirmed => fiscalStatus == 'confirmed' && fiscalNumber != null;
   bool get fiscalPending => fiscalStatus == 'pending';
 
@@ -351,6 +360,8 @@ class PosInvoiceInfo {
       fiscalStatus: (j['fiscal'] is Map ? (j['fiscal'] as Map)['status'] as String? : null) ?? 'not_enabled',
       fiscalNumber: j['fiscal'] is Map ? (j['fiscal'] as Map)['externalInvoiceNumber'] as String? : null,
       fiscalQr: j['fiscal'] is Map ? (j['fiscal'] as Map)['qrPayload'] as String? : null,
+      fiscal: PosFiscalInfo.fromJson(j['fiscal']),
+      sellerTaxIds: [for (final t in (s['taxIds'] as List? ?? const [])) ?FiscalLine.fromJson(t)],
     );
   }
 }

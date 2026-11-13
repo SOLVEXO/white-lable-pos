@@ -167,6 +167,8 @@ class RaastQrController extends GetxController {
 
   static String _createMessage(String? code, String? message, bool offline) {
     if (offline) return 'Raast QR needs an internet connection.';
+    // G6.1: the server's words first (a real provider's reasons need no app update); the app's text only when the server sent none
+    if ((message ?? '').trim().isNotEmpty) return message!.trim();
     switch (code) {
       case 'STORE_NOT_VERIFIED':
         return 'Raast QR is not available for this store yet.';

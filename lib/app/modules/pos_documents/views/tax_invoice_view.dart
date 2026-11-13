@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/components/fiscal_status_card.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -100,6 +101,7 @@ class TaxInvoiceView extends StatelessWidget {
                       ],
                     ),
                   ),
+                  FiscalStatusCard(fiscal: c.invoiceFiscal), // G6.1: the server's fiscal block (hidden when the store does not fiscalise)
                   if (c.creditNotes.isNotEmpty) ...[
                     const SizedBox(height: Space.s4),
                     Text('Credit notes', style: t.title.copyWith(color: p.textPrimary)),

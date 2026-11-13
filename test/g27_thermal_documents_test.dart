@@ -76,14 +76,15 @@ void main() {
     });
 
     test('a fiscal number lands directly under the document number; the QR under the totals — and everything else is unchanged', () {
+      // G6.1: with no server display lines the app prints the number alone (it never adds a tax-authority label of its own)
       const f = FiscalSlots(invoiceNumber: 'FBR-123456789', qrPayload: 'https://example/verify/123');
       final base = TaxDocumentEscPos.render(TaxDocumentEscPos.invoice(sale, cols: 48), 48).split('\n');
       final withF = TaxDocumentEscPos.render(TaxDocumentEscPos.invoice(sale, cols: 48, fiscal: f), 48).split('\n');
       final i = withF.indexWhere((l) => l.contains('INV-000007'));
-      expect(withF[i + 1].trim(), 'FBR Invoice No');
-      expect(withF[i + 2].trim(), 'FBR-123456789');
+      expect(withF.any((l) => l.contains('FBR Invoice No')), isFalse);
+      expect(withF[i + 1].trim(), 'FBR-123456789');
       expect(withF.any((l) => l.contains('[QR https://example/verify/123]')), isTrue);
-      final stripped = [...withF]..removeRange(i + 1, i + 3);
+      final stripped = [...withF]..removeRange(i + 1, i + 2);
       final q = stripped.indexWhere((l) => l.contains('[QR'));
       stripped.removeRange(q - 1, q + 1); // the blank line before the QR and the QR itself
       expect(stripped.where((l) => l.isNotEmpty).toList(), base.where((l) => l.isNotEmpty).toList());

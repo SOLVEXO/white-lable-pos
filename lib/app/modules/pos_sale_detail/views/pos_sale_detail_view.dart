@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/components/fiscal_status_card.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
@@ -346,6 +347,8 @@ class _ActionsSection extends StatelessWidget {
             color: AppColors.red,
             onTap: () => _confirm(context, 'Discard Sale', 'Permanently delete this held sale?', c.discard),
           ),
+        // G6.1: the invoice's fiscal state (failed / refused visible to the cashier and the owner; never blocks the sale)
+        if (sale.invoice?.fiscal?.required == true) Padding(padding: const EdgeInsets.only(bottom: 12), child: FiscalStatusCard(fiscal: sale.invoice!.fiscal)),
         if (sale.status != 'held' && sale.status != 'discarded')
           _ActionButton(
             key: const Key('openTaxInvoice'),

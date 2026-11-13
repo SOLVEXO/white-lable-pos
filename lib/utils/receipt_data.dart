@@ -4,6 +4,8 @@ import 'package:solvexo_pos/app/data/models/pos/pos_admin_models.dart' show Rece
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/utils/money.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart' show FiscalLine;
+import 'package:solvexo_pos/utils/fiscal_print.dart';
 
 class ReceiptLine {
   final String name;
@@ -122,6 +124,17 @@ class ReceiptData {
   final String? fiscalNumber;
   final String? fiscalQr;
   final bool fiscalPending;
+  /// G6.1: the server's fiscal display lines (contract v1), printed as given; and the authority logo (from the till's logo cache)
+  final List<FiscalLine> fiscalLines;
+  final String? fiscalLogoUrl;
+  /// What the print shows: the server's lines, else (older data) the number alone / "Fiscal pending" — see [FiscalPrint].
+  FiscalPrint get fiscalPrint => fiscalLines.isNotEmpty
+      ? FiscalPrint(lines: fiscalLines, qr: fiscalQr, logoUrl: fiscalLogoUrl)
+      : fiscalNumber != null
+          ? FiscalPrint(lines: [FiscalLine('', fiscalNumber!)], qr: fiscalQr, logoUrl: fiscalLogoUrl)
+          : fiscalPending
+              ? const FiscalPrint(lines: [FiscalLine('', FiscalPrint.pendingText)])
+              : FiscalPrint.empty;
   /// G5.6: the store's receipt logo (only when the designer's logo switch is on); the printer uses the till's cached bitmap of it
   final String? logoUrl;
 
@@ -164,6 +177,8 @@ class ReceiptData {
     this.fiscalNumber,
     this.fiscalQr,
     this.fiscalPending = false,
+    this.fiscalLines = const [],
+    this.fiscalLogoUrl,
     this.logoUrl,
   });
 
@@ -206,6 +221,8 @@ class ReceiptData {
         fiscalNumber: fiscalNumber,
         fiscalQr: fiscalQr,
         fiscalPending: fiscalPending,
+        fiscalLines: fiscalLines,
+        fiscalLogoUrl: fiscalLogoUrl,
         logoUrl: logoUrl,
       );
 
@@ -244,6 +261,8 @@ class ReceiptData {
         if (fiscalNumber != null) 'fiscalNumber': fiscalNumber,
         if (fiscalQr != null) 'fiscalQr': fiscalQr,
         if (fiscalPending) 'fiscalPending': true,
+        if (fiscalLines.isNotEmpty) 'fiscalLines': [for (final l in fiscalLines) l.toJson()],
+        if (fiscalLogoUrl != null) 'fiscalLogoUrl': fiscalLogoUrl,
         if (logoUrl != null) 'logoUrl': logoUrl,
       };
 
@@ -282,6 +301,8 @@ class ReceiptData {
         fiscalNumber: j['fiscalNumber'] as String?,
         fiscalQr: j['fiscalQr'] as String?,
         fiscalPending: j['fiscalPending'] == true,
+        fiscalLines: [for (final l in (j['fiscalLines'] as List? ?? const [])) ?FiscalLine.fromJson(l)],
+        fiscalLogoUrl: j['fiscalLogoUrl'] as String?,
         logoUrl: j['logoUrl'] as String?,
       );
 
@@ -384,9 +405,10 @@ class ReceiptData {
       footer: receiptFooterText(settings, clean),
       offlineRef: offlineRef,
       saleId: sale.id.isEmpty ? null : sale.id,
-      fiscalNumber: sale.invoice?.fiscalConfirmed == true ? sale.invoice!.fiscalNumber : null,
-      fiscalQr: sale.invoice?.fiscalConfirmed == true ? sale.invoice!.fiscalQr : null,
-      fiscalPending: sale.invoice?.fiscalPending == true,
+      // G6.1: exactly what the server's fiscal block says to print (lines, QR, logo); nothing when the store does not fiscalise
+      fiscalLines: FiscalPrint.of(sale.invoice?.fiscal).lines,
+      fiscalQr: FiscalPrint.of(sale.invoice?.fiscal).qr,
+      fiscalLogoUrl: FiscalPrint.of(sale.invoice?.fiscal).logoUrl,
       logoUrl: settings?.receiptLogoUrlToPrint,
       // G4.8 receipt designer switches (defaults: QR on, barcode off, points on)
       // G4.9: the offline-built link first (the same QR online or offline, at checkout and on reprint); the token link only for a sale without a client key

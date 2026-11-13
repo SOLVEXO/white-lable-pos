@@ -2770,6 +2770,16 @@ class PosRepository {
     return (success: r.success, code: r.code, message: r.message);
   }
 
+  // ── G6.1 · fiscal documents that need attention (manager / owner) and the owner's retry ────────────────────────────────────────────────
+  /// null = not available (an older backend without the route, offline, no permission): the screen hides the section.
+  Future<List<FiscalIssue>?> getFiscalIssues(String storeId) => _invGet('fiscalIssues', '${ApiConstants.apiPrefix}/pos/fiscal/$storeId/issues',
+      (d) => [for (final i in ((d as Map)['items'] as List? ?? const [])) if (i is Map) FiscalIssue.fromJson(i)]);
+
+  Future<({bool success, String? code, String? message, PosFiscalInfo? fiscal})> retryFiscal(String storeId, {required String documentType, required String documentId}) async {
+    final r = await _adminWrite('fiscalRetry', 'POST', '${ApiConstants.apiPrefix}/pos/fiscal/$storeId/retry', {'documentType': documentType, 'documentId': documentId});
+    return (success: r.success, code: r.code, message: r.extra?['message'] as String? ?? r.message, fiscal: PosFiscalInfo.fromJson(r.data));
+  }
+
   // ── G5.7 · store API keys (owner) and the accounting export ───────────────────────────────────────────────────────────────────────────
   Future<StoreApiKeys?> getApiKeys(String storeId) => _invGet('apiKeys', '${ApiConstants.apiPrefix}/pos/api-keys/$storeId', (d) => StoreApiKeys.fromJson(d));
 

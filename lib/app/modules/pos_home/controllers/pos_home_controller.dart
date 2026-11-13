@@ -537,8 +537,9 @@ class PosHomeController extends GetxController {
           storeId: storeId.value,
           repository: _payRepo,
           store: _pendingQr,
+          pollInterval: _qrPoll, // G6.1: the server's poll interval
         ),
-        showSimulate: kDebugMode,
+        showSimulate: qrSimulateAllowed,
       );
       if (r.isConfirmed && r.intent != null) {
         _qrConfirmed[l.index] = (intentId: r.intent!.id, amountMinor: l.amountMinor);
@@ -551,6 +552,13 @@ class PosHomeController extends GetxController {
     }
     return true;
   }
+
+  Duration get _qrPoll => Duration(milliseconds: ConnectorUiStore.current.raastPollAfterMs);
+
+  /// G6.1: the "simulate paid" button — debug builds only, and only when the server says its provider is the mock (an older server that does
+  /// not say: debug keeps it as before). Never in a release build.
+  @visibleForTesting
+  static bool get qrSimulateAllowed => kDebugMode && (ConnectorUiStore.current.raastSimulateAvailable ?? true);
 
   /// A QR payment found on this device after a restart / unlock: look it up on the server and carry on with the same checkout.
   /// Never creates a second payment. Paid → the sale is completed with it; still open → the QR screen reopens; over → forgotten.
@@ -568,8 +576,9 @@ class PosHomeController extends GetxController {
         resumeFrom: pq,
         repository: _payRepo,
         store: _pendingQr,
+        pollInterval: _qrPoll,
       ),
-      showSimulate: kDebugMode,
+      showSimulate: qrSimulateAllowed,
     );
     if (!r.isConfirmed || r.intent == null) return;
     if (sameCheckout && _qrLines(total).any((l) => l.index == pq.qrIndex && l.amountMinor == pq.amountMinor)) {
@@ -796,11 +805,16 @@ class PosHomeController extends GetxController {
   }
 
   /// G5.4: the terminal details for a card line (empty fields left out).
-  Map<String, dynamic> _cardTerminalFields(String approval) => {
-        if (approval.trim().isNotEmpty) 'approvalCode': approval.trim(),
-        if (cardLast4Controller.text.trim().isNotEmpty) 'last4': cardLast4Controller.text.trim(),
-        if (cardTerminalController.text.trim().isNotEmpty) 'terminalLabel': cardTerminalController.text.trim(),
-      };
+  /// G6.1: only the fields the server lists (`connectors.ui.cardExternalTerminal.fields`; the G5.4 three when it says nothing).
+  Map<String, dynamic> _cardTerminalFields(String approval) {
+    final ui = ConnectorUiStore.current;
+    String? v(String key, String text) => ui.field(key) != null && text.trim().isNotEmpty ? text.trim() : null;
+    return {
+      if (v('approvalCode', approval) != null) 'approvalCode': approval.trim(),
+      if (v('last4', cardLast4Controller.text) != null) 'last4': cardLast4Controller.text.trim(),
+      if (v('terminalLabel', cardTerminalController.text) != null) 'terminalLabel': cardTerminalController.text.trim(),
+    };
+  }
 
   /// G5.4: what the tenders send (tests).
   @visibleForTesting
@@ -809,6 +823,7 @@ class PosHomeController extends GetxController {
   /// G5.4: with the switch on, a card payment needs the slip's approval code (the server checks it too).
   bool get cardApprovalMissing {
     if (!cardExternalTerminal.value) return false;
+    if (ConnectorUiStore.current.field('approvalCode')?.required != true) return false; // G6.1: the server says whether it is required
     if (isSplitPayment.value) return splitLines.any((l) => l.method.value == PosPaymentMethod.card && l.amountValue > 0 && l.reference.text.trim().isEmpty);
     return selectedPayment.value == PosPaymentMethod.card && cardApprovalController.text.trim().isEmpty;
   }
@@ -1356,6 +1371,11 @@ class PosHomeController extends GetxController {
       lastOutcome.value = SaleOutcome.completed;
       CustomAppSnackbar.success('Sale completed!');
       if (receipt != null) {
+        // G6.1: an authority logo in the fiscal block is fetched for the thermal print (at most 2 s; printed without it otherwise)
+        final fl = receipt.fiscalLogoUrl;
+        if (fl != null) {
+          await Future.wait([ReceiptLogoStore.warm(fl, 58), ReceiptLogoStore.warm(fl, 80)]).timeout(const Duration(seconds: 2)).catchError((_) => <LogoBitmap?>[]);
+        }
         _afterSalePrint(receipt, hadCash: _paidWithCash(pay));
       }
     } finally {
@@ -1856,7 +1876,7 @@ class PosHomeController extends GetxController {
       _expiredApproverToken = null;
       return 'A manager must approve selling expired stock. Ask the manager again.';
     }
-    if (code == 'CARD_APPROVAL_REQUIRED') return 'Enter the approval code from the card terminal slip.';
+    if (code == 'CARD_APPROVAL_REQUIRED') return (message ?? '').trim().isNotEmpty ? message!.trim() : 'Enter the approval code from the card terminal slip.'; // G6.1: the server's words first
     if (code != null && customerCodes.contains(code)) return customerErrorMessage(code);
     if (code != null && catalogSaleCodes.contains(code)) return catalogErrorMessage(code, message: message);
     return _friendlyError(message ?? '');

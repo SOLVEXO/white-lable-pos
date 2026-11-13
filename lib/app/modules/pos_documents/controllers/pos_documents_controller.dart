@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:get/get.dart';
+import 'package:solvexo_pos/utils/receipt_logo.dart' show ReceiptLogoStore;
+import 'package:solvexo_pos/utils/fiscal_print.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:solvexo_pos/app/modules/pos_pdf_viewer/pdf_viewer_view.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -91,6 +93,17 @@ class PosDocumentsController extends GetxController {
     documents.value = results[1] as PosSaleDocuments?;
     if (sale.value == null) error.value = 'Could not load the invoice.';
     loading.value = false;
+    _warmFiscalLogos();
+  }
+
+  /// G6.1: an authority logo sent with a fiscal block is cached for the thermal print (best effort; printed without it otherwise)
+  void _warmFiscalLogos() {
+    final urls = {invoiceFiscal?.logoUrl, for (final n in creditNotes) n.fiscal?.logoUrl}.whereType<String>();
+    for (final u in urls) {
+      for (final mm in const [58, 80]) {
+        ReceiptLogoStore.warm(u, mm).catchError((_) => null);
+      }
+    }
   }
 
   PosCreditNote? note(String number) => creditNotes.firstWhereOrNull((n) => n.number == number);
@@ -108,12 +121,12 @@ class PosDocumentsController extends GetxController {
       });
 
   Future<Uint8List> _invoiceBytes(PosSaleModel s) async {
-    final f = documents.value?.invoiceFiscal;
-    return Uint8List.fromList(await TaxDocumentPdf.invoice(sale: s, fiscalNumber: f?.confirmed == true ? f!.number : null, fiscalPending: f?.pending == true));
+    final f = invoiceFiscal;
+    return Uint8List.fromList(await TaxDocumentPdf.invoice(sale: s, fiscal: FiscalPrint.of(f)));
   }
 
   Future<Uint8List> _creditNoteBytes(PosCreditNote n) async =>
-      Uint8List.fromList(await TaxDocumentPdf.creditNote(note: n, fiscalNumber: n.fiscal?.confirmed == true ? n.fiscal!.number : null, fiscalPending: n.fiscal?.pending == true));
+      Uint8List.fromList(await TaxDocumentPdf.creditNote(note: n, fiscal: FiscalPrint.of(n.fiscal)));
 
   /// G5.8: the tax invoice / a credit note in the in-app viewer (view, print, share) — the same PDF the share button sends.
   Future<void> viewInvoicePdf() async {
@@ -157,19 +170,19 @@ class PosDocumentsController extends GetxController {
     }
   }
 
-  /// G5.5: what the print's fiscal band shows — the confirmed number + QR, "Fiscal pending", or nothing (store does not fiscalise).
-  static FiscalSlots slotsOf(PosFiscalInfo? f) => f == null
-      ? const FiscalSlots()
-      : f.confirmed
-          ? FiscalSlots(invoiceNumber: f.number, qrPayload: f.qrPayload)
-          : FiscalSlots(pending: f.pending);
+  /// G6.1: what the print's fiscal band shows — exactly the server's contract block ([FiscalPrint.of]): its lines + QR once confirmed,
+  /// "Fiscal pending" while pending / failed, nothing when the store does not fiscalise.
+  static FiscalSlots slotsOf(PosFiscalInfo? f) => FiscalSlots.of(FiscalPrint.of(f));
+
+  /// G6.1: the fiscal block shown on screen for the invoice (documents read first, else the sale read)
+  PosFiscalInfo? get invoiceFiscal => documents.value?.invoiceFiscal ?? sale.value?.invoice?.fiscal;
 
   Future<void> printInvoice() async {
     final s = sale.value;
     if (s == null) return;
     final r = await _recordReprint('invoice', s.id);
     if (r == null) return;
-    return _print('invoice:${s.id}', (cols) => TaxDocumentEscPos.invoice(s, cols: cols, fiscal: slotsOf(documents.value?.invoiceFiscal), reprintNumber: r.number, original: r.original, copy: r.copy));
+    return _print('invoice:${s.id}', (cols) => TaxDocumentEscPos.invoice(s, cols: cols, fiscal: slotsOf(invoiceFiscal), reprintNumber: r.number, original: r.original, copy: r.copy));
   }
 
   Future<void> printCreditNote(PosCreditNote n) async {

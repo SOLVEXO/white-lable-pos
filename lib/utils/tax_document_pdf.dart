@@ -1,3 +1,5 @@
+import 'package:solvexo_pos/utils/tax_document_escpos.dart' show FiscalSlots;
+import 'package:solvexo_pos/utils/fiscal_print.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
@@ -35,15 +37,24 @@ class TaxDocumentPdf {
         ),
       );
 
-  static List<pw.Widget> _seller(String? name, String? address, String? ntn, String? strn) => [
+  /// G6.1: the fiscal band — each line as the server sent it, then the QR. Nothing when the store does not fiscalise.
+  static List<pw.Widget> _fiscalBand(FiscalPrint f) => f.isEmpty
+      ? const []
+      : [
+          pw.SizedBox(height: 10),
+          for (final t in f.textLines) pw.Text(t, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+          if (f.qr != null) pw.Padding(padding: const pw.EdgeInsets.only(top: 4), child: pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: f.qr!, width: 64, height: 64)),
+        ];
+
+  static List<pw.Widget> _seller(String? name, String? address, List<FiscalLine> taxIds) => [
         if (name != null && name.isNotEmpty) pw.Text(name, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
         if (address != null && address.isNotEmpty) pw.Text(address, style: const pw.TextStyle(fontSize: 9)),
-        if (ntn != null && ntn.isNotEmpty) pw.Text('NTN $ntn', style: const pw.TextStyle(fontSize: 9)),
-        if (strn != null && strn.isNotEmpty) pw.Text('STRN $strn', style: const pw.TextStyle(fontSize: 9)),
+        // G6.1: the server's labelled seller tax ids (older servers → NTN / STRN)
+        for (final t in taxIds) pw.Text(t.label.isEmpty ? t.value : '${t.label} ${t.value}', style: const pw.TextStyle(fontSize: 9)),
       ];
 
-  /// [fiscalNumber] stays null until a fiscal integration exists; the band is then simply absent.
-  static Future<Uint8List> invoice({required PosSaleModel sale, String? storeName, String? fiscalNumber, bool fiscalPending = false}) async {
+  /// G6.1: [fiscal] = the server's contract block ([FiscalPrint.of]); the legacy [fiscalNumber] / [fiscalPending] are used only without it.
+  static Future<Uint8List> invoice({required PosSaleModel sale, String? storeName, String? fiscalNumber, bool fiscalPending = false, FiscalPrint? fiscal}) async {
     final doc = pw.Document(theme: await _theme());
     final inv = sale.invoice;
     final exp = sale.currencyExponent;
@@ -53,7 +64,7 @@ class TaxDocumentPdf {
       pageFormat: PdfPageFormat.a5,
       margin: const pw.EdgeInsets.all(24),
       build: (_) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-        ..._seller(inv?.sellerName ?? storeName, inv?.sellerAddress, inv?.sellerNtn, inv?.sellerStrn),
+        ..._seller(inv?.sellerName ?? storeName, inv?.sellerAddress, inv?.sellerTaxLines ?? const []),
         pw.SizedBox(height: 10),
         pw.Text('TAX INVOICE', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _accent)),
         pw.Text(inv?.number ?? sale.saleNumber, style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
@@ -81,15 +92,13 @@ class TaxDocumentPdf {
         _row('Total', m(sale.total), bold: true, size: 12),
         pw.SizedBox(height: 6),
         for (final p in sale.payments) _row(_tenderLabel(p.method), m(p.amount), size: 9),
-        // reserved for the fiscal block (invoice number from the tax authority, QR, logo) — printed only when one exists
-        if (fiscalNumber != null) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('FBR invoice no. $fiscalNumber', style: const pw.TextStyle(fontSize: 9))),
-        if (fiscalNumber == null && fiscalPending) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('Fiscal pending', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold))), // G5.5
+        ..._fiscalBand(FiscalSlots(print: fiscal, invoiceNumber: fiscalNumber, pending: fiscalPending).effective), // G6.1: the server's fiscal block
       ]),
     ));
     return doc.save();
   }
 
-  static Future<Uint8List> creditNote({required PosCreditNote note, String? storeName, String? fiscalNumber, bool fiscalPending = false}) async {
+  static Future<Uint8List> creditNote({required PosCreditNote note, String? storeName, String? fiscalNumber, bool fiscalPending = false, FiscalPrint? fiscal}) async {
     final doc = pw.Document(theme: await _theme());
     String m(int v) => _m(v, note.currency, note.exponent);
     final when = note.createdAt == null ? '' : DateFormat('yyyy-MM-dd HH:mm').format(note.createdAt!.toLocal());
@@ -97,7 +106,7 @@ class TaxDocumentPdf {
       pageFormat: PdfPageFormat.a5,
       margin: const pw.EdgeInsets.all(24),
       build: (_) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-        ..._seller(note.sellerName ?? storeName, note.sellerAddress, note.sellerNtn, note.sellerStrn),
+        ..._seller(note.sellerName ?? storeName, note.sellerAddress, note.sellerTaxLines),
         pw.SizedBox(height: 10),
         pw.Text('CREDIT NOTE', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _accent)),
         pw.Text(note.number, style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
@@ -119,8 +128,7 @@ class TaxDocumentPdf {
         pw.SizedBox(height: 6),
         pw.Text('Refunded to', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
         for (final t in note.tenders) _row(_tenderLabel(t.method), m(t.amountMinor), size: 9),
-        if (fiscalNumber != null) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('FBR invoice no. $fiscalNumber', style: const pw.TextStyle(fontSize: 9))),
-        if (fiscalNumber == null && fiscalPending) pw.Padding(padding: const pw.EdgeInsets.only(top: 10), child: pw.Text('Fiscal pending', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold))), // G5.5
+        ..._fiscalBand(FiscalSlots(print: fiscal, invoiceNumber: fiscalNumber, pending: fiscalPending).effective), // G6.1: the server's fiscal block
       ]),
     ));
     return doc.save();

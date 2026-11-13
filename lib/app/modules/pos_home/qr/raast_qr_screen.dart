@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/models/pos/pos_connectors_models.dart' show ConnectorUiStore;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -141,7 +142,7 @@ class _Info extends StatelessWidget {
         ],
         if (phase == QrPhase.waiting || phase == QrPhase.checking) ...[
           const SizedBox(height: Space.s2),
-          Text('Customer: open your bank app, choose Raast and scan.', textAlign: TextAlign.center, style: context.type.bodySmall.copyWith(color: p.textSecondary)),
+          Text(ConnectorUiStore.current.raastCustomerInstructions, key: const Key('qrInstructions'), textAlign: TextAlign.center, style: context.type.bodySmall.copyWith(color: p.textSecondary)),
         ],
       ];
     final bottom = <Widget>[

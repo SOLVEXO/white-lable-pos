@@ -44,9 +44,10 @@ void main() {
 
   test('sale receipt: confirmed block / pending / nothing; offline receipt is pending when the store fiscalises', () {
     final r1 = ReceiptData.fromSale(_sale(confirmed), null, asciiSafeMoney: true);
-    expect([r1.fiscalNumber, r1.fiscalQr, r1.fiscalPending], ['FBR-123456-0001', 'qr:FBR-123456-0001', false]);
-    expect(ReceiptData.fromSale(_sale(pending), null).fiscalPending, isTrue);
-    expect(ReceiptData.fromSale(_sale(null), null).fiscalPending, isFalse);
+    // G6.1: the receipt carries the server's fiscal block (no display lines here → the number alone; pending → "Fiscal pending")
+    expect([r1.fiscalPrint.textLines, r1.fiscalPrint.qr], [['FBR-123456-0001'], 'qr:FBR-123456-0001']);
+    expect(ReceiptData.fromSale(_sale(pending), null).fiscalPrint.textLines, ['Fiscal pending']);
+    expect(ReceiptData.fromSale(_sale(null), null).fiscalPrint.isEmpty, isTrue);
     final off = ReceiptData.forOfflineSale(provisionalNumber: 'OFF-1', madeAt: DateTime(2026, 11, 12), currency: 'PKR', exponent: 2, items: const [(name: 'Tea', qty: 1, unitPrice: 10)], subtotal: 10, discount: 0, tax: 0, total: 10, payments: const [(method: 'cash', amount: 10, reference: null)], change: 0, fiscalPending: true);
     expect(off.fiscalPending, isTrue);
     expect(ReceiptData.fromJson(off.toJson()).fiscalPending, isTrue); // survives the saved-receipt round trip

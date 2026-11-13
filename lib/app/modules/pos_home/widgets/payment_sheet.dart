@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/models/pos/pos_connectors_models.dart' show ConnectorUiStore, TerminalField;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
@@ -360,27 +361,40 @@ class _ReferenceField extends StatelessWidget {
   });
 }
 
-/// G5.4: card on an external terminal — what the slip says.
+/// G5.4 / G6.1: card on an external terminal — what the slip says. Which fields, their labels, whether required and their rules come from the
+/// server (`connectors.ui.cardExternalTerminal.fields`); without it the G5.4 three (approval code required, last 4, terminal).
 class _CardTerminalFields extends StatelessWidget {
   const _CardTerminalFields({required this.c});
   final PosHomeController c;
 
+  static String _label(TerminalField f) => '${f.label} (${f.required ? 'required' : 'optional'})';
+  static List<TextInputFormatter> _fmt(TerminalField f) => [if (f.numeric) FilteringTextInputFormatter.digitsOnly, if (f.maxLength != null) LengthLimitingTextInputFormatter(f.maxLength)];
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: Space.s2),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppTextField(key: const Key('cardApprovalCode'), label: 'Approval code (required)', controller: c.cardApprovalController, prefixIcon: Icons.verified_rounded, textInputAction: TextInputAction.next),
-        const SizedBox(height: Space.s2),
-        Row(children: [
-          Expanded(child: AppTextField(key: const Key('cardLast4'), label: 'Last 4 (optional)', controller: c.cardLast4Controller, prefixIcon: Icons.credit_card_rounded, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(4)])),
-          const SizedBox(width: Space.s2),
-          Expanded(child: AppTextField(key: const Key('cardTerminal'), label: 'Terminal', controller: c.cardTerminalController, prefixIcon: Icons.point_of_sale_rounded, textInputAction: TextInputAction.done)),
-        ]),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final ui = ConnectorUiStore.current;
+    final code = ui.field('approvalCode');
+    final last4 = ui.field('last4');
+    final term = ui.field('terminalLabel');
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.s2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (code != null)
+            AppTextField(key: const Key('cardApprovalCode'), label: _label(code), controller: c.cardApprovalController, prefixIcon: Icons.verified_rounded, textInputAction: TextInputAction.next, keyboardType: code.numeric ? TextInputType.number : null, inputFormatters: _fmt(code)),
+          if (code != null) const SizedBox(height: Space.s2),
+          Row(children: [
+            if (last4 != null)
+              Expanded(child: AppTextField(key: const Key('cardLast4'), label: _label(last4), controller: c.cardLast4Controller, prefixIcon: Icons.credit_card_rounded, keyboardType: last4.numeric ? TextInputType.number : null, inputFormatters: _fmt(last4))),
+            if (last4 != null && term != null) const SizedBox(width: Space.s2),
+            if (term != null)
+              Expanded(child: AppTextField(key: const Key('cardTerminal'), label: term.label, controller: c.cardTerminalController, prefixIcon: Icons.point_of_sale_rounded, textInputAction: TextInputAction.done, inputFormatters: _fmt(term))),
+          ]),
+        ],
+      ),
+    );
+  }
 }
 
 class _SplitPanel extends StatelessWidget {

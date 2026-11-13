@@ -126,15 +126,18 @@ class ReceiptEscPosBuilder {
       if (data.pointsRedeemed != null) row('Points redeemed', '${data.pointsRedeemed}');
       if (data.pointsBalance != null) row('Points balance', '${data.pointsBalance}'); // G4.9: after this sale
 
-      // G5.5: the fiscal block — the tax authority's number + QR once confirmed, else "Fiscal pending" (a reprint after confirmation shows the number)
-      if (data.fiscalNumber != null) {
+      // G6.1: the fiscal block exactly as the server's contract says (label line + bold value per entry, the authority logo if cached, the QR);
+      // "Fiscal pending" while not confirmed (offline too); a reprint after confirmation shows the confirmed block
+      final fp = data.fiscalPrint;
+      if (!fp.isEmpty) {
         bytes.addAll(g.hr());
-        center('FBR Invoice No');
-        center(data.fiscalNumber!, bold: true);
-        if (data.fiscalQr != null) bytes.addAll(g.qrcode(data.fiscalQr!, size: paperMm == 58 ? QRSize.size4 : QRSize.size5));
-      } else if (data.fiscalPending) {
-        bytes.addAll(g.hr());
-        center('Fiscal pending', bold: true);
+        for (final l in fp.lines) {
+          if (l.label.isNotEmpty) center(l.label);
+          center(l.value, bold: true);
+        }
+        final fl = fp.logoUrl == null ? null : ReceiptLogoStore.cached(fp.logoUrl, paperMm);
+        if (fl != null) bytes.addAll(fl.escPos());
+        if (fp.qr != null) bytes.addAll(g.qrcode(fp.qr!, size: paperMm == 58 ? QRSize.size4 : QRSize.size5));
       }
 
       if (data.footer != null) {

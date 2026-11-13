@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/components/fiscal_status_card.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -81,6 +82,7 @@ class CreditNoteView extends StatelessWidget {
                       ],
                     ),
                   ),
+                  FiscalStatusCard(fiscal: n.fiscal), // G6.1
                   const SizedBox(height: Space.s4),
                   if (controller.noticeFor('credit_note:${n.id}') != null) Padding(padding: const EdgeInsets.only(bottom: Space.s2), child: Text(controller.noticeFor('credit_note:${n.id}')!, key: const Key('printNotice'), style: t.body.copyWith(color: controller.printOk.value ? p.successFg : p.danger))),
                   Padding(

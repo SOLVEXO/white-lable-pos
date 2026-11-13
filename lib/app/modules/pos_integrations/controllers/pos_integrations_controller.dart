@@ -21,6 +21,9 @@ class PosIntegrationsController extends GetxController {
   final RxBool loading = true.obs;
   final Rxn<ConnectorsStatus> status = Rxn<ConnectorsStatus>();
   final Rxn<StoreApiKeys> keys = Rxn<StoreApiKeys>();
+  /// G6.1: fiscal documents that need the owner (null = not available on this server: the section is hidden)
+  final Rxn<List<FiscalIssue>> fiscalIssues = Rxn<List<FiscalIssue>>();
+  final RxnString retrying = RxnString();
   final RxnString error = RxnString();
   final RxnString notice = RxnString();
   final RxnString saving = RxnString();
@@ -42,9 +45,10 @@ class PosIntegrationsController extends GetxController {
     loading.value = true;
     error.value = null;
     final id = await _id();
-    final results = await Future.wait([_repo.getConnectors(id), _repo.getApiKeys(id)]);
+    final results = await Future.wait([_repo.getConnectors(id), _repo.getApiKeys(id), _fiscalIssuesSafe(id)]);
     status.value = results[0] as ConnectorsStatus?;
     keys.value = results[1] as StoreApiKeys?;
+    fiscalIssues.value = results[2] as List<FiscalIssue>?;
     if (status.value == null) error.value = 'Could not load the integrations. Check the connection and try again.';
     loading.value = false;
   }
@@ -61,6 +65,31 @@ class PosIntegrationsController extends GetxController {
       return;
     }
     await load();
+  }
+
+  /// G6.1: never breaks the screen — an older server without the route, an error or no permission just hides the section
+  Future<List<FiscalIssue>?> _fiscalIssuesSafe(String id) async {
+    try {
+      return await _repo.getFiscalIssues(id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// G6.1: the owner sends a failed fiscal document again (one new attempt, audited server-side). The sale was never blocked.
+  Future<void> retryFiscal(FiscalIssue i) async {
+    if (retrying.value != null) return;
+    retrying.value = i.documentId;
+    error.value = null;
+    notice.value = null;
+    final r = await _repo.retryFiscal(await _id(), documentType: i.documentType, documentId: i.documentId);
+    retrying.value = null;
+    if (!r.success) {
+      error.value = (r.message ?? '').isNotEmpty ? r.message : integrationsErrorMessage(r.code, r.message);
+      return;
+    }
+    notice.value = r.fiscal?.confirmed == true ? '${i.documentNumber}: fiscal confirmed.' : '${i.documentNumber}: sent again (${r.fiscal?.status ?? 'pending'}).';
+    fiscalIssues.value = await _fiscalIssuesSafe(await _id());
   }
 
   static String ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';

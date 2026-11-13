@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/utils/fiscal_print.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
@@ -23,18 +24,22 @@ class DocLine {
 
 enum DocLineKind { text, rule, blank, qr }
 
-/// What the FBR integration will fill later. Every slot is positioned in the layout NOW so adding it moves nothing else; while a slot is
-/// empty it prints nothing (a visibly blank band on a customer's receipt would only look like an error).
-///  * [invoiceNumber] — the tax authority's invoice number, printed right under the document number;
-///  * [qrPayload] — the QR code, printed under the totals;
-///  * [logo] — a monochrome logo, printed at the very top (reserved: the ESC/POS image slot is added with the logo work).
+/// G6.1 — the fiscal band of a printed document, from the server's contract (FISCAL_CONTRACT.md) via [FiscalPrint]: each display line as given
+/// (label line + bold value), the QR under the totals, the authority logo (from the till's logo cache). Empty → nothing printed.
 class FiscalSlots {
-  const FiscalSlots({this.invoiceNumber, this.qrPayload, this.logo, this.pending = false});
+  const FiscalSlots({this.invoiceNumber, this.qrPayload, this.logo, this.pending = false, this.print});
+  factory FiscalSlots.of(FiscalPrint p) => FiscalSlots(print: p, qrPayload: p.qr);
+  /// legacy (G5.5) fields — used only when [print] is null
   final String? invoiceNumber;
-  /// G5.5: the store fiscalises and this document is not confirmed yet → "Fiscal pending" (a reprint after confirmation shows the number + QR)
   final bool pending;
   final String? qrPayload;
   final List<int>? logo;
+  final FiscalPrint? print;
+  FiscalPrint get effective => print ??
+      FiscalPrint(
+        lines: invoiceNumber != null ? [FiscalLine('', invoiceNumber!)] : (pending ? const [FiscalLine('', FiscalPrint.pendingText)] : const []),
+        qr: qrPayload,
+      );
 }
 
 /// The thermal layouts of the three documents that are not the sale receipt: tax invoice, credit note and return receipt. Same layout rules as
@@ -48,11 +53,11 @@ class TaxDocumentEscPos {
 
   static String _tender(String m) => switch (m) { 'cash' => 'Cash', 'card' => 'Card', 'raast_qr' => 'Raast', 'store_credit' => 'Store credit', _ => 'Bank / Other' };
 
-  static List<DocLine> _seller(int cols, {String? name, String? address, String? ntn, String? strn}) => [
+  /// [taxIds]: the server's labelled seller tax identifiers (G6.1; older servers → NTN / STRN from the model)
+  static List<DocLine> _seller(int cols, {String? name, String? address, List<FiscalLine> taxIds = const []}) => [
         if ((name ?? '').isNotEmpty) ..._centered(name!, cols ~/ 2, bold: true, big: true),
         if ((address ?? '').isNotEmpty) ..._centered(address!, cols),
-        if ((ntn ?? '').isNotEmpty) DocLine('NTN $ntn', align: PosAlign.center),
-        if ((strn ?? '').isNotEmpty) DocLine('STRN $strn', align: PosAlign.center),
+        for (final t in taxIds) ..._centered(t.label.isEmpty ? t.value : '${t.label} ${t.value}', cols),
       ];
 
   static List<DocLine> _centered(String t, int width, {bool bold = false, bool big = false}) =>
@@ -62,9 +67,14 @@ class TaxDocumentEscPos {
 
   static List<DocLine> _wrapped(String t, int cols, {String indent = ''}) => [for (final l in ReceiptEscPosBuilder.wrap(t, cols - indent.length)) DocLine('$indent$l')];
 
-  static List<DocLine> _fiscalNumber(FiscalSlots f) => f.invoiceNumber == null ? (f.pending ? const [DocLine('Fiscal pending', align: PosAlign.center, bold: true)] : const []) : [DocLine('FBR Invoice No', align: PosAlign.center), DocLine(f.invoiceNumber!, align: PosAlign.center, bold: true)];
+  static List<DocLine> _fiscalNumber(FiscalSlots f) => [
+        for (final l in f.effective.lines) ...[
+          if (l.label.isNotEmpty) DocLine(l.label, align: PosAlign.center),
+          DocLine(l.value, align: PosAlign.center, bold: true),
+        ],
+      ];
 
-  static List<DocLine> _fiscalQr(FiscalSlots f) => f.qrPayload == null ? const [] : [const DocLine.blank(), DocLine.qr(f.qrPayload!)];
+  static List<DocLine> _fiscalQr(FiscalSlots f) => f.effective.qr == null ? const [] : [const DocLine.blank(), DocLine.qr(f.effective.qr!)];
 
   /// G4.8 / G4.9: which print this is — the server's ORIGINAL (the first print), REPRINT #n, or COPY (offline: it could not be recorded).
   static List<DocLine> _printLabel(int? reprintNumber, {required bool original, required bool copy}) {
@@ -79,7 +89,7 @@ class TaxDocumentEscPos {
     int minorOf(double v) => (v * (exp <= 0 ? 1 : List.filled(exp, 10).fold<num>(1, (a, b) => a * b))).round();
     final when = DateFormat('yyyy-MM-dd HH:mm').format((inv?.issuedAt ?? sale.createdAt).toLocal());
     return [
-      ..._seller(cols, name: inv?.sellerName ?? storeName, address: inv?.sellerAddress, ntn: inv?.sellerNtn, strn: inv?.sellerStrn),
+      ..._seller(cols, name: inv?.sellerName ?? storeName, address: inv?.sellerAddress, taxIds: inv?.sellerTaxLines ?? const []),
       const DocLine.rule(),
       DocLine('TAX INVOICE', align: PosAlign.center, bold: true),
       ..._printLabel(reprintNumber, original: original, copy: copy),
@@ -109,7 +119,7 @@ class TaxDocumentEscPos {
     String m(int minor) => _money(minor, n.currency, n.exponent);
     final when = n.createdAt == null ? '' : DateFormat('yyyy-MM-dd HH:mm').format(n.createdAt!.toLocal());
     return [
-      ..._seller(cols, name: n.sellerName ?? storeName, address: n.sellerAddress, ntn: n.sellerNtn, strn: n.sellerStrn),
+      ..._seller(cols, name: n.sellerName ?? storeName, address: n.sellerAddress, taxIds: n.sellerTaxLines),
       const DocLine.rule(),
       DocLine('CREDIT NOTE', align: PosAlign.center, bold: true),
       ..._printLabel(reprintNumber, original: original, copy: copy),

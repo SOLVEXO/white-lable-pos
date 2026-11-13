@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/components/fiscal_status_card.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -170,6 +171,7 @@ class _SaleSuccessViewState extends State<SaleSuccessView> with SingleTickerProv
                     style: context.type.body.copyWith(color: p.textSecondary),
                   ),
                   if (_sale != null) _CustomerRecap(sale: _sale),
+                  if (_sale != null) FiscalStatusCard(fiscal: _sale.invoice?.fiscal, compact: true), // G6.1: checkout result
                   if (r != null) ...[
                     const SizedBox(height: Space.s3),
                     StatusBadge(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_connectors_models.dart' show ConnectorUiStore;
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -50,7 +51,9 @@ class _SendReceiptSheetState extends State<SendReceiptSheet> {
 
   Future<void> _whatsApp() async {
     final phone = _phone.text.trim();
-    if (phone.replaceAll(RegExp(r'[^0-9]'), '').length < 10) return _share(); // no number → the share sheet (WhatsApp is one of its targets)
+    // G6.1: the server says how WhatsApp works (`connectors.ui.receipts.whatsapp.mode`): `api` → it sends it; otherwise the wa.me link from here
+    if (ConnectorUiStore.current.whatsappMode == 'api') return _send('whatsapp');
+    if (phone.replaceAll(RegExp(r'[^0-9]'), '').length < ConnectorUiStore.current.minPhoneDigits) return _share(); // no number → the share sheet
     final ok = await (widget.launcher ?? (u) => launchUrl(u, mode: LaunchMode.externalApplication))(whatsAppUri(phone, widget.message)).catchError((_) => false);
     if (!ok) await _share();
   }
@@ -66,7 +69,9 @@ class _SendReceiptSheetState extends State<SendReceiptSheet> {
     setState(() {
       _busy = false;
       if (r.success) {
-        _notice = channel == 'email' ? 'E-mail sent.' : 'SMS sent.';
+        _notice = switch (channel) { 'email' => 'E-mail sent.', 'whatsapp' => 'WhatsApp sent.', _ => 'SMS sent.' };
+      } else if ((r.message ?? '').trim().isNotEmpty && r.code != null && r.code != 'NETWORK_ERROR') {
+        _error = r.message!.trim(); // G6.1: the server's words first (a real provider's reasons need no app update)
       } else {
         _error = switch (r.code) {
           'CHANNEL_OFF' => channel == 'email' ? 'E-mail receipts are switched off for this store.' : 'SMS receipts are switched off for this store.',
@@ -89,13 +94,13 @@ class _SendReceiptSheetState extends State<SendReceiptSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Only the store name, the total and the receipt link are sent.', style: t.caption.copyWith(color: p.textMuted)),
+        Text(ConnectorUiStore.current.privacyNote, style: t.caption.copyWith(color: p.textMuted)),
         const SizedBox(height: Space.s3),
         AppButton(key: const Key('sendShare'), label: 'Share link', icon: Icons.ios_share_rounded, variant: AppButtonVariant.secondary, onPressed: _share),
         const SizedBox(height: Space.s3),
         AppTextField(key: const Key('sendPhone'), label: 'Customer phone (with country code)', controller: _phone, keyboardType: TextInputType.phone),
         const SizedBox(height: Space.s2),
-        AppButton(key: const Key('sendWhatsApp'), label: 'WhatsApp', icon: Icons.chat_outlined, onPressed: _whatsApp),
+        if (ConnectorUiStore.current.whatsappMode != 'off') AppButton(key: const Key('sendWhatsApp'), label: 'WhatsApp', icon: Icons.chat_outlined, loading: _busy && ConnectorUiStore.current.whatsappMode == 'api', onPressed: _whatsApp),
         if (ch?.sms == true) ...[
           const SizedBox(height: Space.s2),
           AppButton(key: const Key('sendSms'), label: 'Send by SMS', icon: Icons.sms_outlined, variant: AppButtonVariant.secondary, loading: _busy, onPressed: _busy ? null : () => _send('sms')),
@@ -107,7 +112,7 @@ class _SendReceiptSheetState extends State<SendReceiptSheet> {
           AppButton(key: const Key('sendEmailButton'), label: 'Send by e-mail', icon: Icons.mail_outline_rounded, variant: AppButtonVariant.secondary, loading: _busy, onPressed: _busy ? null : () => _send('email')),
         ],
         if (ch?.sms == true || ch?.email == true)
-          CheckboxListTile(key: const Key('sendGiven'), contentPadding: EdgeInsets.zero, value: _given, onChanged: (v) => setState(() => _given = v ?? false), title: Text('The customer gave this contact for their receipt', style: t.body)),
+          CheckboxListTile(key: const Key('sendGiven'), contentPadding: EdgeInsets.zero, value: _given, onChanged: (v) => setState(() => _given = v ?? false), title: Text(ConnectorUiStore.current.consentText, style: t.body)),
         if (_notice != null) Text(_notice!, key: const Key('sendNotice'), style: t.body.copyWith(color: p.successFg)),
         if (_error != null) Text(_error!, key: const Key('sendError'), style: t.body.copyWith(color: p.danger)),
       ],

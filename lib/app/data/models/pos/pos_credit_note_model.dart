@@ -1,15 +1,51 @@
-/// G5.5: a document's fiscal block (the tax authority's number + QR) as the server reports it. `pending` = the store fiscalises and this document
-/// is not confirmed yet (the print says "Fiscal pending"); `not_enabled` = the store does not fiscalise (nothing printed).
+/// One line of a fiscal block, printed and shown exactly as the server sent it (G6.1 — the app never chooses a tax-authority label).
+class FiscalLine {
+  const FiscalLine(this.label, this.value);
+  final String label;
+  final String value;
+  Map<String, dynamic> toJson() => {'label': label, 'value': value};
+  static FiscalLine? fromJson(dynamic j) => j is Map && j['value'] != null ? FiscalLine('${j['label'] ?? ''}', '${j['value']}') : null;
+  @override
+  bool operator ==(Object other) => other is FiscalLine && other.label == label && other.value == value;
+  @override
+  int get hashCode => Object.hash(label, value);
+}
+
+/// A document's fiscal block — the server-driven contract (docs/pos-blueprint/FISCAL_CONTRACT.md, G6.1). Statuses:
+/// `not_required` (also the live `not_enabled`) → nothing; `pending` → not fiscalised yet, the server retries; `confirmed` → the server's lines + QR;
+/// `failed` → not fiscalised and not retried automatically (the owner can retry); `rejected` → refused by the authority (final).
+/// Unknown statuses are treated as not required (nothing printed) so a newer server never breaks an older app.
 class PosFiscalInfo {
-  const PosFiscalInfo({this.status = 'not_enabled', this.number, this.qrPayload, this.testMode = false});
+  const PosFiscalInfo({this.status = 'not_enabled', this.number, this.qrPayload, this.testMode = false, this.displayLines = const [], this.message, this.willRetry = false, this.logoUrl});
   final String status;
   final String? number;
   final String? qrPayload;
   final bool testMode;
-  bool get confirmed => status == 'confirmed' && number != null;
+  final List<FiscalLine> displayLines;
+  final String? message;
+  final bool willRetry;
+  final String? logoUrl;
+
+  static const knownStatuses = {'pending', 'confirmed', 'failed', 'rejected'};
+  /// the store fiscalises this document (anything but not_required / not_enabled / unknown)
+  bool get required => knownStatuses.contains(status);
+  bool get confirmed => status == 'confirmed' && (number != null || displayLines.isNotEmpty);
   bool get pending => status == 'pending';
+  bool get failed => status == 'failed';
+  bool get rejected => status == 'rejected';
+  bool get needsAttention => failed || rejected;
+
   static PosFiscalInfo? fromJson(dynamic j) => j is Map
-      ? PosFiscalInfo(status: j['status'] as String? ?? 'not_enabled', number: j['externalInvoiceNumber'] as String?, qrPayload: j['qrPayload'] as String?, testMode: j['testMode'] == true)
+      ? PosFiscalInfo(
+          status: (j['status'] as String?) ?? 'not_enabled',
+          number: j['externalInvoiceNumber'] as String?,
+          qrPayload: j['qrPayload'] as String?,
+          testMode: j['testMode'] == true,
+          displayLines: [for (final l in (j['displayLines'] as List? ?? const [])) ?FiscalLine.fromJson(l)],
+          message: j['message'] as String?,
+          willRetry: j['willRetry'] == true,
+          logoUrl: j['logoUrl'] as String?,
+        )
       : null;
 }
 
@@ -60,6 +96,11 @@ class PosCreditNote {
   final List<String> approvalReasons;
   final String? sellerName;
   final String? sellerNtn;
+  /// G6.1: the seller's tax identifiers as the server labels them; absent → NTN / STRN
+  final List<FiscalLine> sellerTaxIds;
+  List<FiscalLine> get sellerTaxLines => sellerTaxIds.isNotEmpty
+      ? sellerTaxIds
+      : [if ((sellerNtn ?? '').isNotEmpty) FiscalLine('NTN', sellerNtn!), if ((sellerStrn ?? '').isNotEmpty) FiscalLine('STRN', sellerStrn!)];
   final String? sellerStrn;
   final String? sellerAddress;
   /// Set only on a note made by the one-off backfill of pre-G2.5 refunds / voids (series `CN-B…`): when it was backfilled and which refund / void it stands for.
@@ -92,6 +133,7 @@ class PosCreditNote {
     this.approvalReasons = const [],
     this.sellerName,
     this.sellerNtn,
+    this.sellerTaxIds = const [],
     this.sellerStrn,
     this.sellerAddress,
     this.backfilledAt,
@@ -122,6 +164,7 @@ class PosCreditNote {
       approvalReasons: [for (final r in (j['approvalReasons'] as List? ?? const [])) r.toString()],
       sellerName: seller['legalName'] as String?,
       sellerNtn: seller['ntn'] as String?,
+      sellerTaxIds: [for (final t in (seller['taxIds'] as List? ?? const [])) ?FiscalLine.fromJson(t)],
       sellerStrn: seller['strn'] as String?,
       sellerAddress: seller['address'] as String?,
       backfilledAt: (j['backfill'] is Map && (j['backfill'] as Map)['backfilledAt'] != null) ? DateTime.tryParse((j['backfill'] as Map)['backfilledAt'].toString()) : null,
