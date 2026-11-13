@@ -236,4 +236,35 @@ The admin panel can list keys per store through the owner routes, but it never s
 | `POS_FISCAL_SWEEP_CRON` | `*/2 * * * *` | |
 | `CARD_GATEWAY_PROVIDER` | `mock` outside production | Same rule |
 | `API_KEY_RATE_PER_MIN` | 60 | |
-| `DEV_UPLOAD_STUB` | unset | **Dev stack only**; ignored when NODE_ENV=production |
+| `DEV_UPLOAD_STUB` | unset | **Dev stack only**; active only when `NODE_ENV` is exactly `development` or `test` (G5.8, tested) |
+| `MOCK_FISCAL_MODE` | unset | Mock provider only (never in production): `down` / `fail` / `reject` to exercise every fiscal status |
+
+## 18. Fiscal contract v1 (G6.1)
+The full contract (shapes, statuses, transitions, offline and retries, a real adapter's mapping, checklist) is in **FISCAL_CONTRACT.md**. In short:
+- Every `fiscal` block (sale response, sale read, documents, refund / void response) gains `displayLines` [{label, value}], `message`, `willRetry`, `logoUrl`, `contractVersion: 1`. Statuses: `not_enabled` (live value = not required, unchanged), `pending`, `confirmed`, `failed`, `rejected`.
+- `GET /api/pos/fiscal/:storeId/issues` (manager-with-limit): failed / rejected / out-of-retries documents, last 30 days.
+- `POST /api/pos/fiscal/:storeId/retry` (owner) `{documentType, documentId}`: one new attempt for a `failed` document, audited with who asked; `FISCAL_NOT_RETRYABLE` otherwise.
+- `invoice.seller.taxIds` / `creditNote.seller.taxIds` [{label, value}] (optional): printed as given; without them the app prints the G2.6 `ntn` / `strn` as "NTN" / "STRN".
+
+## 19. Provider-dependent wording and rules: `connectors.ui` (G6.1)
+`GET /api/pos/connectors/:storeId` gains `data.ui` so a real provider needs no app update (the app falls back to the same values when absent):
+
+| Key | Drives |
+|---|---|
+| `raast.customerInstructions`, `raast.pollAfterMs`, `raast.reasonText`, `raast.simulateAvailable` | QR screen text, status poll interval, why Raast is off, the dev-only "simulate paid" button (mock outside production only) |
+| `cardExternalTerminal.label`, `cardExternalTerminal.fields[]` {key, label, required, pattern, maxLength, keyboard} | Which terminal fields the payment sheet shows (known keys `approvalCode`, `last4`, `terminalLabel`), their labels and rules |
+| `cardGateway.statusText` | The card-gateway line in Payments setup |
+| `fiscal.title` | The owner's fiscal switch name |
+| `receipts.whatsapp.mode` (`link`/`api`/`off`), `receipts.minPhoneDigits`, `receipts.consentText`, `receipts.privacyNote` | The send-receipt sheet |
+
+The till also shows the server's `message` before its own text for Raast QR errors, `CARD_APPROVAL_REQUIRED` and receipt sending.
+
+## 20. Scheduled jobs on several instances (G6.1)
+POS-owned jobs and their locks (shared MongoDB lease `JobLeaseService`, collection `job_leases`: atomic findOneAndUpdate on the database clock, owner id, expiry, heartbeat renewal every ttl/3, released on finish, taken over after expiry):
+
+| Job | Lock | Two instances at once |
+|---|---|---|
+| Fiscal retry sweep (`POS_FISCAL_SWEEP_CRON`) | **G6.1:** `pos:fiscal-sweep` (10 min) + `pos:fiscal:<type>:<id>` (2 min) around every provider call, also on the sale-time path | Safe: one provider call per document; tests: two runners → one call, two sweeps → each document once, expired lease taken over |
+| Nightly audit seal (`POS_AUDIT_SEAL_CRON`) | `pos:audit-seal` (30 min) + unique `{storeId, day}` | Safe (unchanged) |
+| Payments poller (Raast status, every 3 s) | `payments:poll:<intentId>`, `payments:apply:<intentId>`, `payments:inbox:<id>` + unique event keys | Safe (unchanged) |
+| KYB retention purge (off unless enabled) | `kyb:retention`, `kyb:purge:<storeId>` | Safe (unchanged) |

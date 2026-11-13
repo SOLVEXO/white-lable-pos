@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/services/server_capabilities.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -65,8 +66,9 @@ class _SettingsHubViewState extends State<SettingsHubView> {
           HubSection('Store', [
             HubRow(icon: Icons.storefront_outlined, title: s?.businessName ?? 'Store profile', subtitle: s?.businessAddress ?? 'Name, address and tax ID (from the tax profile)', onTap: () => Get.toNamed(Routes.posTaxProfile), locked: true),
             HubRow(icon: Icons.public_rounded, title: 'Store time zone', subtitle: s?.timeZone ?? 'Decides when a business day starts and ends', onTap: () => Get.toNamed(Routes.posStoreTimeZone)),
-            HubRow(icon: Icons.hub_outlined, title: 'Integrations', subtitle: 'E-mail / SMS receipts, FBR, accounting export, API keys', onTap: () => Get.toNamed(Routes.posIntegrations), locked: true),
-            HubRow(icon: Icons.payments_outlined, title: 'Payments setup', subtitle: 'Raast QR, card on a bank terminal', onTap: () => Get.toNamed(Routes.posPaymentsSetup), locked: true),
+            // G6.1: features of backend release #2 — hidden when the server is older (closed testing against the G5.1 production API)
+            if (!ServerCapabilities.olderServer) HubRow(icon: Icons.hub_outlined, title: 'Integrations', subtitle: 'E-mail / SMS receipts, fiscal invoices, accounting export, API keys', onTap: () => Get.toNamed(Routes.posIntegrations), locked: true),
+            if (!ServerCapabilities.olderServer) HubRow(icon: Icons.payments_outlined, title: 'Payments setup', subtitle: 'Raast QR, card on a bank terminal', onTap: () => Get.toNamed(Routes.posPaymentsSetup), locked: true),
             HubRow(icon: Icons.verified_user_outlined, title: 'Business verification', subtitle: 'Needed for Raast QR payments', onTap: () => Get.toNamed(Routes.posKyb), locked: true),
           ]),
           HubSection('Registers & devices', [
@@ -234,7 +236,7 @@ class ReceiptDesignerView extends StatelessWidget {
                 onChanged: edit ? (v) => c.setReceiptFlag(k, v) : null,
               ),
             const InvSectionTitle('Logo'),
-            _LogoSection(c: c, edit: edit),
+            if (!ServerCapabilities.olderServer) _LogoSection(c: c, edit: edit), // G6.1: the logo routes are release #2
             const InvSectionTitle('Your text'),
             _ReceiptText(key: ValueKey('header_${c.receiptRevision.value}'), fieldKey: 'header', label: 'Header (under the store name)', initial: d.header, max: 300, enabled: edit, c: c),
             _ReceiptText(key: ValueKey('promoText_${c.receiptRevision.value}'), fieldKey: 'promoText', label: 'Promotion line', initial: d.promoText, max: 200, enabled: edit, c: c),

@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/services/server_capabilities.dart';
 import 'package:solvexo_pos/utils/receipt_logo.dart';
 import 'package:solvexo_pos/utils/receipt_data.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
@@ -795,6 +796,8 @@ class PosHomeController extends GetxController {
     ConnectorsStatus? c;
     try {
       c = await _posRepo.getConnectors(storeId.value);
+      // G6.1: a 404 here = the backend predates release #2 → its features are hidden (never an error on a cashier's screen)
+      ServerCapabilities.learnFromConnectors(found: c != null, httpStatus: c == null ? _posRepo.lastHttpStatus : null);
     } catch (_) {
       return; // keep what we knew; selling never depends on this read
     }

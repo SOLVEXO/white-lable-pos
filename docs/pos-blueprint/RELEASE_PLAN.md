@@ -28,6 +28,9 @@ Only the branch's own (non-merge, first-parent) commits are listed. Main's own c
 | `2cd32a5` | G5.8: merge of `origin/main` (58 commits, no conflicts) |
 | `6228558` | G5.8: main's route-auth allow-list gains the contact form's public `config` and `upload` routes |
 | `fe366ed` | G5.8: the dev upload stub is fail-closed and tested to stay off in production |
+| `59bb0cb` | G6.1: fiscal contract v1 (display lines, message, willRetry, logo; failed status), fiscal issues + owner retry, per-document and sweep leases, `connectors.ui` |
+| `8aec473` | G6.1: `connectors.ui.fiscal.title` |
+| `7cfc429` | G6.1: fiscal / card-gateway switches refuse to turn on without a usable provider (`PROVIDER_NOT_CONFIGURED`) |
 
 Nothing changes an existing response shape. Every new field is additive and every new switch defaults OFF. Behaviour notes:
 - **Receipt links:** once `RECEIPT_PUBLIC_URL` is set, new QR and share links use that origin. The web `/r/*` proxy must be live first.
@@ -35,6 +38,11 @@ Nothing changes an existing response shape. Every new field is additive and ever
 - **Raast:** `KybGateService.check` refuses only when `raastDisabled` is true.
 - **Serials:** a till that sends serial numbers is now accepted. One that sends none still gets `SERIALS_NOT_SUPPORTED`, with a reworded message.
 - **New error code:** `CARD_APPROVAL_REQUIRED` exists only when the card-terminal switch is on.
+- **G6.1:**
+  - The fiscal block gains additive fields (FISCAL_CONTRACT.md). The live `not_enabled` value is unchanged.
+  - New routes: `GET /api/pos/fiscal/:storeId/issues` (manager) and `POST …/retry` (owner).
+  - `connectors.ui` is additive.
+  - Turning on `connectors.fiscal` or `cardGateway` without a usable provider now answers `PROVIDER_NOT_CONFIGURED`. In production that means always, until a real adapter is configured. Both switches are new in this release, so no live behaviour changes.
 
 ### a.2 Environment variables (all new ones are optional; nothing new is required)
 | Variable | Default | Required in production? | What it does |
@@ -46,6 +54,7 @@ Nothing changes an existing response shape. Every new field is additive and ever
 | `CARD_GATEWAY_PROVIDER` | the mock outside production; none in production | No | Card gateway (the status read only). |
 | `API_KEY_RATE_PER_MIN` | 60 | No | External API requests per minute per key. |
 | `DEV_UPLOAD_STUB` | off | **Must not be set.** It is ignored anyway unless `NODE_ENV` is exactly `development` or `test` (tested). | Dev stack only. |
+| `MOCK_FISCAL_MODE` | unset | No (the mock is never built in production) | Test hook: `down` / `fail` / `reject` |
 
 Existing, unchanged:
 - `NODE_ENV=production` and `API_PUBLIC_URL` (boot-checked) are confirmed on the service (deploy log, 2026-11-12).
@@ -58,6 +67,7 @@ Mongoose creates all of these on first start on empty collections; there is noth
 |---|---|---|
 | `posreceiptdeliveries` | yes | `{storeId, saleId, channel, createdAt:-1}`, `{storeId, createdAt:-1}` |
 | `posfiscalrecords` | yes | unique `{documentType, documentId, attempt}`, `{storeId, status, createdAt:-1}` |
+| `job_leases` (existing) | no (lease rows) | G6.1 adds keys `pos:fiscal-sweep` and `pos:fiscal:<type>:<id>`; no new index |
 | `posapikeys` | no (revoke / last used are updated) | unique `prefix`, `{storeId, createdAt:-1}` |
 | `posapikeywindows` | no (rate counter) | unique `{keyId, window}`, TTL `{expireAt}` |
 
@@ -86,7 +96,13 @@ New fields on existing schemas, all nullable or defaulted, with no backfill:
 3. Give the insert-only grant on `posreceiptdeliveries` and `posfiscalrecords`, as on the other ledgers.
 4. Next morning: one audit seal per store per day (section c, step 11).
 
-**Fiscal sweep and multiple instances:** the sweep has no lease today. Duplicate records are prevented by the unique index, but two instances could call the provider twice for the same document. That's harmless while only the mock exists. **Before a real FBR provider is switched on, wrap the sweep in `JobLeaseService`**, as the nightly seal already is. This is listed in TO ADD LATER.
+**Scheduled jobs on several instances (G6.1):** every POS job that writes or calls a provider holds the shared MongoDB lease (`job_leases`).
+- **Fiscal:** the sweep holds `pos:fiscal-sweep`, and each provider call (sweep and sale-time) holds `pos:fiscal:<type>:<id>`. This is new in G6.1, and tested: two runners make one call, and an expired lease is taken over.
+- **Nightly seal:** `pos:audit-seal`.
+- **Payments poller:** per-intent leases.
+- **KYB retention:** its own lease.
+
+The full list is in G4_8_ADMIN_API §20 and G5_CLOSEOUT (G6.1). Main's own crons use a Redis lock without renewal. That lock is not changed here; see the note in G5_CLOSEOUT.
 
 ### a.5 Rollback
 1. If `RECEIPT_PUBLIC_URL` was set, unset it first. QRs printed with that origin keep working while the web proxy points at the API.
@@ -112,10 +128,10 @@ API keys created in the meantime simply stop working while the routes are gone.
 ## b. POS app release (`pos`, Android and iOS)
 
 ### b.1 Version
-| | Now | Proposed for the first store upload |
+| | Now | Next |
 |---|---|---|
-| `pubspec.yaml` | `1.0.0+100` | `1.0.0+101` |
-| `lib/config/app_version.dart` | `1.0.0` / `100` | `1.0.0` / `101` (a test fails if it differs from the pubspec) |
+| `pubspec.yaml` | **`1.0.1+101`** (G6.1; the closed-testing build was `1.0.0+100`) | `+102` and up for each later upload |
+| `lib/config/app_version.dart` | `1.0.1` / `101` (a test fails if it differs from the pubspec) | bumped together |
 | Android | `versionName` / `versionCode` come from the pubspec | — |
 | iOS | `CFBundleShortVersionString` / `CFBundleVersion` come from the pubspec | — |
 
@@ -136,6 +152,13 @@ Bump the build number (`+N`) on every upload. Bump the name for a user-visible r
   - No local API URL in the bundle.
   - The certificate's owner fields are all "Unknown": the keystore was created with default names. That's valid for Play, but confirm it is the intended upload key.
   - Only warnings were Java "source/target value 8 is obsolete" from plugins.
+- **Release build G6.1 (2026-11-13):** `flutter build appbundle --release --dart-define-from-file=config/env/prod.json` produced a 71.3 MB AAB. **Not uploaded.**
+  - **versionName `1.0.1`, versionCode `101`** (read from the bundle's manifest).
+  - **Signing certificate:** the same release key as G6.0. Compare these with the upload key certificate in Play Console → App integrity:
+    - **SHA-1** `4F:78:DA:13:86:82:CC:0D:B6:B2:CE:A8:42:C5:BC:D1:4F:98:D1:58`
+    - **SHA-256** `2C:1F:C1:BE:3E:22:EB:E7:0F:D3:27:B7:6D:EF:06:CC:D1:58:58:07:EF:ED:8F:A8:8C:93:7E:4E:71:25:76:E1`
+  - **What's inside:** `https://api.solvexo.store`; no `localhost` or `127.0.0.1` URL; no `dev-upload.invalid`.
+  - No signing material was created or changed.
 - **Open (Jami):** confirm this keystore is the real **upload key**, enrol the app in Play App Signing, and keep a second, offline copy of the `.jks` and its passwords. Losing it means a new listing.
 
 ### b.3 App ids and iOS signing
@@ -214,6 +237,20 @@ Stale lines in `docs/store_submission_checklist.md`, corrected here:
 - **"`file_picker` was removed":** it is used for the KYB PDF and CSV import, and a test enforces exactly that.
 - **"No URL in code":** there is one production fallback.
 - **"Release requires APP_ENV staging/prod":** not checked. Only the URL is checked.
+
+### b.7 Closed testing against today's production API (G6.1)
+The closed-testing app talks to production, which still runs the G5.1 backend (`c889af0`) until release #2.
+
+**What the app does there:**
+- It learns the server is older from one 404 (`GET /api/pos/connectors`).
+- It **hides** Integrations, Payments setup, the receipt logo and the product page. Role presets were already hidden.
+- It **falls back** to the previous behaviour for:
+  - send receipt (share and WhatsApp only);
+  - the card terminal (switch absent);
+  - fiscal (nothing printed);
+  - connector wording.
+
+**Proven against a real G5.1 stack** (`tool/run_older_backend_e2e.sh`): 8 core flow files, 29 tests, all passed. They cover sales, refunds, voids, an offline sale with sync, a return on another till, shifts and cash, printing, and G5.1. The mocked case is `test/older_backend_test.dart`.
 
 ## c. Production data steps: order and timing
 
@@ -338,10 +375,10 @@ Owner: **Done** means verified in this repo, CI or the release build. **Mine** =
 | 3 | Production backfill (G1b §2–4) done and burn-in started; the app does not need the read flip to ship | Mine |
 | 4 | Insert-only grants on all append-only collections; one seal per store per night | Mine |
 | 5 | `API_PUBLIC_URL` set and boot-checked; `DEV_UPLOAD_STUB` not set | Done (2026-11-12) / Mine (confirm the stub variable) |
-| 6 | Release build: Android AAB with `prod.json`, signed with the release key, R8 on | Done (section b, G6.0 build) |
+| 6 | Release build: Android AAB with `prod.json`, signed with the release key, R8 on | Done (G6.1: 1.0.1 / 101, fingerprints in b.2) |
 | 7 | A release build cannot run against a dev or local API | Done (`AppEnv.validate`, `store_release_test.dart`) |
 | 8 | The release APK installed and used on a real Android phone (R8 never run on a device yet) | Mine |
-| 9 | The upload key confirmed and Play App Signing enrolled; an offline backup of the keystore | Mine |
+| 9 | The upload key confirmed (compare the b.2 fingerprints with Play Console) and Play App Signing enrolled; an offline backup of the keystore | Mine |
 | 10 | iOS distribution certificate and profile, archive exported, TestFlight build symbolicates; Sign in with Apple configured | Mine |
 | 11 | Real-device test plan (section d) run, all P or accepted | Mine |
 | 12 | A real staging API URL (today `staging.json` = production) **or** a decision to test on a production test store | Web team / Sir Atiq |
@@ -353,7 +390,8 @@ Owner: **Done** means verified in this repo, CI or the release build. **Mine** =
 | 18 | `RECEIPT_PUBLIC_URL` + web `/r/*` rewrite (optional: without it receipts use the API origin, which works) | Web team |
 | 19 | E-mail / SMS receipts: SMTP and store SMS gateways (optional: the buttons hide when off) | Provider (SMS) / Mine (SMTP) |
 | 20 | Raast real adapter (PayFast or 1LINK); until then Raast stays on the mock and should be **off** for real stores | Provider |
-| 21 | FBR fiscal: route decision, then an adapter (main now has an FBR DI client, sandbox-locked; see FBR_INTEGRATION_NEEDS.md) plus a lease on the sweep; until then the fiscal switch stays **off** | Sir Atiq + Uzair / Provider |
+| 21 | FBR fiscal: route decision, then a backend adapter that fills FISCAL_CONTRACT.md (main's FBR DI client is a candidate). The app needs no change; the sweep lease is built (G6.1); the switch cannot be turned on until a provider exists | Sir Atiq + Uzair / Provider |
 | 22 | Card gateway provider (optional: card on a separate terminal already works) | Sir Atiq / Provider |
 | 23 | Khata decision on main's module (does not block the app) | Sir Atiq + Uzair |
 | 24 | Backend CI green on the release commit; app CI green | Done (at the time of writing; recheck on the release commit) |
+| 25 | The closed-testing app is safe on the G5.1 production API (release #2 features hidden, core flows pass) | Done (G6.1, b.7) |

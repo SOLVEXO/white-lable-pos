@@ -9,7 +9,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const api = resolve(here, '../../solvexo-api');
+// G6.1: E2E_API_DIR points it at another checkout (tool/run_older_backend_e2e.sh: a worktree at the production tag); default = ../solvexo-api
+const api = process.env.E2E_API_DIR ? resolve(process.env.E2E_API_DIR) : resolve(here, '../../solvexo-api');
 const run = resolve(api, 'dev/.run');
 const PORT = Number(process.env.E2E_CONTROL_PORT || 3199);
 const sh = (cmd, args, opts = {}) => new Promise((ok) => execFile(cmd, args, { cwd: api, maxBuffer: 1 << 24, ...opts }, (err, out, errOut) => ok({ err, out: String(out), errOut: String(errOut) })));

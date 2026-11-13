@@ -99,6 +99,8 @@ class PosRepository {
   /// The server's machine-readable `code` of the last failed [createSale] (e.g. CUSTOM_ITEM_NEEDS_MANAGER, COUPON_EXPIRED), else null.
   /// Kept beside the result so the long-standing return shape of createSale stays as it was.
   String? lastErrorCode;
+  /// G6.1: the HTTP status of the last failed read through [_invGet] (404 = this server has no such route: an older backend)
+  int? lastHttpStatus;
 
   /// Extracts the backend's `message` field from a failed response, if any.
   String? _dioMessage(DioException e) {
@@ -1772,6 +1774,7 @@ class PosRepository {
   Future<T?> _invGet<T>(String tag, String url, T Function(Map<String, dynamic> data) parse, {Map<String, dynamic>? query, bool dataIsList = false}) async {
     lastErrorCode = null;
     lastErrorReasons = const [];
+    lastHttpStatus = null;
     try {
       final res = await _client.get(url, queryParameters: query, requiresAuth: true, headers: await _employeeAuthHeaders());
       if (!_ok(res)) return null;
@@ -1782,6 +1785,7 @@ class PosRepository {
       _logDioError(tag, e);
       _noteEntitlement(e);
       lastErrorCode = _dioCode(e);
+      lastHttpStatus = e.response?.statusCode;
       return null;
     } catch (e) {
       debugPrint('❌ $tag: $e');

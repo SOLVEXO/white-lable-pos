@@ -150,3 +150,87 @@ All backend changes are additive. No existing response changed shape, and every 
   - the staging API URL (web / ops; `staging.json` points at production);
   - a decision on main's FBR DI client as the POS fiscal route (owner + Uzair);
   - main's stale upload spec (main's owner).
+
+## G6.1: provider-ready app, older-backend safety, job locks, release readiness
+
+| # | Item | Result |
+|---|---|---|
+| 1–4 | Fiscal contract | **FISCAL_CONTRACT.md** v1. The `fiscal` block gains `displayLines` [{label, value}], `message`, `willRetry`, `logoUrl` and `contractVersion`. Statuses are `not_enabled` (the live value, meaning not required), `pending`, `confirmed`, `failed` and `rejected`; pending past 20 attempts reads `failed`. Main's FBR DI client fits the contract (mapping in §5) but is not wired. The app prints and shows only what the server sends on every receipt, invoice, credit note (thermal and PDF), reprint, the documents screen and the checkout result; offline receipts print "Fiscal pending". Failed or refused documents show a card to the cashier and appear in the owner's Integrations → Fiscal list (retry for failed), never blocking the sale. Mock provider: `MOCK_FISCAL_MODE=down|fail|reject`. |
+| 5 | Provider assumptions | See "Provider assumptions found and fixed" below. |
+| 6 | Older backend | All core flows pass against a real `pos-backend-g5.1` stack (8 files, 29 tests). `test/older_backend_test.dart` covers the mocked case (7 tests). `tool/run_older_backend_e2e.sh` reruns it. |
+| 7 | Job locks | One fix: the fiscal sweep. See "Scheduled jobs" below. |
+| 8 | Store checklist | The 3 stale points are corrected (config / URL / APP_ENV, file_picker). |
+| 9 | Version | `1.0.1+101`. Release AAB built: versionName 1.0.1, versionCode 101; cert SHA-1 `4F:78:DA:13:86:82:CC:0D:B6:B2:CE:A8:42:C5:BC:D1:4F:98:D1:58`, SHA-256 `2C:1F:C1:BE:…:76:E1` (full in RELEASE_PLAN b.2). Not uploaded. |
+| 10 | Release config | The release build uses `prod.json` (`https://api.solvexo.store`) and refuses any non-https or local URL at start. Fiscal and the card gateway cannot be switched on without a usable provider (`PROVIDER_NOT_CONFIGURED`); production has none. Raast is off in production until a real `PAYMENTS_PROVIDER_POS` exists (the mock is never registered there). `DEV_UPLOAD_STUB` has no effect unless `NODE_ENV` is exactly development or test. |
+
+### Provider assumptions found and fixed (server-driven now, with the old values as fallbacks)
+- **Card on a bank terminal:**
+  - **Before:** the 3 fields, their labels, "approval code required" and "last 4 digits" were fixed in the app.
+  - **Now:** `connectors.ui.cardExternalTerminal.fields[]` (key, label, required, pattern, maxLength, keyboard) decides which fields show, what they are called, whether they're required and what they accept.
+  - The server's `CARD_APPROVAL_REQUIRED` message is shown first.
+- **Raast:**
+  - The customer instructions, poll interval and reason text come from `connectors.ui.raast`.
+  - Error text: the server's message comes first; the app's text is used only when the server sends none.
+  - The "simulate paid" button now needs a debug build **and** the server saying its provider is the mock.
+- **Card gateway:** the status text comes from the server.
+- **Messaging:**
+  - WhatsApp mode is server-driven: `link` (wa.me from the app), `api` (the server sends) or `off` (button hidden).
+  - The minimum phone length, consent wording and privacy note come from the server.
+  - The server's error message comes first.
+- **Fiscal wording:**
+  - The owner's switch title comes from `ui.fiscal.title`.
+  - Removed from the app: "FBR Invoice No" on every print, and "FBR" on the settings hub.
+  - Seller tax ids are taken from `seller.taxIds` when the server sends them, with NTN/STRN as the fallback.
+- **Kept, as generic labels:** "Cash", "Card", "Bank / Other", "Raast" (the rail's name), "WhatsApp" (a channel) and "Test mode".
+
+### Older backend (production today = c889af0): what is hidden or falls back
+- **How it's detected:** `GET /api/pos/connectors` answers 404, so `ServerCapabilities.olderServer` is set. A network error never hides anything.
+- **Hidden:** the Integrations and Payments setup rows, the receipt-logo section and the product-page button. Role presets were already hidden, because the server sends none.
+- **Falls back:**
+  - send-receipt shows only share link and WhatsApp;
+  - card-terminal fields are off (the switch is absent);
+  - fiscal: nothing printed, no card shown;
+  - connector wording uses the previous values.
+- **Real run against the G5.1 stack:**
+
+  | Flow file | Tests passed |
+  |---|---|
+  | real_backend_pos_flows | 11/11 |
+  | real_backend_ui | 1/1 |
+  | g24 checkout | 5/5 |
+  | g25 returns | 4/4 |
+  | g27 offline return on another till | 1/1 |
+  | g35 cash and shift | 1/1 |
+  | g4 | 3/3 |
+  | g51 | 3/3 |
+
+  Nothing broke in the app. Two harness issues came up and were fixed:
+  - `tool/e2e_control_server.mjs` always drove `../solvexo-api`, which broke the "API stopped → back" test. `E2E_API_DIR` now points it at the worktree.
+  - `g51` needs the draft PO that `g4` creates, so the script runs `g4` first.
+
+### Scheduled jobs (all of `solvexo-api`) on two instances
+- **POS jobs, on the shared MongoDB lease** (`JobLeaseService`: atomic findOneAndUpdate on the database clock, owner id, expiry, renewal every ttl/3, release, takeover after expiry):
+
+  | Job | Lease | Status |
+  |---|---|---|
+  | Fiscal retry sweep | `pos:fiscal-sweep`, plus `pos:fiscal:<type>:<id>` around every provider call (sweep and sale-time) | **Was unsafe:** the same document could be sent to the authority twice. **Fixed in G6.1.** Tests: two concurrent runners make one call and one record (same result as a single run); two sweeps send each document once; an expired lease (dead holder) is taken over. |
+  | Nightly audit seal | `pos:audit-seal`, plus unique `{storeId, day}` | Already safe |
+  | Payments poller (Raast status) | per-intent `payments:poll` / `payments:apply` / `payments:inbox`, plus unique event keys | Already safe |
+  | KYB retention | `kyb:retention` / `kyb:purge:<store>` | Already safe |
+- **Main's jobs:** about 60 `@Cron`s in `SchedulerService`, plus sales-ops, campaigns, digests, renewals, COD expiry, account deletion and merchant webhooks. They run under main's Redis `withLock`. BullMQ workers are safe by design, and the in-process `setInterval`s are per-instance.
+- **Note for main's owner, not changed here:**
+  - The Redis lock has no owner token and no renewal, and `DEL`s in `finally`.
+  - A job that outlives its TTL can therefore run twice: abandoned-cart and scheduled e-mail campaigns use 120 s TTLs. The first holder can also delete the second holder's lock.
+  - Moving these jobs to `JobLeaseService` is the fix. It touches main's billing and sending jobs, so it is left for main's owner.
+
+### What the app still needs from outside (external inputs only)
+| Input | From | Then |
+|---|---|---|
+| A real fiscal adapter (FBR route decision; main's DI client is a candidate) | Sir Atiq + Uzair / provider | The backend fills the contract. **No app change.** |
+| A real Raast provider (`PAYMENTS_PROVIDER_POS`) | Provider | Ops sets it and `connectors.ui.raast` is sent. No app change. |
+| A card gateway provider | Sir Atiq / provider | A new in-app tender would need an app flow (none exists today). |
+| Messaging credentials (SMTP, store SMS gateways; WhatsApp API if wanted) | Ops / provider | `whatsapp.mode=api` needs a server channel. No app change. |
+| Backend release #2 on production | Jami (go) | The hidden features appear by themselves. |
+| A staging API URL | Web team / ops | `config/env/staging.json` |
+| Icon masters, store screenshots, privacy review | Sir Atiq / Jami | RELEASE_PLAN b.6 |
+| Play upload key check (compare the fingerprints below with Play Console) | Jami | — |
