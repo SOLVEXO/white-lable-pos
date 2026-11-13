@@ -44,6 +44,11 @@ post_install do |installer|
 
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      # G6.0: permission_handler compiles each iOS permission out unless enabled here; without these the Permissions screen reads
+      # camera / Bluetooth as denied. Only the two the app asks about (both have usage strings in Info.plist).
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_CAMERA=1'
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_BLUETOOTH=1'
     end
   end
 end

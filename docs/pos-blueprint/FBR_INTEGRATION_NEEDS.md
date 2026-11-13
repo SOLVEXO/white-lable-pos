@@ -56,3 +56,26 @@ This applies the brief's choice for FBR_PLAN §10 decision (c): print "Fiscal pe
 - No per-terminal FBR POS ID mapping (it needs the spec).
 - No signboard or registration-number print (it needs the software registration number).
 - No 24-hour alert.
+
+## 5. New on main (found at the G5.8 merge): an FBR Digital Invoicing client
+Main now has Uzair's FBR module (2026-11-11). Nothing in POS uses it yet; G5.8 changed none of it.
+
+**What main has:**
+- `src/fbr-di/`: a client for the **PRAL Digital Invoicing API v1.12**.
+  - `post` and `validate` against sandbox or production;
+  - `api/admin/fbr-di/*` (Super Admin) and `api/fbr-di/:storeId/*` (seller settings, test, provinces);
+  - invoice records with retry and resolve.
+- `src/tax-core/`: an e-invoice adapter registry (`TaxAuthorityAdapter`).
+- `src/tax-authorities/pk-fbr/pk-fbr.adapter.ts`: `PkFbrAdapter`, the `PK_FBR` adapter over that client. It supplies `post`, `validate`, `qrFor(invoiceNumber)` and `isValidInvoiceNumber`.
+- **Production filing is hard-locked:** `fbr-production-lock.ts`, `assertProductionAllowed()` is always `false`. It's checked in the settings services, the sender and the HTTP client, so only the FBR sandbox can be used in this build.
+
+**What this changes for POS:**
+- Items 2 (spec), 5 (QR rule) and 6 (sandbox credentials) of section 2 may already be partly covered by main's client, if Digital Invoicing is the route chosen in item 1.
+- A POS `FiscalProvider` could then be a thin adapter over `PkFbrAdapter`, instead of a new HTTP client.
+
+**Still a decision (owner, with Uzair):**
+1. Is Digital Invoicing (v1.12) the right route for **retail POS**, or does retail need FBR's POS integration?
+2. Should POS use main's per-store FBR settings and tokens, or its own encrypted credentials (item 7)?
+3. Production stays locked until main's compliance gate is lifted. POS can't go live before that either.
+
+Until those are decided, POS keeps `NotConfiguredFiscalProvider` in production and the fiscal switch stays **off**.

@@ -79,7 +79,7 @@ All backend changes are additive. No existing response changed shape, and every 
 | 9 | Remaining non-provider Partials | Serial numbers at receiving (unique, same transaction; older tills get `SERIALS_NOT_SUPPORTED`) | Serials field on receive |
 | 10 | WhatsApp | — | wa.me with the customer's number via url_launcher (approved); falls back to the share sheet |
 | 11 | E-mail / SMS receipts | Link only; consent (on file / given for this sale); 3 per sale per hour, 500 per store per day; append-only `posreceiptdeliveries` plus audit; main's mailer and the store's SMS gateway (`sendTransactional`, additive) | Shown only when the store has them on |
-| 12 | PDF view | Receipt and invoice PDFs already exist and are shared (the share sheet previews them) | An in-app **viewer** needs a package: **deferred** |
+| 12 | PDF view | Receipt and invoice PDFs already exist and are shared (the share sheet previews them) | In-app viewer (view, print, share): **done in G5.8** |
 | 13 | Receipt-link lifetime | Per store, at least 30 days, the return window by default; existing links keep theirs | — |
 | 14 | Card on an external terminal | Approval code (required live when on), last4, terminal label; refunds and credit notes reference the code; shift close and payments report lines | Payment sheet fields, shift close line, payments report line |
 | 15 | Card gateway | Interface, mock, not-configured adapter, `connectors.cardGateway` off | "Not available yet" in Payments setup |
@@ -98,7 +98,7 @@ All backend changes are additive. No existing response changed shape, and every 
 4. The tier test walks controller prototypes, so the external controller's repository getter became a method.
 
 ### Not done / deferred
-- In-app PDF viewer (needs `printing` or `pdfx`).
+- ~~In-app PDF viewer~~: done in G5.8.
 - Daybook: card-terminal payments don't move drawer cash, so they appear on the shift close and in the payments report, not in the cash daybook.
 - The real FBR / Raast / card-gateway adapters, which need external inputs (below).
 
@@ -112,13 +112,41 @@ All backend changes are additive. No existing response changed shape, and every 
 | App icon masters | Brand owner / designer | `assets/icon/*` (APP_ICON_MASTERS.md) | Replace the PNGs, run the two generators, check on devices |
 | Role preset sign-off | Sir Atiq | `src/pos/pos-role-presets.ts`, ROLE_PRESETS.md | Adjust the overrides, set `status: 'approved'`; the app drops the "Proposed" badge |
 | Messaging credentials | Ops: SMTP for the API's mailer; each store's SMS gateway in Messaging channels | main's `EmailService`, `SmsGatewayService.sendTransactional` | Configure them, then turn on `emailReceipts` / `smsReceipts` per store; the till shows the buttons |
-| Deferred packages | Approval | In-app PDF viewer (`printing` or `pdfx`) | Approve, then add a viewer on sale detail / expense |
+| ~~Deferred packages~~ | — | Done in G5.8 (`printing` approved; in-app PDF viewer) | — |
 | Khata decision on main's module | Owner (with Uzair) | main's `src/khata` (not POS) | Decide whether to retire it; the POS side needs nothing |
 | Real-device checks | Jami, with hardware | Logo on 58 mm and 80 mm printers; WhatsApp on a phone with WhatsApp; external card terminal slip; e-mail / SMS with real credentials | Run the checklist below and note the results |
-| Merge main again | Jami (go) | 27 new main commits, no POS overlap | Merge before the next backend release; CI |
+| Merge main again | Jami (go) | Done in G5.8 (`2cd32a5`); repeat right before release #2 | RELEASE_PLAN a.6 |
 
 ### Real-device checklist (additions)
 - Print a receipt with a logo on 58 mm and on 80 mm paper. Check the logo is centred and the dithering is legible.
 - WhatsApp: on a phone with WhatsApp, the chat opens with the customer's number and the link; without WhatsApp, the share sheet opens.
 - Card terminal: approval code from a real slip; the shift close line matches the terminal's settlement.
 - Integrations: the CSV opens in Excel / Numbers with the right columns, and the time zone is the store's.
+
+## G5.8 + G6.0: last gaps and release preparation
+
+| # | Item | Result |
+|---|---|---|
+| 1 | Merge `origin/main` into `feature/jamibranch` (api) | Merged with no conflicts (`2cd32a5`; 58 main commits; backup tag `backup/pre-g58-merge-jamibranch`). Main's own route-auth scan (new on main) failed on 2 of main's contact-form public routes. They were allow-listed (`6228558`): throttled public form routes, the same kind as the already-listed `submit`, with no behaviour change. CI green. |
+| 2 | The last Partial | **expense-detail**: PDF receipts opened only on the web. Not provider-dependent, so it was finished with item 3. Audit: **Done 95 · Partial 0 · Missing 0 · Blocked 3 · Out of scope 3**. |
+| 3 | In-app PDF viewer (`printing`, approved) | One viewer (view, print, share) for the receipt (sale detail), tax invoice, credit notes and expense PDF attachments. The expense PDF is downloaded from a fresh 5-minute link with a plain client (no auth header to storage), in memory only. The "open it on the web" note is removed; Share PDF stays. `g58_pdf_viewer_test.dart`. App `7757a68`. |
+| 4 | Dev upload stub | **It could have activated outside production**: the check was `NODE_ENV !== 'production'`, so `Production`, `prod` or an unset `NODE_ENV` would have turned it on. It is now fail-closed: it runs only when `NODE_ENV` is exactly `development` or `test` and `DEV_UPLOAD_STUB` is exactly `true`. `upload-dev-stub.spec.ts` (12 tests, including `UploadService` with `NODE_ENV=production` + the variable set → real storage) was added to the CI gate, which did not cover `src/upload`. Api `fe366ed`. |
+| 5 | Khata | `KHATA_IN_MAIN.md`, facts only; `src/khata` untouched. |
+| 6 | Release plan | `RELEASE_PLAN.md` (a–e). |
+| 7 | Android release build | Built and signed with the release key, prod config, 71.3 MB; not uploaded (RELEASE_PLAN b.2). |
+
+**Found along the way:**
+- **iOS:** the Podfile did not enable `permission_handler`'s camera and Bluetooth, so the Permissions screen would read them as denied. Fixed in the Podfile; to be checked on an iPhone (device plan row 37).
+- **Main's tests:** `upload-file-validation.spec.ts` is stale (it expects 11 MB to be refused; main raised the limit to 20 MB). It is outside our CI gate and was left for main's owner.
+- **Main's deploy:** the GitHub deploy workflow on `main` fails at SSH (timeout); the service's own auto-deploy is the path that counts (RELEASE_PLAN a.6).
+- **Main's FBR client:** main now has an FBR Digital Invoicing client and adapter registry (sandbox-locked). Recorded in FBR_INTEGRATION_NEEDS §5 as a candidate for the POS fiscal adapter; the decision is the owner's, with Uzair.
+- **The fiscal sweep has no lease.** Add `JobLeaseService` before a real provider (RELEASE_PLAN a.4).
+
+**TO ADD LATER (changes since G5.7):**
+- **Removed:**
+  - deferred packages (the PDF viewer is done);
+  - "merge main again" (done; repeat at release time per RELEASE_PLAN a.6).
+- **Added:**
+  - the staging API URL (web / ops; `staging.json` points at production);
+  - a decision on main's FBR DI client as the POS fiscal route (owner + Uzair);
+  - main's stale upload spec (main's owner).

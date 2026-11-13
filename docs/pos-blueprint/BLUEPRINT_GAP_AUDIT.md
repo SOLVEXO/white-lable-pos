@@ -18,7 +18,7 @@ Date: 2026-11-12 (first written after G4.9, statuses updated after G5.1 and G5.7
 
 ## 1. Summary
 
-**101 routes:** Done 94 · Partial 1 · Missing 0 · Blocked 3 · out of scope 3.
+**101 routes:** Done 95 · Partial 0 · Missing 0 · Blocked 3 · out of scope 3.
 
 | Area | Routes | Done | Partial | Missing | Blocked | Out of scope |
 |---|---|---|---|---|---|---|
@@ -29,7 +29,7 @@ Date: 2026-11-12 (first written after G4.9, statuses updated after G5.1 and G5.7
 | 5. Inventory | 11 | 11 | 0 | 0 | 0 | 0 |
 | 6. Customers | 5 | 4 | 0 | 0 | 0 | 1 |
 | 7. Supply & purchasing | 7 | 7 | 0 | 0 | 0 | 0 |
-| 8. Cash & expenses | 5 | 4 | 1 | 0 | 0 | 0 |
+| 8. Cash & expenses | 5 | 5 | 0 | 0 | 0 | 0 |
 | 9. Reports | 9 | 9 | 0 | 0 | 0 | 0 |
 | 10. Team & shifts | 6 | 5 | 0 | 0 | 1 | 0 |
 | 11. Settings | 13 | 12 | 0 | 0 | 1 | 0 |
@@ -40,7 +40,9 @@ Date: 2026-11-12 (first written after G4.9, statuses updated after G5.1 and G5.7
 
 **After G5.1 → after G5.7:** Done 85 → 94 · Partial 7 → 1 · Missing 1 → 0 · Blocked 6 → 3 · Out of scope 2 → 3 (khata: out of scope by product decision; card on an external terminal, receipt logo, integrations done; FBR / Raast / role presets stay blocked on external inputs — see G5_CLOSEOUT "TO ADD LATER").
 
-**Workflows (21 roadmap items):** Done 14 · Partial 4 · Blocked 3. **Engineering rules (10):** Done 8 · Partial 1 · Blocked 1. **Acceptance targets (6):** Done 4 · Partial 2.
+**After G5.7 → after G5.8:** Done 94 → 95 · Partial 1 → 0. The last Partial (expense-detail: PDF receipts opened only on the web) closed with the in-app PDF viewer (`printing`, approved): receipts, tax invoices, credit notes and expense PDF attachments open in the app with print and share.
+
+**Workflows (21 roadmap items):** Done 15 · Partial 3 · Blocked 3. **Engineering rules (10):** Done 8 · Partial 1 · Blocked 1. **Acceptance targets (6):** Done 4 · Partial 2.
 
 ## 2. Screen matrix — all 101 blueprint routes
 
@@ -153,7 +155,7 @@ Date: 2026-11-12 (first written after G4.9, statuses updated after G5.1 and G5.7
 |---|---|---|---|---|
 | expenses | /pos/cash/expenses | Done | — | — |
 | add-expense | with receipt photo | Done | — | — |
-| expense-detail | /pos/cash/expense (approve / reject) | **Partial** | PDF receipts open only on the web (an in-app PDF viewer needs a package — ask first) | S |
+| expense-detail | /pos/cash/expense (approve / reject) | **Done** | — (G5.8: a PDF receipt opens in the in-app viewer, from a fresh 5-minute link, in memory only) | — |
 | cash-movement | /pos/cash (categories, slip photo — G5.1) | Done | — | — |
 | daybook | /pos/cash/daybook (print, PDF) | Done | — | — |
 
@@ -218,7 +220,7 @@ Date: 2026-11-12 (first written after G4.9, statuses updated after G5.1 and G5.7
 | 2.3 | Customers, loyalty and credit ledger | **Done** | customers, loyalty and store credit done; credit on account (khata) is out of scope by product decision | — |
 | 2.4 | Suppliers and purchase orders | Done | scan-to-add, products supplied (G5.1) | — |
 | 2.5 | Receiving stock | **Done** | scan-to-receive (G5.1), serials at the till (G5.2) | — |
-| 2.6 | Expenses and daybook | **Partial** | photo on cash movements done (G5.1); in-app PDF receipt viewer (package approval) | S |
+| 2.6 | Expenses and daybook | **Done** | photo on cash movements (G5.1); in-app PDF viewer (G5.8) | S |
 | 2.7 | Staff shifts and attendance | Done | clocking someone else with their PIN or a manager's (G5.4) | — |
 | 3.1 | Sales, profit, tax and payment reports | Done | (FBR-filed tax figures: blocked with FBR) | — |
 | 3.2 | Product and category performance | Done | | — |
@@ -226,7 +228,7 @@ Date: 2026-11-12 (first written after G4.9, statuses updated after G5.1 and G5.7
 | 3.4 | Roles and granular permissions | **Blocked** (Sir Atiq sign-off) | presets built as proposed (G5.6); sign-off pending | S |
 | 3.5 | Hardware, integrations, audit logs and backup controls | **Done** | integrations (G5.7) | — |
 
-**Workflows (21):** Done 14 · Partial 4 · Blocked 3 · Missing 0.
+**Workflows (21):** Done 15 · Partial 3 · Blocked 3 · Missing 0.
 
 ### Non-negotiable engineering rules
 
