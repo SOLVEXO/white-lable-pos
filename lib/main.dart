@@ -25,6 +25,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:solvexo_pos/app/data/services/server_capabilities.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
@@ -75,6 +76,11 @@ Future<void> _bootstrap() async {
   // Warms AppPreferences' sync in-memory cache so PosAccessMiddleware can
   // guard routes without an async gap — see AppPreferences.warmCache().
   await AppPreferences.warmCache();
+  // G6.2: what the backend supports — the cached answer first (offline starts), then one probe in the background on every start; a store switch
+  // re-checks (the home screen also re-checks after each login)
+  await ServerCapabilities.loadCached();
+  unawaited(ServerCapabilities.refresh());
+  AppPreferences.onStoreChanged = () => unawaited(ServerCapabilities.refresh());
   // Last-known store currency, so amounts render in the right currency/decimals before settings load.
   final cachedCurrency = await AppPreferences.getStoreCurrency();
   Money.configure(currency: cachedCurrency.code, exponent: cachedCurrency.exponent);

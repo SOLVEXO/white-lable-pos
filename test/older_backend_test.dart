@@ -46,20 +46,7 @@ void main() {
   });
   setUp(() {
     ConnectorUiStore.current = const ConnectorUi();
-    ServerCapabilities.releaseTwo.value = null;
-  });
-
-  group('learning that the server is older', () {
-    test('connectors 404 → older (release #2 features hidden); a network failure never hides anything; found → newer', () {
-      ServerCapabilities.learnFromConnectors(found: false, httpStatus: null); // offline
-      expect(ServerCapabilities.olderServer, isFalse);
-      ServerCapabilities.learnFromConnectors(found: false, httpStatus: 503);
-      expect(ServerCapabilities.olderServer, isFalse);
-      ServerCapabilities.learnFromConnectors(found: false, httpStatus: 404);
-      expect(ServerCapabilities.olderServer, isTrue);
-      ServerCapabilities.learnFromConnectors(found: true);
-      expect(ServerCapabilities.olderServer, isFalse);
-    });
+    ServerCapabilities.resetForTest(); // detection itself: test/g62_capabilities_test.dart
   });
 
   group('sales, receipts and documents from a G5.1 server print exactly as before', () {

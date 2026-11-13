@@ -321,9 +321,18 @@ class AppPreferences {
   }
 
   // ── Store ID ──────────────────────────────────────────────────────────────────
+  /// G6.2: called after the store changes (set at start to re-check the backend's capabilities); never throws into the caller
+  static void Function()? onStoreChanged;
+
   static Future<void> saveStoreId(String id) async {
     final prefs = await SharedPreferences.getInstance();
+    final changed = prefs.getString(_storeIdKey) != id;
     await prefs.setString(_storeIdKey, id);
+    if (changed) {
+      try {
+        onStoreChanged?.call();
+      } catch (_) {}
+    }
   }
 
   static Future<String?> getStoreId() async {

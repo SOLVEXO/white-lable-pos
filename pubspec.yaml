@@ -2,7 +2,7 @@ name: solvexo_pos
 description: "Solvexo POS — standalone point-of-sale app for sellers."
 publish_to: 'none'
 
-version: 1.0.1+101
+version: 1.0.1+102
 
 environment:
   sdk: ^3.9.2

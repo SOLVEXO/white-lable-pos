@@ -703,6 +703,8 @@ class PosHomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // G6.2: the home screen opens after every login, device setup and store switch → re-check what the backend supports (one probe)
+    unawaited(ServerCapabilities.refresh());
     _loadContext().then((_) async {
       await _restoreCart();
       _attachPersistence();
@@ -796,8 +798,6 @@ class PosHomeController extends GetxController {
     ConnectorsStatus? c;
     try {
       c = await _posRepo.getConnectors(storeId.value);
-      // G6.1: a 404 here = the backend predates release #2 → its features are hidden (never an error on a cashier's screen)
-      ServerCapabilities.learnFromConnectors(found: c != null, httpStatus: c == null ? _posRepo.lastHttpStatus : null);
     } catch (_) {
       return; // keep what we knew; selling never depends on this read
     }

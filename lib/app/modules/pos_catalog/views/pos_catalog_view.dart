@@ -101,7 +101,7 @@ class PosCatalogItemView extends StatelessWidget {
       backgroundColor: p.background,
       appBar: AppBar(title: Text(product.name), backgroundColor: p.background, foregroundColor: p.textPrimary, elevation: 0, actions: [
         // G5.2: the full product page (photos, details, every variant, stock by location; managers edit)
-        if (!ServerCapabilities.olderServer) TextButton.icon(key: const Key('openProductPage'), onPressed: () => Get.to<void>(() => ProductPageView(productId: product.productId)), icon: const Icon(Icons.inventory_2_outlined), label: const Text('Product page')),
+        if (ServerCapabilities.has('productPage')) TextButton.icon(key: const Key('openProductPage'), onPressed: () => Get.to<void>(() => ProductPageView(productId: product.productId)), icon: const Icon(Icons.inventory_2_outlined), label: const Text('Product page')),
       ]),
       body: SafeArea(
         child: Center(

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:solvexo_pos/app/data/models/pos/pos_connectors_models.dart';
+import 'package:solvexo_pos/app/data/services/server_capabilities.dart' show CapabilityProbe;
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_audit_log_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
@@ -99,8 +100,6 @@ class PosRepository {
   /// The server's machine-readable `code` of the last failed [createSale] (e.g. CUSTOM_ITEM_NEEDS_MANAGER, COUPON_EXPIRED), else null.
   /// Kept beside the result so the long-standing return shape of createSale stays as it was.
   String? lastErrorCode;
-  /// G6.1: the HTTP status of the last failed read through [_invGet] (404 = this server has no such route: an older backend)
-  int? lastHttpStatus;
 
   /// Extracts the backend's `message` field from a failed response, if any.
   String? _dioMessage(DioException e) {
@@ -1774,7 +1773,6 @@ class PosRepository {
   Future<T?> _invGet<T>(String tag, String url, T Function(Map<String, dynamic> data) parse, {Map<String, dynamic>? query, bool dataIsList = false}) async {
     lastErrorCode = null;
     lastErrorReasons = const [];
-    lastHttpStatus = null;
     try {
       final res = await _client.get(url, queryParameters: query, requiresAuth: true, headers: await _employeeAuthHeaders());
       if (!_ok(res)) return null;
@@ -1785,7 +1783,6 @@ class PosRepository {
       _logDioError(tag, e);
       _noteEntitlement(e);
       lastErrorCode = _dioCode(e);
-      lastHttpStatus = e.response?.statusCode;
       return null;
     } catch (e) {
       debugPrint('❌ $tag: $e');
@@ -2772,6 +2769,17 @@ class PosRepository {
   Future<({bool success, String? code, String? message})> setConnectors(String storeId, Map<String, bool> patch) async {
     final r = await updateStoreSettings(storeId, {'connectors': patch});
     return (success: r.success, code: r.code, message: r.message);
+  }
+
+  // ── G6.2 · the backend's capabilities: the ONE probe that decides which release-#2 features the till shows ─────────────────────────────
+  /// Never throws; reads only its own response (no shared error field, so no other request can affect the answer). No auth: the route is public.
+  Future<CapabilityProbe> probeCapabilities() async {
+    try {
+      final res = await _client.get('${ApiConstants.apiPrefix}/pos/capabilities', requiresAuth: false, validateStatus: (_) => true, retryable: false);
+      return CapabilityProbe.classify(res.statusCode, res.data);
+    } catch (_) {
+      return const CapabilityProbe.inconclusive(); // offline / timeout
+    }
   }
 
   // ── G6.1 · fiscal documents that need attention (manager / owner) and the owner's retry ────────────────────────────────────────────────
