@@ -268,3 +268,10 @@ POS-owned jobs and their locks (shared MongoDB lease `JobLeaseService`, collecti
 | Nightly audit seal (`POS_AUDIT_SEAL_CRON`) | `pos:audit-seal` (30 min) + unique `{storeId, day}` | Safe (unchanged) |
 | Payments poller (Raast status, every 3 s) | `payments:poll:<intentId>`, `payments:apply:<intentId>`, `payments:inbox:<id>` + unique event keys | Safe (unchanged) |
 | KYB retention purge (off unless enabled) | `kyb:retention`, `kyb:purge:<storeId>` | Safe (unchanged) |
+
+## 21. Capabilities probe (G6.2)
+`GET /api/pos/capabilities`: public, throttled (60/min), no parameters, no store data.
+
+It answers `{ success, data: { contract: 1, release: 2, features: [productPage, receiptDelivery, connectors, cardExternalTerminal, fiscal, receiptLogo, rolePresets, integrations, apiKeys, fiscalContract, fiscalIssues, connectorUi] } }`.
+
+The till decides which release-#2 features to show **only** from this route. When the route is absent (the G5.1 backend), the till treats the backend as older. **Add a key when a new till feature needs it; never remove one while older apps rely on it.**

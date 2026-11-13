@@ -31,6 +31,7 @@ Only the branch's own (non-merge, first-parent) commits are listed. Main's own c
 | `59bb0cb` | G6.1: fiscal contract v1 (display lines, message, willRetry, logo; failed status), fiscal issues + owner retry, per-document and sweep leases, `connectors.ui` |
 | `8aec473` | G6.1: `connectors.ui.fiscal.title` |
 | `7cfc429` | G6.1: fiscal / card-gateway switches refuse to turn on without a usable provider (`PROVIDER_NOT_CONFIGURED`) |
+| `f673775` | G6.2: `GET /api/pos/capabilities` (public, static) — the till's only feature-detection signal |
 
 Nothing changes an existing response shape. Every new field is additive and every new switch defaults OFF. Behaviour notes:
 - **Receipt links:** once `RECEIPT_PUBLIC_URL` is set, new QR and share links use that origin. The web `/r/*` proxy must be live first.
@@ -130,8 +131,8 @@ API keys created in the meantime simply stop working while the routes are gone.
 ### b.1 Version
 | | Now | Next |
 |---|---|---|
-| `pubspec.yaml` | **`1.0.1+101`** (G6.1; the closed-testing build was `1.0.0+100`) | `+102` and up for each later upload |
-| `lib/config/app_version.dart` | `1.0.1` / `101` (a test fails if it differs from the pubspec) | bumped together |
+| `pubspec.yaml` | **`1.0.1+102`** (G6.2; G6.1 built `+101`, not uploaded; the closed-testing build was `1.0.0+100`) | `+103` and up for each later upload |
+| `lib/config/app_version.dart` | `1.0.1` / `102` (a test fails if it differs from the pubspec) | bumped together |
 | Android | `versionName` / `versionCode` come from the pubspec | — |
 | iOS | `CFBundleShortVersionString` / `CFBundleVersion` come from the pubspec | — |
 
@@ -152,6 +153,12 @@ Bump the build number (`+N`) on every upload. Bump the name for a user-visible r
   - No local API URL in the bundle.
   - The certificate's owner fields are all "Unknown": the keystore was created with default names. That's valid for Play, but confirm it is the intended upload key.
   - Only warnings were Java "source/target value 8 is obsolete" from plugins.
+- **Release build G6.2 (2026-11-13), the one to upload next:** same command, 71.3 MB AAB, **not uploaded**.
+  - **versionName `1.0.1`, versionCode `102`** (read from the bundle's manifest).
+  - **Signed with the same release key:**
+    - SHA-1 `4F:78:DA:13:86:82:CC:0D:B6:B2:CE:A8:42:C5:BC:D1:4F:98:D1:58`
+    - SHA-256 `2C:1F:C1:BE:3E:22:EB:E7:0F:D3:27:B7:6D:EF:06:CC:D1:58:58:07:EF:ED:8F:A8:8C:93:7E:4E:71:25:76:E1`
+  - **Inside:** `https://api.solvexo.store` and the `/pos/capabilities` probe. No local or dev URL, and no `dev-upload.invalid`.
 - **Release build G6.1 (2026-11-13):** `flutter build appbundle --release --dart-define-from-file=config/env/prod.json` produced a 71.3 MB AAB. **Not uploaded.**
   - **versionName `1.0.1`, versionCode `101`** (read from the bundle's manifest).
   - **Signing certificate:** the same release key as G6.0. Compare these with the upload key certificate in Play Console → App integrity:
@@ -238,19 +245,27 @@ Stale lines in `docs/store_submission_checklist.md`, corrected here:
 - **"No URL in code":** there is one production fallback.
 - **"Release requires APP_ENV staging/prod":** not checked. Only the URL is checked.
 
-### b.7 Closed testing against today's production API (G6.1)
+### b.7 Closed testing against today's production API (G6.1, detection hardened in G6.2)
 The closed-testing app talks to production, which still runs the G5.1 backend (`c889af0`) until release #2.
 
-**What the app does there:**
-- It learns the server is older from one 404 (`GET /api/pos/connectors`).
-- It **hides** Integrations, Payments setup, the receipt logo and the product page. Role presets were already hidden.
-- It **falls back** to the previous behaviour for:
-  - send receipt (share and WhatsApp only);
-  - the card terminal (switch absent);
-  - fiscal (nothing printed);
-  - connector wording.
+**How the app decides (G6.2):** one explicit probe, `GET /api/pos/capabilities`.
 
-**Proven against a real G5.1 stack** (`tool/run_older_backend_e2e.sh`): 8 core flow files, 29 tests, all passed. They cover sales, refunds, voids, an offline sale with sync, a return on another till, shifts and cash, printing, and G5.1. The mocked case is `test/older_backend_test.dart`.
+| Answer | Decision |
+|---|---|
+| 200 with `features` | Newer. Each feature is shown when it is listed |
+| 200 without `features`, or the framework's own "Cannot GET" 404 (the route is absent on G5.1) | Older |
+| Network error, 5xx, 401/403, a proxy page, or a 404 with our own `code` | Inconclusive: the last decision stands |
+
+- No other request can affect the decision; an ordinary 404 never does.
+- It is re-checked on every app start, when the home screen opens (after login or device setup) and on a store switch.
+- The last answer is cached per API base URL for offline starts. With nothing known yet, features are shown as before.
+- Once release #2 is live, the next start shows the features. No reinstall and no clearing of data are needed.
+
+**Older backend:**
+- **Hidden:** Integrations, Payments setup, the receipt logo and the product page. Role presets were already hidden, since that server sends none.
+- **Falls back:** send receipt (share and WhatsApp only), the card terminal (switch absent), fiscal (nothing printed), and connector wording.
+
+**Proven against a real G5.1 stack** (`tool/run_older_backend_e2e.sh`): 8 core flow files and 29 tests, all passed. Mocked tests: `test/older_backend_test.dart` and `test/g62_capabilities_test.dart`.
 
 ## c. Production data steps: order and timing
 

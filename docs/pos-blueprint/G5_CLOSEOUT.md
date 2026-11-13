@@ -234,3 +234,35 @@ All backend changes are additive. No existing response changed shape, and every 
 | A staging API URL | Web team / ops | `config/env/staging.json` |
 | Icon masters, store screenshots, privacy review | Sir Atiq / Jami | RELEASE_PLAN b.6 |
 | Play upload key check (compare the fingerprints below with Play Console) | Jami | — |
+
+## G6.2: older-backend detection hardened
+
+**Before (G6.1):**
+- The home screen's settings load read `GET /api/pos/connectors/:storeId`. When it returned null, the app checked the repository's shared `lastHttpStatus` field, and 404 meant "older".
+- The result lived in memory only and was re-checked only when the home settings load ran. It was lost on restart, so features were shown until the next check.
+- **Weaknesses:**
+  - The shared status field could be overwritten by a concurrent request, so an ordinary 404 (for example a missing product) could be mistaken for "older".
+  - A proxy or ingress 404 counted as "older" too.
+  - Nothing was cached for offline starts.
+
+**Now:**
+- **One explicit probe:** `GET /api/pos/capabilities` (backend `f673775`: public, static, no parameters). Its answer is classified by a pure function:
+
+  | Answer | Decision |
+  |---|---|
+  | 200 with `features` | Newer, gated per feature |
+  | 200 without `features`, or NestJS's own "Cannot GET" 404 | Older |
+  | Anything else (network, 5xx, 401/403, proxy page, a 404 with our `code`) | Inconclusive: no change |
+- **Re-checks:** on every app start, when the home screen opens (after login or device setup), and on a store switch (`AppPreferences.onStoreChanged`). Concurrent checks share one request.
+- **Cache:** per API base URL in SharedPreferences, so offline starts keep the last answer. With nothing known, features are shown.
+- **Removed:** the connectors-404 guess and the `lastHttpStatus` field.
+- **Tests** (`test/g62_capabilities_test.dart`, 9 tests; plus `older_backend_test.dart`):
+  - an ordinary resource 404 doesn't hide features (product, sale, connectors, even a route-missing-shaped 404 elsewhere);
+  - an older backend hides them;
+  - a newer backend gates the features it doesn't list;
+  - an upgrade between two starts shows them;
+  - offline and 5xx keep the last result, also after a restart;
+  - unknown means shown;
+  - the cache is per API;
+  - a store switch re-checks, and concurrent checks share one request.
+- **Version:** `1.0.1+102`, release AAB rebuilt: versionCode 102, versionName 1.0.1, the same release certificate (SHA-1 `4F:78:DA:13:…:D1:58`, SHA-256 `2C:1F:C1:BE:…:76:E1`). Not uploaded.
