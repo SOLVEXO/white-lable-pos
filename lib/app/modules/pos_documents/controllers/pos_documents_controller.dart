@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:solvexo_pos/app/modules/pos_pdf_viewer/pdf_viewer_view.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_credit_note_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
@@ -13,8 +14,9 @@ import 'package:solvexo_pos/app/data/local/pos_local_caches.dart' show SettingsC
 
 /// The tax invoice of a sale and its credit notes: load, share as PDF (print from the share sheet) and share the public link.
 class PosDocumentsController extends GetxController {
-  PosDocumentsController({PosRepository? repository, String? saleId, Future<void> Function(ShareParams)? share, ThermalPrinterService? printer, ReprintGate? reprintGate, Future<bool> Function(String storeId)? requirePinCached})
-      : _repo = repository ?? PosRepository(),
+  PosDocumentsController({PosRepository? repository, String? saleId, Future<void> Function(ShareParams)? share, ThermalPrinterService? printer, ReprintGate? reprintGate, Future<bool> Function(String storeId)? requirePinCached, PdfOpener? openPdf})
+      : _openPdf = openPdf ?? openPdfViewer,
+        _repo = repository ?? PosRepository(),
         _gateOverride = reprintGate,
         _requirePin = requirePinCached ?? _cachedRequirePin,
         _printerOverride = printer,
@@ -23,6 +25,7 @@ class PosDocumentsController extends GetxController {
   final PosRepository _repo;
   final String? _saleIdOverride;
   final Future<void> Function(ShareParams) _share;
+  final PdfOpener _openPdf;
   final ThermalPrinterService? _printerOverride;
   final ReprintGate? _gateOverride;
   late final ReprintGate _gate = _gateOverride ?? ReprintGate(repository: _repo);
@@ -95,15 +98,33 @@ class PosDocumentsController extends GetxController {
   Future<void> shareInvoicePdf() => _guard(() async {
         final s = sale.value;
         if (s == null) return;
-        final f = documents.value?.invoiceFiscal;
-        final bytes = await TaxDocumentPdf.invoice(sale: s, fiscalNumber: f?.confirmed == true ? f!.number : null, fiscalPending: f?.pending == true);
+        final bytes = await _invoiceBytes(s);
         await _share(ShareParams(files: [XFile.fromData(Uint8List.fromList(bytes), name: 'invoice-${s.invoice?.number ?? s.saleNumber}.pdf', mimeType: 'application/pdf')], subject: 'Tax invoice ${s.invoice?.number ?? s.saleNumber}'));
       });
 
   Future<void> shareCreditNotePdf(PosCreditNote n) => _guard(() async {
-        final bytes = await TaxDocumentPdf.creditNote(note: n, fiscalNumber: n.fiscal?.confirmed == true ? n.fiscal!.number : null, fiscalPending: n.fiscal?.pending == true);
+        final bytes = await _creditNoteBytes(n);
         await _share(ShareParams(files: [XFile.fromData(Uint8List.fromList(bytes), name: 'credit-note-${n.number}.pdf', mimeType: 'application/pdf')], subject: 'Credit note ${n.number}'));
       });
+
+  Future<Uint8List> _invoiceBytes(PosSaleModel s) async {
+    final f = documents.value?.invoiceFiscal;
+    return Uint8List.fromList(await TaxDocumentPdf.invoice(sale: s, fiscalNumber: f?.confirmed == true ? f!.number : null, fiscalPending: f?.pending == true));
+  }
+
+  Future<Uint8List> _creditNoteBytes(PosCreditNote n) async =>
+      Uint8List.fromList(await TaxDocumentPdf.creditNote(note: n, fiscalNumber: n.fiscal?.confirmed == true ? n.fiscal!.number : null, fiscalPending: n.fiscal?.pending == true));
+
+  /// G5.8: the tax invoice / a credit note in the in-app viewer (view, print, share) — the same PDF the share button sends.
+  Future<void> viewInvoicePdf() async {
+    final s = sale.value;
+    if (s == null) return;
+    final no = s.invoice?.number ?? s.saleNumber;
+    await _openPdf(PdfDoc(title: 'Tax invoice $no', fileName: 'invoice-$no.pdf', bytes: () => _invoiceBytes(s)));
+  }
+
+  Future<void> viewCreditNotePdf(PosCreditNote n) =>
+      _openPdf(PdfDoc(title: 'Credit note ${n.number}', fileName: 'credit-note-${n.number}.pdf', bytes: () => _creditNoteBytes(n)));
 
   /// The public page for the customer: the invoice view (`/invoice`) or a credit note page — behind the sale's unguessable receipt link.
   Future<void> shareLink({String? creditNoteNumber}) => _guard(() async {

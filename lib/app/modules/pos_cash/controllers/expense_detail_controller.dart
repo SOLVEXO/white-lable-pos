@@ -1,12 +1,28 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_cash_models.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/modules/pos_cash/controllers/cash_common.dart';
+import 'package:solvexo_pos/app/modules/pos_pdf_viewer/pdf_viewer_view.dart';
 
 /// One expense: its status and the manager's decision note, the receipt (a fresh 5-minute link is fetched every time it is opened, shown from memory
 /// only, and dropped when it is closed: never stored, cached or logged), and the manager's Approve / Reject (a rejection needs a reason).
 class ExpenseDetailController extends GetxController {
-  ExpenseDetailController({required this.expenseId, PosRepository? repository, String? storeId}) : _repo = repository ?? PosRepository(), _storeIdOverride = storeId;
+  ExpenseDetailController({required this.expenseId, PosRepository? repository, String? storeId, PdfOpener? openPdf, Future<Uint8List> Function(String url)? fetchBytes})
+    : _repo = repository ?? PosRepository(),
+      _storeIdOverride = storeId,
+      _openPdf = openPdf ?? openPdfViewer,
+      _fetchBytes = fetchBytes ?? _download;
+  final PdfOpener _openPdf;
+  final Future<Uint8List> Function(String url) _fetchBytes;
+
+  /// The signed link is fetched with a plain client — never the app's API client, so no auth header goes to the storage host. Memory only.
+  static Future<Uint8List> _download(String url) async {
+    final r = await Dio().get<List<int>>(url, options: Options(responseType: ResponseType.bytes));
+    return Uint8List.fromList(r.data ?? const []);
+  }
   final String expenseId;
   final PosRepository _repo;
   final String? _storeIdOverride;
@@ -82,6 +98,30 @@ class ExpenseDetailController extends GetxController {
   }
 
   void closeReceipt() => receipt.value = null;
+
+  /// G5.8: a PDF receipt opens in the in-app viewer (view, print, share): a FRESH link each time, downloaded into memory when the viewer opens.
+  Future<void> viewReceiptPdf() async {
+    if (receiptLoading.value) return;
+    receiptError.value = null;
+    if (!cashOnline()) {
+      receiptError.value = 'Needs internet.';
+      return;
+    }
+    receiptLoading.value = true;
+    ReceiptLink? l;
+    try {
+      l = await _repo.getExpenseReceiptLink(await cashStoreId(_storeIdOverride), expenseId);
+    } finally {
+      receiptLoading.value = false;
+    }
+    if (l == null || l.url.isEmpty) {
+      receiptError.value = cashErrorMessage(_repo.lastErrorCode, fallback: 'Could not open the receipt. Try again.');
+      return;
+    }
+    final url = l.url;
+    final no = expense.value?.number ?? '';
+    await _openPdf(PdfDoc(title: 'Expense receipt', fileName: 'expense-receipt${no.isEmpty ? '' : '-$no'}.pdf', bytes: () => _fetchBytes(url)));
+  }
 
   /// [approve] true = approve; false = reject (needs [note]).
   Future<bool> decide({required bool approve, String? note}) async {

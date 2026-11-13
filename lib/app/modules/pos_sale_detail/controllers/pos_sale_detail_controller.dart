@@ -15,6 +15,7 @@ import 'package:get/get.dart';
 import 'package:solvexo_pos/app/modules/pos_sale_detail/widgets/send_receipt_sheet.dart';
 import 'package:solvexo_pos/app/data/services/reprint_gate.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:solvexo_pos/app/modules/pos_pdf_viewer/pdf_viewer_view.dart';
 
 class PosSaleDetailController extends GetxController {
   PosSaleDetailController({PosRepository? posRepository, ThermalPrinterService? printerService, ReprintGate? reprintGate})
@@ -154,6 +155,18 @@ class PosSaleDetailController extends GetxController {
     final s = sale.value;
     if (s == null) return;
     SharePlus.instance.share(ShareParams(text: _receipt(s).toPlainText(), subject: 'Receipt ${s.saleNumber}'));
+  }
+
+  /// G5.8: the receipt PDF in the in-app viewer (view, print, share). [open] is for tests.
+  Future<void> viewReceiptPdf({PdfOpener? open}) async {
+    final s = sale.value;
+    if (s == null) return;
+    final data = _receipt(s);
+    await (open ?? openPdfViewer)(PdfDoc(
+      title: 'Receipt ${s.saleNumber}',
+      fileName: 'receipt-${s.saleNumber.isNotEmpty ? s.saleNumber : s.id}.pdf',
+      bytes: () async => Uint8List.fromList(await ReceiptPdfBuilder.build(data: data)),
+    ));
   }
 
   /// Shareable PDF receipt — kept alongside [shareReceipt] and

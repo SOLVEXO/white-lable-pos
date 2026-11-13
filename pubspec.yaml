@@ -33,7 +33,7 @@ dependencies:
   audioplayers: ^6.6.0
   # Receipt PDF generation (Phase 1) — no printer hardware integration exists
   # yet, so receipts are scoped to in-app + shareable PDF, per the Phase 1
-  # plan. Shared via the already-used share_plus, no `printing` package needed.
+  # plan. Shared via the already-used share_plus; viewed / printed in the app with `printing` (G5.8).
   pdf: ^3.11.1
   # Network-interface status for the offline banner (Phase 3) — reflects
   # whether a network interface is connected, not verified internet
@@ -76,6 +76,7 @@ dependencies:
   qr_flutter: ^4.1.0
   wakelock_plus: ^1.4.0
   file_picker: ^11.0.3
+  printing: ^5.14.3 # G5.8: in-app PDF viewer (view, print, share) — approved
 
 dev_dependencies:
   flutter_test:

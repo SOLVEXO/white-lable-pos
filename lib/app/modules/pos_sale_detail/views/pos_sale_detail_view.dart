@@ -45,6 +45,15 @@ class PosSaleDetailView extends StatelessWidget {
                       : Icon(Icons.print_outlined, color: AppColors.primaryColor, size: 20),
                 ),
               ),
+              // G5.8: view the receipt PDF in the app (print / share from the viewer)
+              GestureDetector(
+                key: const Key('saleViewPdf'),
+                onTap: () => c.viewReceiptPdf(),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(Icons.preview_outlined, color: AppColors.primaryColor, size: 20),
+                ),
+              ),
               GestureDetector(
                 onTap: c.isExportingPdf.value ? null : c.shareReceiptPdf,
                 child: Padding(

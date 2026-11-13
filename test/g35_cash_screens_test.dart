@@ -700,7 +700,7 @@ void main() {
       expect(find.byKey(const Key('expenseApprove')), findsNothing);
     });
 
-    testWidgets('the receipt type is known from the expense: a PDF says so at once with NO link request; an image gets the button', (t) async {
+    testWidgets('the receipt type is known from the expense: a PDF gets "View PDF receipt" with NO link request yet; an image gets the button', (t) async {
       await pump(
         t,
         ExpenseDetailView(
@@ -708,13 +708,13 @@ void main() {
           controller: put(expense(hasReceipt: true, receiptMime: 'application/pdf')),
         ),
       );
-      expect(find.byKey(const Key('receiptPdfNote')), findsOneWidget);
+      expect(find.byKey(const Key('viewReceiptPdf')), findsOneWidget);
       expect(find.byKey(const Key('viewReceipt')), findsNothing);
       verifyNever(() => repo.getExpenseReceiptLink(any(), any()));
       Get.reset();
       await pump(t, ExpenseDetailView(expenseId: 'x1', controller: put(expense(hasReceipt: true))));
       expect(find.byKey(const Key('viewReceipt')), findsOneWidget);
-      expect(find.byKey(const Key('receiptPdfNote')), findsNothing);
+      expect(find.byKey(const Key('viewReceiptPdf')), findsNothing);
     });
 
     testWidgets('who recorded the expense is shown on the row and on the detail', (t) async {
@@ -748,10 +748,10 @@ void main() {
       final c = put(expense(hasReceipt: true));
       await pump(t, ExpenseDetailView(expenseId: 'x1', controller: c));
       await tapKey(t, 'viewReceipt');
-      expect(find.byKey(const Key('receiptPdfNote')), findsOneWidget);
+      expect(find.byKey(const Key('viewReceiptPdf')), findsOneWidget);
       expect(find.byKey(const Key('hideReceipt')), findsOneWidget);
       await tapKey(t, 'hideReceipt');
-      expect(find.byKey(const Key('receiptPdfNote')), findsNothing);
+      expect(find.byKey(const Key('viewReceiptPdf')), findsNothing);
       await tapKey(t, 'viewReceipt');
       verify(() => repo.getExpenseReceiptLink('st1', 'x1')).called(2);
       expect(c.receipt.value!.url, endsWith('/2'));

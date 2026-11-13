@@ -49,10 +49,11 @@ class _ReasonDialogState extends State<_ReasonDialog> {
 }
 
 /// The receipt, shown from a link fetched a moment ago. The image is loaded straight from that link into memory (no disk cache, nothing written to the
-/// device) and evicted when the viewer closes; the link is never printed. A PDF cannot be previewed in the app, and says so.
+/// device) and evicted when the viewer closes; the link is never printed. A PDF opens in the in-app PDF viewer instead ([onViewPdf]).
 class ReceiptViewer extends StatefulWidget {
-  const ReceiptViewer({super.key, required this.link});
+  const ReceiptViewer({super.key, required this.link, this.onViewPdf});
   final ReceiptLink link;
+  final VoidCallback? onViewPdf;
   @override
   State<ReceiptViewer> createState() => _ReceiptViewerState();
 }
@@ -71,13 +72,12 @@ class _ReceiptViewerState extends State<ReceiptViewer> {
     final p = context.palette;
     final t = context.type;
     if (widget.link.isPdf) {
-      return Padding(
-        padding: const EdgeInsets.all(Space.s4),
-        child: Text(
-          'This receipt is a PDF. PDFs cannot be previewed in the app: open the expense on the web dashboard to view it.',
-          key: const Key('receiptPdfNote'),
-          style: t.body.copyWith(color: p.textSecondary),
-        ),
+      return AppButton(
+        key: const Key('viewReceiptPdf'),
+        label: 'View PDF receipt',
+        variant: AppButtonVariant.secondary,
+        icon: Icons.picture_as_pdf_outlined,
+        onPressed: widget.onViewPdf,
       );
     }
     return ClipRRect(
@@ -193,11 +193,22 @@ class ExpenseDetailView extends StatelessWidget {
             style: t.body.copyWith(color: p.textMuted),
           )
         else if (e.receiptIsPdf)
-          // the expense itself says the receipt is a PDF: no link is fetched, the hint is shown at once
-          Text(
-            'This receipt is a PDF. PDFs cannot be previewed in the app: open the expense on the web dashboard to view it.',
-            key: const Key('receiptPdfNote'),
-            style: t.body.copyWith(color: p.textSecondary),
+          // the expense itself says the receipt is a PDF: no link is fetched until "View PDF receipt" (G5.8: in-app viewer)
+          Obx(
+            () => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppButton(
+                  key: const Key('viewReceiptPdf'),
+                  label: 'View PDF receipt',
+                  variant: AppButtonVariant.secondary,
+                  icon: Icons.picture_as_pdf_outlined,
+                  loading: c.receiptLoading.value,
+                  onPressed: c.viewReceiptPdf,
+                ),
+                SupplyErrorText(c.receiptError.value, errorKey: const Key('receiptError')),
+              ],
+            ),
           )
         else
           Obx(() {
@@ -205,7 +216,7 @@ class ExpenseDetailView extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (link != null) ReceiptViewer(key: ValueKey(link.url), link: link),
+                if (link != null) ReceiptViewer(key: ValueKey(link.url), link: link, onViewPdf: c.viewReceiptPdf),
                 if (link != null) const SizedBox(height: Space.s2),
                 AppButton(
                   key: Key(link == null ? 'viewReceipt' : 'hideReceipt'),
