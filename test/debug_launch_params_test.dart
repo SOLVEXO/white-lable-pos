@@ -19,7 +19,7 @@ void main() {
     for (final sig in [
       'static String? get(String key)',
       'static Future<void> seed()',
-      'static ThemeMode get themeMode',
+      'static ThemeMode? get themeMode',
       'static Widget wrapLandscape(',
     ]) {
       expect(firstStatement(sig), startsWith('if (!kDebugMode)'), reason: sig);

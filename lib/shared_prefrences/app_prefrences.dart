@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/data/services/theme_preference.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:solvexo_pos/app/data/local/secure_storage_options.dart';
@@ -224,7 +225,10 @@ class AppPreferences {
   static Future<void> _clearPreference({bool wipeQueueKey = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final queueKey = wipeQueueKey ? null : await _secureStorage.read(key: AesGcmQueueCipher.storageKey);
+    // G6.4: the device's Appearance choice is a device preference, not account data — it survives sign-out
+    final appearance = prefs.getString(ThemePreference.prefsKey);
     await prefs.clear();
+    if (appearance != null) await prefs.setString(ThemePreference.prefsKey, appearance);
     await _secureStorage.deleteAll();
     // G5.1: on iOS `deleteAll` can leave an item behind (found on the simulator: the write-back then failed with "already exists", -25299, and
     // threw out of sign-out). Put the queue key back only if it is not already there, and replace a leftover instead of failing.

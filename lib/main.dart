@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:solvexo_pos/app/components/network_status_banner.dart';
 import 'package:solvexo_pos/app/data/repositories/auth_repository.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
+import 'package:solvexo_pos/app/data/services/theme_preference.dart';
 import 'package:solvexo_pos/app/data/services/idle_lock_service.dart';
 import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/config/app_env.dart';
@@ -79,6 +80,8 @@ Future<void> _bootstrap() async {
   // Warms AppPreferences' sync in-memory cache so PosAccessMiddleware can
   // guard routes without an async gap — see AppPreferences.warmCache().
   await AppPreferences.warmCache();
+  // G6.4: the device's appearance choice, before the first frame (no light → dark flash)
+  await Get.put(ThemePreference(), permanent: true).init();
   // G6.2: what the backend supports — the cached answer first (offline starts), then one probe in the background on every start; a store switch
   // re-checks (the home screen also re-checks after each login)
   await ServerCapabilities.loadCached();
@@ -131,14 +134,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ResponsiveSizer(
       builder: (context, orientation, screenType) {
-        return GetMaterialApp(
+        // G6.4: the device's Appearance choice (Settings → Appearance: System / Light / Dark, default System). Observed here, so a change
+        // re-themes every open screen at once. Debug builds can still force one with THEME=light|dark.
+        return Obx(() => GetMaterialApp(
           debugShowCheckedModeBanner: false,
           title: AppBrand.posName,
-          // "Ink & Ember" theme. Since G6.3 every screen draws from palette tokens and was checked in dark, but the shipped app still opens
-          // in light (following the system setting is an owner decision); debug builds preview dark with THEME=dark.
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
-          themeMode: DebugLaunchParams.themeMode, // light unless a debug THEME=dark launch parameter says otherwise
+          themeMode: DebugLaunchParams.themeMode ?? Get.find<ThemePreference>().choice.value.themeMode,
           initialRoute: AppPages.initialRoute,
           getPages: AppPages.routes,
           // Clamp OS accessibility text scaling to 0.9–1.3 (G6.3: raised from 1.2 once every screen was on the design system and checked
@@ -160,7 +163,7 @@ class MyApp extends StatelessWidget {
               ),
             );
           },
-        );
+        ));
       },
     );
   }

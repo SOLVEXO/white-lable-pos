@@ -1,4 +1,5 @@
 import 'package:solvexo_pos/app/modules/pos_settings/controllers/pos_settings_controller.dart';
+import 'package:solvexo_pos/app/modules/pos_settings/widgets/appearance_section.dart';
 import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_close_shift_button.dart';
 import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_settings_profile_card.dart';
 import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_settings_section.dart';
@@ -38,6 +39,7 @@ class PosSettingsView extends StatelessWidget {
                       children: [
                         PosSettingsProfileCard(controller: controller),
                         const SizedBox(height: Space.s6),
+                        const AppearanceSection(), // G6.4: every role, this device only
                         ...controller.sections.map((s) => PosSettingsSectionWidget(section: s)),
                         const SizedBox(height: Space.s2),
                         PosCloseShiftButton(onTap: controller.showCloseShiftDialog),

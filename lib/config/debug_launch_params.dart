@@ -81,10 +81,10 @@ abstract final class DebugLaunchParams {
     if (minutes != null) await AppPreferences.setPosAutoLockMinutes(minutes);
   }
 
-  /// `THEME=dark` previews the dark theme on screens that are already migrated (the app itself ships light-only for now).
-  static ThemeMode get themeMode {
-    if (!kDebugMode) return ThemeMode.light;
-    return get('THEME') == 'dark' ? ThemeMode.dark : ThemeMode.light;
+  /// `THEME=light|dark` forces a theme on a debug build (screenshots); null = use the device's Appearance choice (G6.4).
+  static ThemeMode? get themeMode {
+    if (!kDebugMode) return null;
+    return switch (get('THEME')) { 'dark' => ThemeMode.dark, 'light' => ThemeMode.light, _ => null };
   }
 
   /// `ORIENTATION=landscape` (debug only): lays the whole app out landscape on a portrait-locked simulator
