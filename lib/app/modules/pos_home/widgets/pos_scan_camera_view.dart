@@ -70,18 +70,18 @@ class _PosScanCameraViewState extends State<PosScanCameraView> {
         builder: (context) {
           final p = context.palette;
           return Scaffold(
-            backgroundColor: Colors.black,
+            backgroundColor: p.media,
             appBar: AppBar(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              title: Text(widget.title ?? (widget.onCode != null ? 'Keep scanning' : 'Scan barcode'), style: context.type.title.copyWith(color: Colors.white)),
+              backgroundColor: p.media,
+              foregroundColor: p.onMedia,
+              title: Text(widget.title ?? (widget.onCode != null ? 'Keep scanning' : 'Scan barcode'), style: context.type.title.copyWith(color: p.onMedia)),
               actions: [
                 IconButton(
                   tooltip: 'Torch',
                   constraints: const BoxConstraints(minWidth: Space.minTouch, minHeight: Space.minTouch),
                   icon: ValueListenableBuilder(
                     valueListenable: _controller,
-                    builder: (context, state, child) => Icon(state.torchState == TorchState.on ? Icons.flash_on_rounded : Icons.flash_off_rounded, color: Colors.white),
+                    builder: (context, state, child) => Icon(state.torchState == TorchState.on ? Icons.flash_on_rounded : Icons.flash_off_rounded, color: p.onMedia),
                   ),
                   onPressed: () => _controller.toggleTorch(),
                 ),
@@ -101,12 +101,12 @@ class _PosScanCameraViewState extends State<PosScanCameraView> {
                   left: Space.s4,
                   right: Space.s4,
                   child: widget.onCode == null
-                      ? Text('Align the barcode within the frame', textAlign: TextAlign.center, style: context.type.body.copyWith(color: Colors.white70))
+                      ? Text('Align the barcode within the frame', textAlign: TextAlign.center, style: context.type.body.copyWith(color: p.onMediaMuted))
                       : Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(_lastLine ?? 'Scan one item after another', key: const Key('scanLastLine'), textAlign: TextAlign.center, style: context.type.body.copyWith(color: Colors.white)),
-                            if (_count > 0) Text('$_count scanned', key: const Key('scanCount'), style: context.type.caption.copyWith(color: Colors.white70)),
+                            Text(_lastLine ?? 'Scan one item after another', key: const Key('scanLastLine'), textAlign: TextAlign.center, style: context.type.body.copyWith(color: p.onMedia)),
+                            if (_count > 0) Text('$_count scanned', key: const Key('scanCount'), style: context.type.caption.copyWith(color: p.onMediaMuted)),
                             const SizedBox(height: Space.s3),
                             AppButton(key: const Key('scanDone'), label: 'Done', onPressed: () => Get.back<String>()),
                           ],
@@ -132,25 +132,26 @@ class ScanCameraProblem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(Space.s6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.no_photography_outlined, color: Colors.white70, size: 48),
+            Icon(Icons.no_photography_outlined, color: p.onMediaMuted, size: IconSizes.xl),
             const SizedBox(height: Space.s3),
             Text(
               denied ? 'Camera access is off' : 'The camera could not start',
               key: const Key('scanProblemTitle'),
-              style: context.type.title.copyWith(color: Colors.white),
+              style: context.type.title.copyWith(color: p.onMedia),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: Space.s2),
             Text(
               denied ? 'Allow the camera in Settings to scan barcodes. Until then, type the barcode or search by name — selling is not affected.' : 'You can type the barcode or search by name instead.',
               key: const Key('scanProblemBody'),
-              style: context.type.body.copyWith(color: Colors.white70),
+              style: context.type.body.copyWith(color: p.onMediaMuted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: Space.s4),

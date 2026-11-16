@@ -45,16 +45,8 @@ import 'package:solvexo_pos/utils/pos_role.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
 
 // ── POS theme colours (shared across the POS module) ─────────────────────────
-const kPosBg = AppColors.posThemeBg;
-const kPosSurface = AppColors.posThemeSurface;
-const kPosBorder = AppColors.posThemeBorder;
-const kPosSubText = AppColors.posThemeSubText;
-const kPosText = AppColors.posThemeText;
-const kPosGreen = AppColors.posStatusGreen;
-const kPosRed = AppColors.posStatusRed;
 
 // ── Cart item (local only — not serialised) ───────────────────────────────────
 class CartItem {
@@ -695,7 +687,7 @@ class PosHomeController extends GetxController {
     Get.bottomSheet(
       PosModifierSheet(product: product, variant: variant, groups: groups, controller: this),
       isScrollControlled: true,
-      backgroundColor: AppColors.transparent,
+      backgroundColor: Colors.transparent,
     );
   }
 
@@ -1225,7 +1217,7 @@ class PosHomeController extends GetxController {
     Get.bottomSheet(
       PosVariantPickerSheet(product: product, controller: this),
       isScrollControlled: true,
-      backgroundColor: AppColors.transparent,
+      backgroundColor: Colors.transparent,
     );
   }
 

@@ -20,13 +20,6 @@ lib/app/modules/pos_daily_report/views/pos_daily_report_view.dart 65
 lib/app/modules/pos_daily_report/widgets/pos_daily_report_shimmer.dart 3
 lib/app/modules/pos_device/views/delete_account_view.dart 8
 lib/app/modules/pos_device/views/pos_devices_view.dart 11
-lib/app/modules/pos_device/views/pos_lock_overlay.dart 1
-lib/app/modules/pos_held_sales/views/pos_held_sales_view.dart 1
-lib/app/modules/pos_home/controllers/pos_home_controller.dart 9
-lib/app/modules/pos_home/qr/raast_qr_screen.dart 3
-lib/app/modules/pos_home/widgets/cart_panel.dart 1
-lib/app/modules/pos_home/widgets/pos_scan_camera_view.dart 11
-lib/app/modules/pos_home/widgets/sale_success_view.dart 5
 lib/app/modules/pos_integrations/views/pos_integrations_view.dart 3
 lib/app/modules/pos_inventory/controllers/pos_inventory_controller.dart 22
 lib/app/modules/pos_inventory/views/pos_inventory_view.dart 57

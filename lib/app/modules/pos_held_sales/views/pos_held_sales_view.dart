@@ -121,7 +121,7 @@ class _HeldSaleTile extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(child: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall.copyWith(color: p.textSecondary))),
-                      Text('×${item.qty}  ${Money.format(item.lineTotal)}', style: t.amountMd.copyWith(fontSize: 12, color: p.textSecondary)),
+                      Text('×${item.qty}  ${Money.format(item.lineTotal)}', style: t.amountSm.copyWith(color: p.textSecondary)),
                     ],
                   ),
                 ),

@@ -269,7 +269,7 @@ class _Paper extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(l.name, style: t.body.copyWith(color: p.textPrimary)),
-                        Text(l.qtyAndPrice, style: t.amountMd.copyWith(fontSize: 12, color: p.textMuted)),
+                        Text(l.qtyAndPrice, style: t.amountSm.copyWith(color: p.textMuted)),
                       ],
                     ),
                   ),
@@ -332,8 +332,8 @@ class _DigitalReceipt extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            color: Colors.white, // a QR needs a light quiet zone in dark mode too
-            child: QrImageView(key: const Key('receiptQr'), data: link!, size: 92, padding: EdgeInsets.zero, backgroundColor: Colors.white, eyeStyle: const QrEyeStyle(color: Colors.black, eyeShape: QrEyeShape.square), dataModuleStyle: const QrDataModuleStyle(color: Colors.black, dataModuleShape: QrDataModuleShape.square)),
+            color: p.qrLight, // a QR needs a light quiet zone in dark mode too
+            child: QrImageView(key: const Key('receiptQr'), data: link!, size: 92, padding: EdgeInsets.zero, backgroundColor: p.qrLight, eyeStyle: QrEyeStyle(color: p.qrDark, eyeShape: QrEyeShape.square), dataModuleStyle: QrDataModuleStyle(color: p.qrDark, dataModuleShape: QrDataModuleShape.square)),
           ),
           const SizedBox(width: Space.s3),
           Expanded(

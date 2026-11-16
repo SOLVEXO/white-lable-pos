@@ -129,7 +129,7 @@ class _Info extends StatelessWidget {
         Text('Raast QR', style: context.type.label.copyWith(color: p.textSecondary), textAlign: TextAlign.center),
         const SizedBox(height: Space.s1),
         // the customer reads this from across the counter
-        Center(child: AmountText(amount, key: const Key('qrAmount'), style: context.type.display.copyWith(fontSize: 56, height: 1.05))),
+        Center(child: AmountText(amount, key: const Key('qrAmount'), style: context.type.amountDisplay)),
         const SizedBox(height: Space.s4),
         Center(key: const Key('qrStatus'), child: StatusBadge(title, tone: tone, icon: icon)),
         if (open && i != null) ...[
@@ -214,7 +214,7 @@ class _QrBox extends StatelessWidget {
         width: side,
         height: side,
         padding: const EdgeInsets.all(Space.s4),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: Radii.rLg, border: Border.all(color: p.border)), // always white: scanners need the contrast, light or dark theme
+        decoration: BoxDecoration(color: p.qrLight, borderRadius: Radii.rLg, border: Border.all(color: p.border)), // always white: scanners need the contrast, light or dark theme
         child: Center(
           child: switch (phase) {
             QrPhase.creating => const CircularProgressIndicator(),
@@ -222,7 +222,7 @@ class _QrBox extends StatelessWidget {
             QrPhase.unavailable => Icon(Icons.cloud_off_rounded, size: side * 0.4, color: p.textMuted),
             _ when showQr => Opacity(
                 opacity: phase == QrPhase.checking ? 0.55 : 1,
-                child: QrImageView(key: const Key('qrImage'), data: i.qrPayload, size: side - Space.s8, backgroundColor: Colors.white, errorCorrectionLevel: QrErrorCorrectLevel.M, semanticsLabel: 'Raast QR code for ${Money.format(Money.fromMinor(c.amountMinor))}'),
+                child: QrImageView(key: const Key('qrImage'), data: i.qrPayload, size: side - Space.s8, backgroundColor: p.qrLight, eyeStyle: QrEyeStyle(color: p.qrDark, eyeShape: QrEyeShape.square), dataModuleStyle: QrDataModuleStyle(color: p.qrDark, dataModuleShape: QrDataModuleShape.square), errorCorrectionLevel: QrErrorCorrectLevel.M, semanticsLabel: 'Raast QR code for ${Money.format(Money.fromMinor(c.amountMinor))}'),
               ),
             _ => Icon(Icons.qr_code_2_rounded, size: side * 0.5, color: p.textMuted.withValues(alpha: 0.35)), // expired / failed / cancelled: the old code is never shown again
           },

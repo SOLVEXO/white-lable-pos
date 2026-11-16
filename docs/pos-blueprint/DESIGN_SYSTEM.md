@@ -31,6 +31,8 @@ Light and dark are two constant instances of one `ThemeExtension`, so a screen n
 | `accentFill` + `onAccentFill` | Filled primary buttons (#B4553A with white text, 4.88:1) |
 | `success` / `warning` / `danger` / `info` | Plus `…Soft` (tint) and `…Fg` (text-safe) for each, and `onDanger` |
 | `heroStart`, `heroEnd`, `onHero`, `onHeroMuted` | The dark hero card, in both modes (added in G6.3) |
+| `qrLight`, `qrDark` | QR codes: always white with black modules, in dark mode too, because scanners need the contrast (G6.3) |
+| `media`, `onMedia`, `onMediaMuted` | Over a camera feed or a photo: the black backdrop and the light text and icons on it (G6.3) |
 | `scrim` | Behind sheets and dialogs |
 
 ### Typography — `context.type` (`tokens/typography.dart`)
@@ -48,6 +50,8 @@ Styles carry no colour; the widget adds one from the palette (`context.type.body
 | `label` | 13/16 | 14/18 | DM Sans 600 |
 | `caption` | 12/16 | 12/16 | DM Sans 500 |
 | `amountXl` / `amountLg` / `amountMd` | 36 / 24 / 16 | 44 / 28 / 17 | Manrope with tabular figures — **every amount** |
+| `amountSm` | 12/16 | 13/18 | Manrope 600, tabular: small figures under a line ("Rs120.00 each") (G6.3) |
+| `amountDisplay` | 56/60 | 64/68 | Manrope 700, tabular: the one figure read from a distance (customer-facing QR amount, lock-screen clock) (G6.3) |
 
 Manrope and DM Sans are variable fonts: each style sets the `wght` axis explicitly, because Flutter does not move it from `FontWeight`.
 

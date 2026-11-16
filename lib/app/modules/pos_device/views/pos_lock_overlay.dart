@@ -321,11 +321,7 @@ class _LockClockState extends State<_LockClock> {
           fit: BoxFit.scaleDown,
           child: Text(
             time,
-            style: t.amountXl.copyWith(
-              fontSize: 64,
-              height: 1.1,
-              color: p.textPrimary,
-            ),
+            style: t.amountDisplay.copyWith(color: p.textPrimary),
           ),
         ),
         Text(

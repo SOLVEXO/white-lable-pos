@@ -149,7 +149,7 @@ class CartLine extends StatelessWidget {
                             child: Text('Custom item${item.taxCategory == 'exempt' ? ' · tax exempt' : ''}', key: const Key('customLineTag'), style: context.type.caption.copyWith(color: p.accentFg)),
                           ),
                         const SizedBox(height: 2),
-                        Text('${Money.format(item.unitPrice)} each', style: context.type.amountMd.copyWith(fontSize: 12, color: p.textMuted)),
+                        Text('${Money.format(item.unitPrice)} each', style: context.type.amountSm.copyWith(color: p.textMuted)),
                       ],
                     ),
                   ),

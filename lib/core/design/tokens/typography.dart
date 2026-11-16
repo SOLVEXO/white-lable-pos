@@ -27,6 +27,8 @@ class AppTypeScale {
     required this.amountXl,
     required this.amountLg,
     required this.amountMd,
+    required this.amountSm,
+    required this.amountDisplay,
   });
 
   static const String displayFamily = 'Manrope';
@@ -45,6 +47,12 @@ class AppTypeScale {
   final TextStyle amountXl;
   final TextStyle amountLg;
   final TextStyle amountMd;
+
+  /// Small tabular figures: "Rs120.00 each", "×2  Rs240.00" under a line (G6.3).
+  final TextStyle amountSm;
+
+  /// The largest figure on a screen, read from a distance: the amount on the customer-facing Raast QR, the lock-screen clock (G6.3).
+  final TextStyle amountDisplay;
 
   static TextStyle _s(
     double size,
@@ -76,6 +84,8 @@ class AppTypeScale {
     amountXl: _s(36, 44, FontWeight.w700, family: displayFamily, ls: -0.5),
     amountLg: _s(24, 32, FontWeight.w700, family: displayFamily, ls: -0.3),
     amountMd: _s(16, 22, FontWeight.w600, family: displayFamily),
+    amountSm: _s(12, 16, FontWeight.w600, family: displayFamily),
+    amountDisplay: _s(56, 60, FontWeight.w700, family: displayFamily, ls: -1),
   );
 
   static final AppTypeScale tablet = AppTypeScale._(
@@ -90,6 +100,8 @@ class AppTypeScale {
     amountXl: _s(44, 52, FontWeight.w700, family: displayFamily, ls: -0.6),
     amountLg: _s(28, 36, FontWeight.w700, family: displayFamily, ls: -0.3),
     amountMd: _s(17, 24, FontWeight.w600, family: displayFamily),
+    amountSm: _s(13, 18, FontWeight.w600, family: displayFamily),
+    amountDisplay: _s(64, 68, FontWeight.w700, family: displayFamily, ls: -1.2),
   );
 
   /// Material [TextTheme] so stock widgets (dialogs, pickers, etc.) match.

@@ -42,6 +42,11 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.heroEnd,
     required this.onHero,
     required this.onHeroMuted,
+    required this.qrLight,
+    required this.qrDark,
+    required this.media,
+    required this.onMedia,
+    required this.onMediaMuted,
   });
 
   final Brightness brightness;
@@ -102,6 +107,15 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color onHero;
   final Color onHeroMuted;
 
+  /// A QR code's quiet zone and modules: always white / black, in dark mode too — scanners need the contrast (G6.3).
+  final Color qrLight;
+  final Color qrDark;
+
+  /// Over a camera feed or a photo: the backdrop, and text / icons on it (always light, both modes) (G6.3).
+  final Color media;
+  final Color onMedia;
+  final Color onMediaMuted;
+
   bool get isDark => brightness == Brightness.dark;
 
   // Brand coral from the Solvexo POS blueprint (design-tokens.json). Used for icons, highlights, selected states, focus
@@ -147,6 +161,11 @@ class AppPalette extends ThemeExtension<AppPalette> {
     heroEnd: Color(0xFF1D2127),
     onHero: Color(0xFFFFFFFF),
     onHeroMuted: Color(0xFFB9BEC6),
+    qrLight: Color(0xFFFFFFFF),
+    qrDark: Color(0xFF000000),
+    media: Color(0xFF000000),
+    onMedia: Color(0xFFFFFFFF),
+    onMediaMuted: Color(0xB3FFFFFF),
   );
 
   static const AppPalette light = AppPalette(
@@ -184,6 +203,11 @@ class AppPalette extends ThemeExtension<AppPalette> {
     heroEnd: _ink,
     onHero: Color(0xFFFFFFFF),
     onHeroMuted: Color(0xFFB9BEC6),
+    qrLight: Color(0xFFFFFFFF),
+    qrDark: Color(0xFF000000),
+    media: Color(0xFF000000),
+    onMedia: Color(0xFFFFFFFF),
+    onMediaMuted: Color(0xB3FFFFFF),
   );
 
   @override
