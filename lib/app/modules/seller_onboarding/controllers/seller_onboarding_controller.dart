@@ -1,12 +1,11 @@
 import 'dart:io';
 
 import 'package:solvexo_pos/app/components/app_image_picker.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/repositories/seller_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/upload_repository.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/toast_util.dart';
 import 'package:flutter/material.dart';
@@ -236,7 +235,7 @@ class SellerOnboardingController extends GetxController {
         selected: storeCurrency.value,
         onSelect: (code) => storeCurrency.value = code,
       ),
-      backgroundColor: AppColors.transparent,
+      backgroundColor: Colors.transparent,
     );
   }
 
@@ -317,64 +316,43 @@ class _PickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    final p = context.palette;
+    return AppSheetSurface(
+      title: title,
+      scrollable: false,
+      padding: EdgeInsets.zero,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 8),
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.lightGrey2,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
-            child: CustomText(
-              text: title,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: AppColors.black,
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.lightGrey2),
+          Divider(height: 1, color: p.border),
           ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.45,
             ),
             child: ListView.separated(
               shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: Space.s2),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const Divider(
-                height: 1,
-                indent: 20,
-                color: AppColors.lightGrey2,
-              ),
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, indent: Space.s5, color: p.border),
               itemBuilder: (_, i) {
                 final isSelected = items[i] == selected;
                 return ListTile(
-                  title: CustomText(
-                    text: items[i],
-                    fontSize: 15,
-                    color: isSelected
-                        ? AppColors.primaryColor
-                        : AppColors.black,
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.normal,
+                  selected: isSelected,
+                  title: Text(
+                    items[i],
+                    style: context.type.body.copyWith(
+                      color: isSelected ? p.accentFg : p.textPrimary,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
                   ),
                   trailing: isSelected
                       ? Icon(
                           Icons.check_rounded,
-                          color: AppColors.primaryColor,
-                          size: 18,
+                          color: p.accentFg,
+                          size: IconSizes.xs,
                         )
                       : null,
                   onTap: () {
@@ -385,7 +363,7 @@ class _PickerSheet extends StatelessWidget {
               },
             ),
           ),
-          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+          const SizedBox(height: Space.s2),
         ],
       ),
     );

@@ -1,7 +1,5 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/controllers/seller_onboarding_controller.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -14,18 +12,27 @@ class OnboardingStepBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
-      color: AppColors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      color: p.surface,
+      padding: const EdgeInsets.symmetric(
+        horizontal: Space.s4,
+        vertical: Space.s3,
+      ),
       child: Obx(
         () => Row(
           children: List.generate(_labels.length * 2 - 1, (i) {
-            if (i.isOdd) return _connector(i ~/ 2, controller.step.value);
+            if (i.isOdd) return _connector(p, i ~/ 2, controller.step.value);
             final index = i ~/ 2;
-            return _StepNode(
-              index: index,
-              label: _labels[index],
-              currentStep: controller.step.value,
+            // Loose flex: a node keeps its natural width, but shrinks (its
+            // label scales down) instead of overflowing at large text sizes.
+            return Flexible(
+              flex: 2,
+              child: _StepNode(
+                index: index,
+                label: _labels[index],
+                currentStep: controller.step.value,
+              ),
             );
           }),
         ),
@@ -33,13 +40,10 @@ class OnboardingStepBar extends StatelessWidget {
     );
   }
 
-  Widget _connector(int afterIndex, OnboardingStep current) {
+  Widget _connector(AppPalette p, int afterIndex, OnboardingStep current) {
     final isDone = current.index > afterIndex;
     return Expanded(
-      child: Container(
-        height: 2,
-        color: isDone ? AppColors.greenSuccess : AppColors.lightGrey2,
-      ),
+      child: Container(height: 2, color: isDone ? p.success : p.border),
     );
   }
 }
@@ -60,49 +64,64 @@ class _StepNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final fill = _isDone
+        ? p.success
+        : _isActive
+        ? p.accentFill
+        : p.fill;
+    final edge = _isDone
+        ? p.success
+        : _isActive
+        ? p.accentFill
+        : p.border;
+    final labelColor = _isDone
+        ? p.successFg
+        : _isActive
+        ? p.accentFg
+        : p.textMuted;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
+          duration: Motion.of(context, Motion.base),
           width: 30,
           height: 30,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: _isDone
-                ? AppColors.greenSuccess
-                : _isActive
-                    ? AppColors.primaryColor
-                    : AppColors.background,
-            border: Border.all(
-              color: _isDone
-                  ? AppColors.greenSuccess
-                  : _isActive
-                      ? AppColors.primaryColor
-                      : AppColors.lightGrey2,
-              width: 1.5,
-            ),
+            color: fill,
+            border: Border.all(color: edge, width: 1.5),
           ),
           alignment: Alignment.center,
           child: _isDone
-              ? const Icon(Icons.check_rounded, size: 15, color: AppColors.white)
-              : CustomText(
-                  text: '${index + 1}',
-                  fontSize: AppFontSize.tiny,
-                  fontWeight: FontWeight.bold,
-                  color: _isActive ? AppColors.white : AppColors.grey,
+              ? Icon(
+                  Icons.check_rounded,
+                  size: IconSizes.xxs,
+                  color: p.onAccentFill,
+                )
+              : FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${index + 1}',
+                    style: context.type.label.copyWith(
+                      color: _isActive ? p.onAccentFill : p.textMuted,
+                    ),
+                  ),
                 ),
         ),
-        const SizedBox(height: 5),
-        CustomText(
-          text: label,
-          fontSize: 9,
-          fontWeight: (_isActive || _isDone) ? FontWeight.w600 : FontWeight.w400,
-          color: _isDone
-              ? AppColors.greenSuccess
-              : _isActive
-                  ? AppColors.primaryColor
-                  : AppColors.grey,
+        const SizedBox(height: Space.s1),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: context.type.caption.copyWith(
+              color: labelColor,
+              fontWeight: (_isActive || _isDone)
+                  ? FontWeight.w600
+                  : FontWeight.w400,
+            ),
+          ),
         ),
       ],
     );

@@ -13,7 +13,11 @@ import 'package:flutter_test/flutter_test.dart';
 const _exemptDirs = ['lib/core/design/'];
 
 /// Individual exceptions that cannot follow the rule, each with its reason. Key: `<path>|<rule>`.
-const Map<String, String> allowlist = {};
+const Map<String, String> allowlist = {
+  'lib/app/modules/splash_screen/views/splash_screen_view.dart|raw-color':
+      'SplashScreenView.nativeSplashInk must equal the native splash colour (pubspec flutter_native_splash #0B1020) so frame 0 '
+      'matches pixel for pixel; it is not a theme colour (the dark palette uses a different ink) and test/phase2_screens_test.dart pins it.',
+};
 
 final rules = <String, RegExp>{
   'raw-color': RegExp(r'\bColor\(0x|\bColor\.from(ARGB|RGBO)\('),

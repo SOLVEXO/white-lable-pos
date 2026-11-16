@@ -36,9 +36,9 @@ class OnboardingView extends StatelessWidget {
                       ),
                       child: Text(
                         'Skip',
-                        style: context.type.label.copyWith(
+                        style: context.type.body.copyWith(
                           color: p.textSecondary,
-                          fontSize: context.type.body.fontSize,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -103,9 +103,9 @@ class _Slide extends StatelessWidget {
         const SizedBox(height: Space.s3),
         Text(
           slide.subtitle,
-          style: t.body.copyWith(
+          style: t.subtitle.copyWith(
             color: p.textSecondary,
-            fontSize: t.subtitle.fontSize,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],

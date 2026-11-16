@@ -1,4 +1,3 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/components/svg_icon.dart';
 import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/controllers/seller_onboarding_controller.dart';
@@ -7,11 +6,8 @@ import 'package:solvexo_pos/app/modules/seller_onboarding/widgets/onboarding_ste
 import 'package:solvexo_pos/app/modules/seller_onboarding/widgets/step2_store_info_form.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/widgets/step3_seller_type_grid.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/widgets/step5_go_live.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_images.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -24,13 +20,14 @@ class SellerOnboardingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: p.background,
       body: Column(
         children: [
           _TopHeader(context: context, controller: controller),
           OnboardingStepBar(controller: controller),
-          const Divider(height: 1, color: AppColors.lightGrey2),
+          Divider(height: 1, color: p.border),
           Expanded(
             child: Obx(() {
               return AnimatedSwitcher(
@@ -86,30 +83,31 @@ class _TopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
-      color: AppColors.white,
+      color: p.surface,
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8,
-        left: AppDimen.allPadding,
-        right: AppDimen.allPadding,
-        bottom: 10,
+        top: MediaQuery.of(context).padding.top + Space.s2,
+        left: Space.s4,
+        right: Space.s4,
+        bottom: Space.s3,
       ),
       child: Row(
         children: [
           SvgIcon(assetName: AppImages.logoImage, size: 40),
-          const SizedBox(width: 5),
-          CustomText(
-            text: AppBrand.appName.toUpperCase(),
-            fontFamily: AppTextStyles.headingFontFamily,
-            fontSize: AppFontSize.medium,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryColor,
+          const SizedBox(width: Space.s1),
+          Text(
+            AppBrand.appName.toUpperCase(),
+            style: context.type.title.copyWith(color: p.accentFg),
           ),
           const Spacer(),
-          const CustomText(
-            text: 'Set up your store',
-            fontSize: AppFontSize.tiny,
-            color: AppColors.grey,
+          Flexible(
+            child: Text(
+              'Set up your store',
+              style: context.type.caption.copyWith(color: p.textMuted),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

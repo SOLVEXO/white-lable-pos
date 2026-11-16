@@ -1,10 +1,6 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/controllers/seller_onboarding_controller.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -16,54 +12,41 @@ class Step5GoLive extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final marketplaceName = AppBrand.marketplaceName;
+    final p = context.palette;
+    final t = context.type;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppDimen.allPadding),
+      padding: const EdgeInsets.all(Space.s4),
       child: Column(
         children: [
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(AppDimen.allPadding),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(AppDimen.serviceCountTileRadius + 4),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.black.withOpacity(0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
+          const SizedBox(height: Space.s2),
+          AppCard(
             child: Column(
               children: [
-                const SizedBox(height: 12),
-                const CustomText(text: '🎉', fontSize: 52),
-                const SizedBox(height: 16),
-                const CustomText(
-                  text: 'Your store setup is ready!',
-                  fontSize: AppFontSize.veryLarge,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.black,
+                const SizedBox(height: Space.s3),
+                ExcludeSemantics(child: Text('🎉', style: t.display)),
+                const SizedBox(height: Space.s4),
+                Text(
+                  'Your store setup is ready!',
+                  style: t.headline.copyWith(color: p.textPrimary),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
-                CustomText(
-                  text: 'Welcome to $marketplaceName. One more step: verify your business details so our team can approve your store — you can only publish products on $marketplaceName once it\'s approved.',
-                  fontSize: AppFontSize.verySmall,
-                  color: AppColors.grey,
+                const SizedBox(height: Space.s2),
+                Text(
+                  'Welcome to $marketplaceName. One more step: verify your business details so our team can approve your store — you can only publish products on $marketplaceName once it\'s approved.',
+                  style: t.bodySmall.copyWith(color: p.textSecondary),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: Space.s6),
                 _SetupSummary(controller: controller),
-                const SizedBox(height: 24),
+                const SizedBox(height: Space.s6),
                 const _SectionTitle(title: 'What happens next'),
-                const SizedBox(height: 14),
+                const SizedBox(height: Space.s3),
                 const _NextStepsTimeline(),
-                const SizedBox(height: 20),
+                const SizedBox(height: Space.s5),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Space.s4),
         ],
       ),
     );
@@ -79,23 +62,22 @@ class _SetupSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appName = AppBrand.appName;
+    final p = context.palette;
     return Obx(
       () => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(AppDimen.serviceCountTileRadius),
-        ),
+        padding: const EdgeInsets.all(Space.s3),
+        decoration: BoxDecoration(color: p.fill, borderRadius: Radii.rMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CustomText(
-              text: 'Your $appName Setup',
-              fontSize: AppFontSize.verySmall,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
+            Text(
+              'Your $appName Setup',
+              style: context.type.label.copyWith(
+                color: p.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Space.s3),
             _SummaryRow(
               emoji: '🏪',
               label: 'Store',
@@ -115,8 +97,16 @@ class _SetupSummary extends StatelessWidget {
               label: 'Products',
               value: 'Physical Products',
             ),
-            _SummaryRow(emoji: '💳', label: 'Plan', value: 'Starter — Free'),
-            const _SummaryRow(emoji: '✨', label: 'AI Credits', value: '100 free credits included'),
+            const _SummaryRow(
+              emoji: '💳',
+              label: 'Plan',
+              value: 'Starter — Free',
+            ),
+            const _SummaryRow(
+              emoji: '✨',
+              label: 'AI Credits',
+              value: '100 free credits included',
+            ),
           ],
         ),
       ),
@@ -137,31 +127,33 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: Space.s2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 24,
-            child: CustomText(text: emoji, fontSize: 14),
+            child: ExcludeSemantics(child: Text(emoji, style: t.bodySmall)),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: Space.s2),
           SizedBox(
             width: 100,
-            child: CustomText(
-              text: label,
-              fontSize: AppFontSize.tiny,
-              color: AppColors.grey,
+            child: Text(
+              label,
+              style: t.caption.copyWith(color: p.textSecondary),
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: Space.s1),
           Expanded(
-            child: CustomText(
-              text: value,
-              fontSize: AppFontSize.tiny,
-              fontWeight: FontWeight.w600,
-              color: AppColors.black,
+            child: Text(
+              value,
+              style: t.caption.copyWith(
+                color: p.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -180,12 +172,15 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: CustomText(
-        text: title,
-        fontFamily: AppTextStyles.headingFontFamily,
-        fontSize: AppFontSize.verySmall,
-        fontWeight: FontWeight.bold,
-        color: AppColors.black,
+      child: Semantics(
+        header: true,
+        child: Text(
+          title,
+          style: context.type.subtitle.copyWith(
+            color: context.palette.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -243,6 +238,8 @@ class _TimelineStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -250,32 +247,36 @@ class _TimelineStep extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: AppColors.background,
+            color: p.fill,
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.lightGrey2),
+            border: Border.all(color: p.border),
           ),
           alignment: Alignment.center,
-          child: CustomText(text: emoji, fontSize: 15),
+          child: ExcludeSemantics(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(emoji, style: t.bodySmall),
+            ),
+          ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: Space.s3),
         Expanded(
           child: Padding(
-            padding: EdgeInsets.only(bottom: isLast ? 0 : 2, top: 4),
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 2, top: Space.s1),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CustomText(
-                  text: title,
-                  fontSize: AppFontSize.verySmall,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.black2,
+                Text(
+                  title,
+                  style: t.label.copyWith(
+                    color: p.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 2),
-                CustomText(
-                  text: subtitle,
-                  fontSize: AppFontSize.tiny,
-                  color: AppColors.grey,
-                  height: 1.35,
+                Text(
+                  subtitle,
+                  style: t.caption.copyWith(color: p.textSecondary),
                 ),
               ],
             ),
@@ -293,7 +294,7 @@ class _TimelineConnector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(left: 16.5),
-      child: Container(width: 1.5, height: 18, color: AppColors.lightGrey2),
+      child: Container(width: 1.5, height: 18, color: context.palette.border),
     );
   }
 }

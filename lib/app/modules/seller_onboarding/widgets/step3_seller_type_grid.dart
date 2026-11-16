@@ -1,9 +1,5 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/modules/seller_onboarding/controllers/seller_onboarding_controller.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -14,33 +10,31 @@ class Step3SellerTypeGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppDimen.allPadding),
+      padding: const EdgeInsets.all(Space.s4),
       child: Column(
         children: [
-          const SizedBox(height: 8),
-          const CustomText(
-            text: 'What kind of seller are you?',
-            fontFamily: AppTextStyles.headingFontFamily,
-            fontSize: AppFontSize.veryLarge,
-            fontWeight: FontWeight.bold,
-            color: AppColors.black,
+          const SizedBox(height: Space.s2),
+          Text(
+            'What kind of seller are you?',
+            style: t.headline.copyWith(color: p.textPrimary),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
-          const CustomText(
-            text: "We'll personalise your dashboard and tools based on your answer.",
-            fontSize: AppFontSize.verySmall,
-            color: AppColors.grey,
+          const SizedBox(height: Space.s2),
+          Text(
+            "We'll personalise your dashboard and tools based on your answer.",
+            style: t.bodySmall.copyWith(color: p.textSecondary),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: Space.s5),
           Column(
             children: [
               for (int i = 0; i < kSellerTypes.length; i += 2)
                 Padding(
                   padding: EdgeInsets.only(
-                    bottom: i + 2 < kSellerTypes.length ? 10 : 0,
+                    bottom: i + 2 < kSellerTypes.length ? Space.s3 : 0,
                   ),
                   child: _TypeCardRow(
                     first: kSellerTypes[i],
@@ -52,7 +46,7 @@ class Step3SellerTypeGrid extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Space.s4),
         ],
       ),
     );
@@ -96,7 +90,7 @@ class _TypeCardRow extends StatelessWidget {
               onTap: () => controller.selectSellerType(first.type),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: Space.s3),
           Expanded(
             child: second == null
                 ? const SizedBox.shrink()
@@ -117,57 +111,61 @@ class _TypeCard extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _TypeCard({required this.data, required this.isSelected, required this.onTap});
+  const _TypeCard({
+    required this.data,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryColor.withOpacity(0.05) : AppColors.white,
-          borderRadius: BorderRadius.circular(AppDimen.serviceCountTileRadius),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryColor : AppColors.lightGrey2,
-            width: isSelected ? 1.5 : 1.0,
+    final p = context.palette;
+    final t = context.type;
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: Motion.of(context, Motion.fast),
+          padding: const EdgeInsets.all(Space.s3),
+          decoration: BoxDecoration(
+            color: isSelected ? p.accentSoft : p.surface,
+            borderRadius: Radii.rMd,
+            border: Border.all(
+              color: isSelected ? p.accent : p.border,
+              width: isSelected ? 1.5 : 1.0,
+            ),
+            boxShadow: context.softShadow,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.black.withOpacity(0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                CustomText(text: data.emoji, fontSize: 28),
-                _RadioDot(isSelected: isSelected),
-              ],
-            ),
-            const SizedBox(height: 8),
-            CustomText(
-              text: data.name,
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: isSelected ? AppColors.primaryColor : AppColors.black,
-            ),
-            const SizedBox(height: 3),
-            CustomText(
-              text: data.description,
-              fontSize: AppFontSize.verySmall,
-              color: AppColors.grey,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(data.emoji, style: t.headline),
+                  _RadioDot(isSelected: isSelected),
+                ],
+              ),
+              const SizedBox(height: Space.s2),
+              Text(
+                data.name,
+                style: t.body.copyWith(
+                  color: isSelected ? p.accentFg : p.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: Space.s1),
+              Text(
+                data.description,
+                style: t.bodySmall.copyWith(color: p.textSecondary),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -180,21 +178,22 @@ class _RadioDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+      duration: Motion.of(context, Motion.fast),
       width: 18,
       height: 18,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isSelected ? AppColors.primaryColor : AppColors.white,
+        color: isSelected ? p.accentFill : p.surface,
         border: Border.all(
-          color: isSelected ? AppColors.primaryColor : AppColors.lightGrey2,
+          color: isSelected ? p.accentFill : p.border,
           width: 1.5,
         ),
       ),
       alignment: Alignment.center,
       child: isSelected
-          ? const Icon(Icons.check_rounded, size: 11, color: AppColors.white)
+          ? Icon(Icons.check_rounded, size: 11, color: p.onAccentFill)
           : null,
     );
   }

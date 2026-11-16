@@ -4,10 +4,6 @@ import 'package:solvexo_pos/app/modules/pos_pin_login/controllers/pos_pin_login_
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 
-// Still imported from here by the legacy Open Register screen (until it is migrated).
-export 'package:solvexo_pos/app/modules/pos_pin_login/widgets/pin_legacy_theme.dart'
-    show kPinBg, kPinSurface, kPinBorder, kPinText, kPinSub;
-
 /// Cashier sign-in on a shared till: employee email + register + 4-digit PIN.
 /// Phone: one column. Tablet landscape: who-you-are on the left, PIN pad on the right.
 class PosPinLoginView extends StatelessWidget {
@@ -42,9 +38,9 @@ class PosPinLoginView extends StatelessWidget {
                 ),
                 label: Text(
                   'Owner access',
-                  style: context.type.label.copyWith(
+                  style: context.type.body.copyWith(
                     color: p.textSecondary,
-                    fontSize: context.type.body.fontSize,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               );
