@@ -1,15 +1,9 @@
-import 'package:solvexo_pos/app/components/buttons/app_button.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/components/custom_text_field.dart';
-import 'package:solvexo_pos/app/modules/pos_open_register/controllers/pos_open_register_controller.dart';
-import 'package:solvexo_pos/app/modules/pos_pin_login/views/pos_pin_login_view.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:solvexo_pos/utils/money.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:solvexo_pos/app/modules/pos_open_register/controllers/pos_open_register_controller.dart';
+import 'package:solvexo_pos/core/design/design.dart';
+import 'package:solvexo_pos/utils/money.dart';
 
 class PosOpenRegisterView extends StatelessWidget {
   PosOpenRegisterView({super.key});
@@ -18,135 +12,130 @@ class PosOpenRegisterView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     return Scaffold(
-      backgroundColor: kPinBg,
+      backgroundColor: p.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Back ──────────────────────────────────────────────
-              GestureDetector(
-                onTap: () => Get.back(),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: kPinSurface,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: kPinBorder),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: kPinText,
-                    size: 18,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 28),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(Space.s6, Space.s4, Space.s6, Space.s4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Back ──────────────────────────────────────────────
+                        Material(
+                          color: p.surface,
+                          shape: RoundedRectangleBorder(borderRadius: Radii.rSm, side: BorderSide(color: p.border)),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => Get.back(),
+                            child: SizedBox(
+                              width: Space.minTouch,
+                              height: Space.minTouch,
+                              child: Semantics(
+                                button: true,
+                                label: 'Back',
+                                child: Icon(Icons.arrow_back_ios_new_rounded, color: p.textPrimary, size: IconSizes.xs),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: Space.s6),
 
-              // ── Header ────────────────────────────────────────────
-              const CustomText(
-                text: 'Open Register',
-                fontSize: AppFontSize.veryLarge,
-                fontWeight: FontWeight.bold,
-                color: kPinText,
-              ),
-              const SizedBox(height: 8),
-              CustomText(
-                text: 'Starting shift on ${c.registerName}',
-                fontSize: AppFontSize.verySmall,
-                color: kPinSub,
-              ),
-              const SizedBox(height: 32),
+                        // ── Header ────────────────────────────────────────────
+                        Semantics(
+                          header: true,
+                          child: Text('Open Register', style: t.headline.copyWith(color: p.textPrimary)),
+                        ),
+                        const SizedBox(height: Space.s2),
+                        Text('Starting shift on ${c.registerName}', style: t.bodySmall.copyWith(color: p.textSecondary)),
+                        const SizedBox(height: Space.s8),
 
-              // ── Employee card ──────────────────────────────────────
-              _InfoCard(
-                icon: Icons.person_outline_rounded,
-                label: 'Employee',
-                value: c.employee.name,
-                sub: c.employee.role.capitalizeFirst ?? c.employee.role,
-              ),
-              const SizedBox(height: 12),
-              _InfoCard(
-                icon: Icons.point_of_sale_outlined,
-                label: 'Register',
-                value: c.registerName,
-                sub:
-                    'Shift: ${c.shiftId.isEmpty ? "Not assigned" : "Assigned"}',
-              ),
-              // ── G4.6: how the last shift on this register closed ───
-              Obx(() => c.lastClose.value == null ? const SizedBox.shrink() : Padding(padding: const EdgeInsets.only(top: 12), child: _LastCloseCard(c: c))),
-              const SizedBox(height: 28),
+                        // ── Employee card ──────────────────────────────────────
+                        _InfoCard(
+                          icon: Icons.person_outline_rounded,
+                          label: 'Employee',
+                          value: c.employee.name,
+                          sub: c.employee.role.capitalizeFirst ?? c.employee.role,
+                        ),
+                        const SizedBox(height: Space.s3),
+                        _InfoCard(
+                          icon: Icons.point_of_sale_outlined,
+                          label: 'Register',
+                          value: c.registerName,
+                          sub: 'Shift: ${c.shiftId.isEmpty ? "Not assigned" : "Assigned"}',
+                        ),
+                        // ── G4.6: how the last shift on this register closed ───
+                        Obx(
+                          () => c.lastClose.value == null
+                              ? const SizedBox.shrink()
+                              : Padding(padding: const EdgeInsets.only(top: Space.s3), child: _LastCloseCard(c: c)),
+                        ),
+                        const SizedBox(height: Space.s6),
 
-              // ── Opening cash ───────────────────────────────────────
-              const CustomText(
-                text: 'Opening Float (Cash in Drawer)',
-                fontSize: AppFontSize.verySmall,
-                fontWeight: FontWeight.w600,
-                color: kPinText,
-              ),
-              const SizedBox(height: 10),
-              CustomTextField(
-                controller: c.openingCashController,
-                hintText: '0.00',
-                textColor: AppColors.white,
-                borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                fillColor: kPinSurface,
-                prefixIcon: Padding(
-                  padding: const EdgeInsets.only(left: 14, right: 8),
-                  // the store's currency (known once the last close is read), not a fixed \$
-                  child: Obx(
-                    () => CustomText(
-                      text: Money.symbol(c.currency),
-                      fontSize: AppFontSize.medium,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryColor,
+                        // ── Opening cash ───────────────────────────────────────
+                        Text('Opening Float (Cash in Drawer)', style: t.label.copyWith(color: p.textPrimary)),
+                        const SizedBox(height: Space.s3),
+                        // the store's currency (known once the last close is read), not a fixed symbol
+                        Obx(
+                          () => AppTextField(
+                            label: 'Amount (${Money.symbol(c.currency)})',
+                            controller: c.openingCashController,
+                            hint: '0.00',
+                            mono: true,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          ),
+                        ),
+                        const SizedBox(height: Space.s2),
+                        Text('Enter 0 if starting with an empty drawer.', style: t.caption.copyWith(color: p.textSecondary)),
+                        // G4.6: count it note by note (the server checks the notes add up to the float)
+                        Obx(
+                          () => !c.canCount
+                              ? const SizedBox.shrink()
+                              : Padding(
+                                  padding: const EdgeInsets.only(top: Space.s2),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: AppButton(
+                                      key: const Key('countFloat'),
+                                      variant: AppButtonVariant.ghost,
+                                      expand: false,
+                                      icon: Icons.calculate_outlined,
+                                      label: c.denominations.isEmpty
+                                          ? 'Count notes & coins'
+                                          : 'Counted ${c.denominations.fold<int>(0, (n, d) => n + d.count)} notes & coins · edit',
+                                      onPressed: c.countFloat,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const CustomText(
-                text: 'Enter 0 if starting with an empty drawer.',
-                fontSize: AppFontSize.tiny,
-                color: kPinSub,
-              ),
-              // G4.6: count it note by note (the server checks the notes add up to the float)
-              Obx(
-                () => !c.canCount
-                    ? const SizedBox.shrink()
-                    : Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          key: const Key('countFloat'),
-                          onPressed: c.countFloat,
-                          icon: Icon(Icons.calculate_outlined, size: 18, color: AppColors.primaryColor),
-                          label: CustomText(
-                            text: c.denominations.isEmpty ? 'Count notes & coins' : 'Counted ${c.denominations.fold<int>(0, (n, d) => n + d.count)} notes & coins · edit',
-                            fontSize: AppFontSize.verySmall,
-                            color: AppColors.primaryColor,
-                          ),
-                        ),
-                      ),
-              ),
 
-              const Spacer(),
-
-              // ── Open button ────────────────────────────────────────
-              Obx(
-                () => LegacyAppButton(
-                  label: c.isOpening.value
-                      ? 'Opening...'
-                      : 'Open Register & Start Shift',
-                  onPressed: c.isOpening.value ? null : c.openRegister,
+                // ── Open button ────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Space.s6, Space.s2, Space.s6, Space.s4),
+                  child: Obx(
+                    () => AppButton(
+                      label: c.isOpening.value ? 'Opening...' : 'Open Register & Start Shift',
+                      size: AppButtonSize.lg,
+                      loading: c.isOpening.value,
+                      onPressed: c.isOpening.value ? null : c.openRegister,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppDimen.allPadding),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -161,35 +150,37 @@ class _LastCloseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     final l = c.lastClose.value!;
     String m(int? v) => v == null ? '—' : Money.format(Money.fromMinor(v, l.exponent), currency: l.currency, exponent: l.exponent);
     final v = l.varianceMinor ?? 0;
     final when = l.closedAt == null ? '' : DateFormat('d MMM, HH:mm').format(l.closedAt!);
+    final tone = v == 0 ? p.successFg : (v < 0 ? p.dangerFg : p.warningFg);
+    final figures = Text('Counted ${m(l.countedMinor)}  ·  Expected ${m(l.expectedMinor)}', style: t.bodySmall.copyWith(color: p.textPrimary));
+    final variance = Text(
+      key: const Key('lastCloseVariance'),
+      v == 0 ? 'Matched' : '${v < 0 ? 'Short' : 'Over'} ${m(v.abs())}',
+      style: t.bodySmall.copyWith(color: tone, fontWeight: FontWeight.w700),
+    );
+    final stack = MediaQuery.textScalerOf(context).scale(16) > 19;
     return Container(
       key: const Key('lastCloseCard'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       decoration: BoxDecoration(
-        color: kPinSurface,
-        borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-        border: Border.all(color: v == 0 ? kPinBorder : (v < 0 ? AppColors.red : AppColors.orange)),
+        color: p.surface,
+        borderRadius: Radii.rLg,
+        border: Border.all(color: v == 0 ? p.border : (v < 0 ? p.danger : p.warning)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomText(text: 'Last close${l.forced ? ' (forced)' : ''}${l.closedByName != null ? ' · ${l.closedByName}' : ''}${when.isEmpty ? '' : ' · $when'}', fontSize: AppFontSize.tiny, color: kPinSub),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(child: CustomText(text: 'Counted ${m(l.countedMinor)}  ·  Expected ${m(l.expectedMinor)}', fontSize: AppFontSize.verySmall, color: kPinText)),
-              CustomText(
-                key: const Key('lastCloseVariance'),
-                text: v == 0 ? 'Matched' : '${v < 0 ? 'Short' : 'Over'} ${m(v.abs())}',
-                fontSize: AppFontSize.verySmall,
-                fontWeight: FontWeight.bold,
-                color: v == 0 ? AppColors.green2 : (v < 0 ? AppColors.red : AppColors.orange),
-              ),
-            ],
+          Text(
+            'Last close${l.forced ? ' (forced)' : ''}${l.closedByName != null ? ' · ${l.closedByName}' : ''}${when.isEmpty ? '' : ' · $when'}',
+            style: t.caption.copyWith(color: p.textSecondary),
           ),
+          const SizedBox(height: Space.s2),
+          if (stack) ...[figures, const SizedBox(height: Space.s1), variance] else Row(children: [Expanded(child: figures), const SizedBox(width: Space.s2), variance]),
         ],
       ),
     );
@@ -202,50 +193,32 @@ class _InfoCard extends StatelessWidget {
   final String value;
   final String sub;
 
-  const _InfoCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.sub,
-  });
+  const _InfoCard({required this.icon, required this.label, required this.value, required this.sub});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kPinSurface,
-        borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-        border: Border.all(color: kPinBorder),
-      ),
+    final p = context.palette;
+    final t = context.type;
+    return AppCard(
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: AppColors.primaryColor, size: 20),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: p.accentSoft, borderRadius: Radii.rMd),
+            child: Icon(icon, color: p.accentFg, size: IconSizes.sm),
           ),
-          const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CustomText(
-                text: label,
-                fontSize: AppFontSize.tiny,
-                color: kPinSub,
-              ),
-              const SizedBox(height: 3),
-              CustomText(
-                text: value,
-                fontSize: AppFontSize.verySmall,
-                fontWeight: FontWeight.bold,
-                color: kPinText,
-              ),
-              CustomText(text: sub, fontSize: AppFontSize.tiny, color: kPinSub),
-            ],
+          const SizedBox(width: Space.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: t.caption.copyWith(color: p.textSecondary)),
+                const SizedBox(height: 2),
+                Text(value, style: t.subtitle.copyWith(color: p.textPrimary)),
+                Text(sub, style: t.caption.copyWith(color: p.textSecondary)),
+              ],
+            ),
           ),
         ],
       ),

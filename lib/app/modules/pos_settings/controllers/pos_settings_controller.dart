@@ -7,8 +7,6 @@ import 'dart:async';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/components/denomination_sheet.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_settings_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.dart';
@@ -23,11 +21,9 @@ import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_printer_picker_
 import 'package:solvexo_pos/app/modules/pos_settings/widgets/pos_printer_settings_sheet.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/app/modules/pos_reports/controllers/reports_common.dart' show StoreDay;
-import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/config/resources/app_icons.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/utils/pos_role.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -436,14 +432,14 @@ class PosSettingsController extends GetxController {
       ctx,
       title: 'Tax Rate',
       confirmLabel: 'Save',
-      contentBuilder: (_) => CustomTextField(
+      contentBuilder: (c) => AppTextField(
+        label: 'Tax rate',
         controller: ctrl,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        isborder: true,
-        fillColor: AppColors.background,
-        suffixIcon: const Padding(
-          padding: EdgeInsets.only(right: 12),
-          child: CustomText(text: '%', fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
+        mono: true,
+        suffix: Padding(
+          padding: const EdgeInsets.only(right: Space.s3),
+          child: Text('%', style: c.type.body.copyWith(color: c.palette.textMuted)),
         ),
       ),
       onConfirm: () async {
@@ -463,11 +459,14 @@ class PosSettingsController extends GetxController {
     );
   }
 
+  /// The palette of the app's current theme (the sheets are opened without a BuildContext).
+  AppPalette get _sheetPalette => Get.theme.extension<AppPalette>() ?? AppPalette.light;
+
   void showPrinterSettings() {
     Get.bottomSheet(
       PosPrinterSettingsSheet(service: _printerService, canEdit: isManager),
-      backgroundColor: AppColors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: _sheetPalette.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Radii.xl))),
       isScrollControlled: true,
     );
   }
@@ -475,9 +474,9 @@ class PosSettingsController extends GetxController {
   void showPrinterPicker() {
     Get.bottomSheet(
       PosPrinterPickerSheet(service: _printerService),
-      backgroundColor: AppColors.white,
+      backgroundColor: _sheetPalette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(Radii.xl)),
       ),
       isScrollControlled: true,
     );
@@ -497,11 +496,10 @@ class PosSettingsController extends GetxController {
       ctx,
       title: title,
       confirmLabel: 'Save',
-      contentBuilder: (_) => CustomTextField(
+      contentBuilder: (_) => AppTextField(
+        label: title,
         controller: ctrl,
         maxLines: 3,
-        isborder: true,
-        fillColor: AppColors.background,
       ),
       onConfirm: () async {
         isSavingSettings.value = true;
@@ -556,7 +554,7 @@ class PosSettingsController extends GetxController {
       title: 'Sign out this device?',
       message: 'This removes the device from the store and clears everything stored on it. Someone will need the owner password to set it up again.',
       confirmLabel: 'Sign out',
-      confirmColor: AppColors.red,
+      destructive: true,
       onConfirm: () async {
         unawaited(_posRepo.pinLogout(_storeId));
         final r = await Get.find<PosDeviceService>().reset();
@@ -596,122 +594,125 @@ class PosSettingsController extends GetxController {
     showDialog(
       context: ctx,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimen.dialogRadius)),
-        title: const CustomText(
-          text: 'Close Shift',
-          fontSize: AppFontSize.small,
-          fontWeight: FontWeight.bold,
-          color: AppColors.black,
-        ),
-        content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (report != null) ...[
-              _CashFlowRow(label: 'Opening Cash', amount: report.cashFlow.openingCash),
-              _CashFlowRow(label: 'Cash Sales', amount: report.cashFlow.cashSales),
-              _CashFlowRow(label: 'Cash In', amount: report.cashFlow.cashIn),
-              _CashFlowRow(label: 'Cash Out', amount: -report.cashFlow.cashOut),
-              const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Divider(height: 1, color: AppColors.lightGrey2)),
-              _CashFlowRow(label: 'Expected Cash', amount: report.cashFlow.expectedCash, bold: true),
-              const SizedBox(height: 14),
-            ] else
-              const Padding(
-                padding: EdgeInsets.only(bottom: 10),
-                child: CustomText(
-                  text: "Couldn't load the expected-cash breakdown — you can still close, but count carefully.",
-                  fontSize: AppFontSize.tiny,
-                  color: AppColors.orange,
-                ),
-              ),
-            const CustomText(
-              text: 'Count the drawer and enter the actual cash amount.',
-              fontSize: AppFontSize.verySmall,
-              color: AppColors.grey,
-            ),
-            const SizedBox(height: 10),
-            CustomTextField(
-              controller: closingCashController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              hintText: '0.00',
-              isborder: true,
-              fillColor: AppColors.background,
-              prefixIcon: CustomText(text: Money.symbol(), fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
-            ),
-            // G4.6: count the drawer note by note (the server checks the notes add up to the amount)
-            if (denominationsFor(Money.currency) != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Obx(
-                  () => TextButton.icon(
-                    key: const Key('countClosingCash'),
-                    onPressed: countClosingCash,
-                    icon: const Icon(Icons.calculate_outlined, size: 18),
-                    label: Text(closingDenominations.isEmpty ? 'Count notes & coins' : 'Counted ${closingDenominations.fold<int>(0, (n, d) => n + d.count)} notes & coins · edit'),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 14),
-            const CustomText(
-              text: 'Card total from the terminal slip (optional).',
-              fontSize: AppFontSize.verySmall,
-              color: AppColors.grey,
-            ),
-            const SizedBox(height: 10),
-            CustomTextField(
-              key: const Key('cardSlipField'),
-              controller: cardSlipController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              hintText: 'Leave empty to skip',
-              isborder: true,
-              fillColor: AppColors.background,
-              prefixIcon: CustomText(text: Money.symbol(), fontSize: AppFontSize.verySmall, color: AppColors.iosGrey),
-            ),
-            if (report != null)
-              ValueListenableBuilder<TextEditingValue>(
-                valueListenable: closingCashController,
-                builder: (_, value, __) {
-                  final counted = double.tryParse(value.text.trim());
-                  if (counted == null) return const SizedBox.shrink();
-                  final diff = counted - report.cashFlow.expectedCash;
-                  final short = diff < 0;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(children: [
-                      CustomText(
-                        text: short ? 'Short by' : (diff > 0 ? 'Over by' : 'Matches exactly'),
-                        fontSize: AppFontSize.tiny,
-                        color: diff == 0 ? AppColors.green2 : (short ? AppColors.red : AppColors.orange),
+      builder: (_) => _ShiftDialogFrame(
+        child: AppDialogCard(
+          title: 'Close Shift',
+          content: Builder(
+            builder: (dctx) {
+              final p = dctx.palette;
+              final t = dctx.type;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (report != null) ...[
+                    _CashFlowRow(label: 'Opening Cash', amount: report.cashFlow.openingCash),
+                    _CashFlowRow(label: 'Cash Sales', amount: report.cashFlow.cashSales),
+                    _CashFlowRow(label: 'Cash In', amount: report.cashFlow.cashIn),
+                    _CashFlowRow(label: 'Cash Out', amount: -report.cashFlow.cashOut),
+                    Padding(padding: const EdgeInsets.symmetric(vertical: Space.s2), child: Divider(height: 1, color: p.border)),
+                    _CashFlowRow(label: 'Expected Cash', amount: report.cashFlow.expectedCash, bold: true),
+                    const SizedBox(height: Space.s4),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: Space.s3),
+                      child: Text(
+                        "Couldn't load the expected-cash breakdown — you can still close, but count carefully.",
+                        style: t.bodySmall.copyWith(color: p.warningFg),
                       ),
-                      const Spacer(),
-                      if (diff != 0)
-                        CustomText(
-                          text: Money.format(diff.abs()),
-                          fontSize: AppFontSize.verySmall,
-                          fontWeight: FontWeight.bold,
-                          color: short ? AppColors.red : AppColors.orange,
+                    ),
+                  Text('Count the drawer and enter the actual cash amount.', style: t.bodySmall.copyWith(color: p.textSecondary)),
+                  const SizedBox(height: Space.s3),
+                  AppTextField(
+                    label: 'Counted cash (${Money.symbol()})',
+                    controller: closingCashController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    hint: '0.00',
+                    mono: true,
+                  ),
+                  // G4.6: count the drawer note by note (the server checks the notes add up to the amount)
+                  if (denominationsFor(Money.currency) != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: Space.s2),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Obx(
+                          () => AppButton(
+                            key: const Key('countClosingCash'),
+                            variant: AppButtonVariant.ghost,
+                            expand: false,
+                            icon: Icons.calculate_outlined,
+                            label: closingDenominations.isEmpty ? 'Count notes & coins' : 'Counted ${closingDenominations.fold<int>(0, (n, d) => n + d.count)} notes & coins · edit',
+                            onPressed: countClosingCash,
+                          ),
                         ),
-                    ]),
-                  );
-                },
-              ),
-          ]),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const CustomText(text: 'Cancel', fontSize: AppFontSize.verySmall, color: AppColors.grey),
-          ),
-          Obx(() => _DialogPillButton(
-            label: 'Close Shift',
-            color: AppColors.red,
-            loading: isClosing.value,
-            onTap: () {
-              Navigator.pop(ctx);
-              _closeShift();
+                      ),
+                    ),
+                  const SizedBox(height: Space.s4),
+                  Text('Card total from the terminal slip (optional).', style: t.bodySmall.copyWith(color: p.textSecondary)),
+                  const SizedBox(height: Space.s3),
+                  AppTextField(
+                    key: const Key('cardSlipField'),
+                    label: 'Card total (${Money.symbol()})',
+                    controller: cardSlipController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    hint: 'Leave empty to skip',
+                    mono: true,
+                  ),
+                  if (report != null)
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: closingCashController,
+                      builder: (_, value, __) {
+                        final counted = double.tryParse(value.text.trim());
+                        if (counted == null) return const SizedBox.shrink();
+                        final diff = counted - report.cashFlow.expectedCash;
+                        final short = diff < 0;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: Space.s3),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  short ? 'Short by' : (diff > 0 ? 'Over by' : 'Matches exactly'),
+                                  style: t.bodySmall.copyWith(color: diff == 0 ? p.successFg : (short ? p.dangerFg : p.warningFg), fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              if (diff != 0)
+                                Flexible(
+                                  child: AmountText(
+                                    Money.format(diff.abs()),
+                                    style: t.amountMd,
+                                    color: short ? p.dangerFg : p.warningFg,
+                                    animate: false,
+                                    alignment: MainAxisAlignment.end,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              );
             },
-          )),
-        ],
+          ),
+          actions: [
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Navigator.pop(ctx),
+            ),
+            Obx(() => AppButton(
+              label: 'Close Shift',
+              variant: AppButtonVariant.danger,
+              loading: isClosing.value,
+              onPressed: () {
+                Navigator.pop(ctx);
+                _closeShift();
+              },
+            )),
+          ],
+        ),
       ),
     );
   }
@@ -776,45 +777,48 @@ class PosSettingsController extends GetxController {
     showDialog(
       context: ctx,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimen.dialogRadius)),
-        title: const CustomText(
-          text: 'Shift Closed',
-          fontSize: AppFontSize.small,
-          fontWeight: FontWeight.bold,
-          color: AppColors.black,
-        ),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _CashFlowRow(label: 'Expected Cash', amount: expected),
-          _CashFlowRow(label: 'Counted Cash', amount: counted),
-          const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Divider(height: 1, color: AppColors.lightGrey2)),
-          Row(children: [
-            CustomText(
-              text: difference == 0 ? 'Matches exactly' : (short ? 'Short' : 'Over'),
-              fontSize: AppFontSize.verySmall,
-              fontWeight: FontWeight.bold,
-              color: difference == 0 ? AppColors.green2 : (short ? AppColors.red : AppColors.orange),
-            ),
-            const Spacer(),
-            if (difference != 0)
-              CustomText(
-                text: Money.format(difference.abs()),
-                fontSize: AppFontSize.small2,
-                fontWeight: FontWeight.bold,
-                color: short ? AppColors.red : AppColors.orange,
-              ),
-          ]),
-        ]),
-        actions: [
-          _DialogPillButton(
-            label: 'Done',
-            onTap: () {
-              Navigator.pop(ctx);
-              Get.offAllNamed(Routes.posPinLogin);
+      builder: (_) => _ShiftDialogFrame(
+        child: AppDialogCard(
+          title: 'Shift Closed',
+          content: Builder(
+            builder: (dctx) {
+              final p = dctx.palette;
+              final t = dctx.type;
+              final tone = difference == 0 ? p.successFg : (short ? p.dangerFg : p.warningFg);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _CashFlowRow(label: 'Expected Cash', amount: expected),
+                  _CashFlowRow(label: 'Counted Cash', amount: counted),
+                  Padding(padding: const EdgeInsets.symmetric(vertical: Space.s2), child: Divider(height: 1, color: p.border)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          difference == 0 ? 'Matches exactly' : (short ? 'Short' : 'Over'),
+                          style: t.subtitle.copyWith(color: tone),
+                        ),
+                      ),
+                      if (difference != 0)
+                        Flexible(
+                          child: AmountText(Money.format(difference.abs()), style: t.amountLg, color: tone, animate: false, alignment: MainAxisAlignment.end),
+                        ),
+                    ],
+                  ),
+                ],
+              );
             },
           ),
-        ],
+          actions: [
+            AppButton(
+              label: 'Done',
+              onPressed: () {
+                Navigator.pop(ctx);
+                Get.offAllNamed(Routes.posPinLogin);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -832,46 +836,20 @@ class PosSettingsController extends GetxController {
   }
 }
 
-/// A colored pill-style dialog action button — mirrors the destructive
-/// action style already used across the app's confirm dialogs, with an
-/// optional inline loading state.
-class _DialogPillButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final Color? color;
-  final bool loading;
-
-  const _DialogPillButton({
-    required this.label,
-    required this.onTap,
-    this.color,
-    this.loading = false,
-  });
+/// Holds a shift dialog card: transparent, lifted above the keyboard and scrollable when the form does not fit.
+class _ShiftDialogFrame extends StatelessWidget {
+  final Widget child;
+  const _ShiftDialogFrame({required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = color ?? AppColors.primaryColor;
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-        decoration: BoxDecoration(
-          color: loading ? effectiveColor.withOpacity(0.5) : effectiveColor,
-          borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-        ),
-        child: loading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
-              )
-            : CustomText(
-                text: label,
-                fontSize: AppFontSize.verySmall,
-                fontWeight: FontWeight.w600,
-                color: AppColors.white,
-              ),
-      ),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s6),
+      child: SingleChildScrollView(child: child),
     );
   }
 }
@@ -886,23 +864,23 @@ class _CashFlowRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(children: [
-        CustomText(
-          text: label,
-          fontSize: AppFontSize.verySmall,
-          fontWeight: bold ? FontWeight.bold : FontWeight.w400,
-          color: AppColors.black2,
-        ),
-        const Spacer(),
-        CustomText(
-          text: Money.format(amount),
-          fontSize: AppFontSize.verySmall,
-          fontWeight: bold ? FontWeight.bold : FontWeight.w600,
-          color: AppColors.black2,
-        ),
-      ]),
+      padding: const EdgeInsets.symmetric(vertical: Space.s1),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(label, style: t.body.copyWith(color: p.textPrimary, fontWeight: bold ? FontWeight.w700 : FontWeight.w400)),
+          ),
+          const SizedBox(width: Space.s3),
+          Expanded(
+            flex: 2,
+            child: AmountText(Money.format(amount), style: t.amountMd, color: p.textPrimary, animate: false, alignment: MainAxisAlignment.end),
+          ),
+        ],
+      ),
     );
   }
 }

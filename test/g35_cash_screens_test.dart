@@ -1048,7 +1048,7 @@ void main() {
 
     testWidgets('a cashier cannot dismiss', (t) async {
       final (q, _) = await mount(t, [rec('f1', status: 'failed', code: 'NO_OPEN_SHIFT', message: 'x')]);
-      expect(t.widget<OutlinedButton>(find.byKey(const Key('cashDismiss_f1'))).onPressed, isNull);
+      expect(t.widget<AppButton>(find.byKey(const Key('cashDismiss_f1'))).onPressed, isNull);
       expect(find.text('Dismiss (manager)'), findsOneWidget);
       expect(q.dismissed, isEmpty);
     });

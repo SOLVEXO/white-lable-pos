@@ -1,12 +1,8 @@
 import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_report_model.dart';
 import 'package:solvexo_pos/app/modules/pos_session_report/controllers/pos_session_report_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_session_report/widgets/pos_session_report_shimmer.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -18,41 +14,36 @@ class PosSessionReportView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: CustomAppBarTwo(
-        title: 'Session Report',
-        color: AppColors.black2,
-        actions: [
-          GestureDetector(
-            onTap: c.refreshData,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Icon(Icons.refresh_rounded, color: AppColors.primaryColor, size: 22),
-            ),
-          ),
-        ],
-      ),
+    final p = context.palette;
+    return AppPage(
+      title: 'Session Report',
+      actions: [
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: c.refreshData,
+          icon: Icon(Icons.refresh_rounded, color: p.accentFg, size: IconSizes.md),
+        ),
+      ],
       body: Obx(() {
         if (c.isLoading.value) {
           return const PosSessionReportShimmer();
         }
         final report = c.report.value;
         if (report == null) {
-          return const Center(child: CustomText(text: 'Report not found.', fontSize: AppFontSize.small2, color: AppColors.iosGrey));
+          return const EmptyState(icon: Icons.receipt_long_outlined, title: 'Report not found.');
         }
         return RefreshIndicator(
           onRefresh: c.refreshData,
-          color: AppColors.primaryColor,
           child: ListView(
-            padding: const EdgeInsets.all(AppDimen.allPadding),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s8),
             children: [
               _SessionHeader(report: report),
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.s4),
               _SummaryGrid(report: report),
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.s4),
               _PaymentBreakdown(report: report),
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.s4),
               _CashFlowCard(report: report),
             ],
           ),
@@ -68,47 +59,28 @@ class _SessionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     final session = report.session;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: (session.isOpen ? AppColors.green2 : AppColors.iosGrey).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: CustomText(
-              text: session.isOpen ? 'Open' : (session.isForceClosed ? 'Force Closed' : 'Closed'),
-              fontSize: AppFontSize.tiny,
-              fontWeight: FontWeight.w600,
-              color: session.isOpen ? AppColors.green2 : AppColors.iosGrey,
-            ),
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          StatusBadge(
+            session.isOpen ? 'Open' : (session.isForceClosed ? 'Force Closed' : 'Closed'),
+            tone: session.isOpen ? StatusTone.success : StatusTone.neutral,
+            dot: true,
           ),
-        ]),
-        const SizedBox(height: 8),
-        CustomText(
-          text: 'Opened ${DateFormat('MMM d, h:mm a').format(session.openedAt.toLocal())}',
-          fontSize: AppFontSize.tiny,
-          color: AppColors.iosGrey,
-        ),
-        if (session.closedAt != null)
-          CustomText(
-            text: 'Closed ${DateFormat('MMM d, h:mm a').format(session.closedAt!.toLocal())}',
-            fontSize: AppFontSize.tiny,
-            color: AppColors.iosGrey,
-          ),
-        if (session.isForceClosed && session.forceCloseReason != null) ...[
-          const SizedBox(height: 6),
-          CustomText(text: 'Reason: ${session.forceCloseReason}', fontSize: AppFontSize.tiny, color: AppColors.orange),
+          const SizedBox(height: Space.s2),
+          Text('Opened ${DateFormat('MMM d, h:mm a').format(session.openedAt.toLocal())}', style: t.bodySmall.copyWith(color: p.textSecondary)),
+          if (session.closedAt != null)
+            Text('Closed ${DateFormat('MMM d, h:mm a').format(session.closedAt!.toLocal())}', style: t.bodySmall.copyWith(color: p.textSecondary)),
+          if (session.isForceClosed && session.forceCloseReason != null) ...[
+            const SizedBox(height: Space.s2),
+            Text('Reason: ${session.forceCloseReason}', style: t.bodySmall.copyWith(color: p.warningFg)),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }
@@ -119,13 +91,25 @@ class _SummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Expanded(child: _Metric(label: 'Total Sales', value: Money.format(report.totalSales), color: AppColors.primaryColor)),
-      const SizedBox(width: 10),
-      Expanded(child: _Metric(label: 'Transactions', value: '${report.totalTransactions}', color: AppColors.orange)),
-      const SizedBox(width: 10),
-      Expanded(child: _Metric(label: 'Refunds', value: Money.format(report.refundsTotal), color: AppColors.red)),
-    ]);
+    final p = context.palette;
+    final tiles = [
+      _Metric(label: 'Total Sales', value: Money.format(report.totalSales), color: p.accentFg),
+      _Metric(label: 'Transactions', value: '${report.totalTransactions}', color: p.textPrimary),
+      _Metric(label: 'Refunds', value: Money.format(report.refundsTotal), color: p.dangerFg),
+    ];
+    if (MediaQuery.textScalerOf(context).scale(16) > 19) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < tiles.length; i++) ...[if (i > 0) const SizedBox(height: Space.s2), tiles[i]],
+        ],
+      );
+    }
+    return Row(
+      children: [
+        for (var i = 0; i < tiles.length; i++) ...[if (i > 0) const SizedBox(width: Space.s2), Expanded(child: tiles[i])],
+      ],
+    );
   }
 }
 
@@ -137,18 +121,16 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+    final p = context.palette;
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: Space.s3, horizontal: Space.s3),
+      child: Column(
+        children: [
+          AmountText(value, style: context.type.amountMd, color: color, animate: false, alignment: MainAxisAlignment.center),
+          const SizedBox(height: Space.s1),
+          Text(label, style: context.type.caption.copyWith(color: p.textSecondary), textAlign: TextAlign.center),
+        ],
       ),
-      child: Column(children: [
-        CustomText(text: value, fontSize: AppFontSize.small, fontWeight: FontWeight.bold, color: color),
-        const SizedBox(height: 4),
-        CustomText(text: label, fontSize: AppFontSize.tiny, color: AppColors.iosGrey, textAlign: TextAlign.center),
-      ]),
     );
   }
 }
@@ -159,23 +141,29 @@ class _PaymentBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final b = report.byPaymentMethod;
     return _SectionCard(
       title: 'Payment Methods',
-      child: Column(children: [
-        _PayRow(label: 'Cash', count: b.cash.count, amount: b.cash.total),
-        const SizedBox(height: 8),
-        _PayRow(label: 'Card', count: b.card.count, amount: b.card.total),
-        // G5.4: the part of the card total taken on a separate bank terminal — to match against the terminal's own settlement slip
-        if (report.cardTerminalCount > 0) ...[
-          const SizedBox(height: 8),
-          _PayRow(key: const Key('cardTerminalRow'), label: '  on bank terminal', count: report.cardTerminalCount, amount: report.cardTerminalTotal),
-          if (report.cardTerminalApprovalCodes.isNotEmpty)
-            Align(alignment: Alignment.centerLeft, child: CustomText(text: '  Approval codes: ${report.cardTerminalApprovalCodes.join(', ')}', fontSize: AppFontSize.verySmall, color: AppColors.black2)),
+      child: Column(
+        children: [
+          _PayRow(label: 'Cash', count: b.cash.count, amount: b.cash.total),
+          const SizedBox(height: Space.s2),
+          _PayRow(label: 'Card', count: b.card.count, amount: b.card.total),
+          // G5.4: the part of the card total taken on a separate bank terminal — to match against the terminal's own settlement slip
+          if (report.cardTerminalCount > 0) ...[
+            const SizedBox(height: Space.s2),
+            _PayRow(key: const Key('cardTerminalRow'), label: '  on bank terminal', count: report.cardTerminalCount, amount: report.cardTerminalTotal),
+            if (report.cardTerminalApprovalCodes.isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('  Approval codes: ${report.cardTerminalApprovalCodes.join(', ')}', style: context.type.bodySmall.copyWith(color: p.textSecondary)),
+              ),
+          ],
+          const SizedBox(height: Space.s2),
+          _PayRow(label: 'Other', count: b.other.count, amount: b.other.total),
         ],
-        const SizedBox(height: 8),
-        _PayRow(label: 'Other', count: b.other.count, amount: b.other.total),
-      ]),
+      ),
     );
   }
 }
@@ -188,13 +176,21 @@ class _PayRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      CustomText(text: label, fontSize: AppFontSize.verySmall, color: AppColors.black2),
-      const SizedBox(width: 6),
-      CustomText(text: '($count)', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
-      const Spacer(),
-      CustomText(text: Money.format(amount), fontSize: AppFontSize.verySmall, fontWeight: FontWeight.w600, color: AppColors.black2),
-    ]);
+    final p = context.palette;
+    final t = context.type;
+    return Row(
+      children: [
+        Flexible(child: Text(label, style: t.body.copyWith(color: p.textPrimary))),
+        const SizedBox(width: Space.s1),
+        Text('($count)', style: t.caption.copyWith(color: p.textMuted)),
+        const SizedBox(width: Space.s3),
+        const Spacer(),
+        Flexible(
+          flex: 2,
+          child: AmountText(Money.format(amount), style: t.amountMd, color: p.textPrimary, animate: false, alignment: MainAxisAlignment.end),
+        ),
+      ],
+    );
   }
 }
 
@@ -204,35 +200,42 @@ class _CashFlowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final cf = report.cashFlow;
     return _SectionCard(
       title: 'Cash Drawer',
-      child: Column(children: [
-        _row('Opening Cash', cf.openingCash),
-        _row('Cash Sales', cf.cashSales),
-        _row('Cash In', cf.cashIn),
-        _row('Cash Out', -cf.cashOut),
-        _row('Expected Cash', cf.expectedCash, bold: true),
-        if (cf.closingCash != null) _row('Closing Cash (counted)', cf.closingCash!),
-        if (cf.cashDifference != null)
-          _row('Difference', cf.cashDifference!, color: cf.isShortfall ? AppColors.red : AppColors.green2, bold: true),
-      ]),
+      child: Column(
+        children: [
+          _row(context, 'Opening Cash', cf.openingCash),
+          _row(context, 'Cash Sales', cf.cashSales),
+          _row(context, 'Cash In', cf.cashIn),
+          _row(context, 'Cash Out', -cf.cashOut),
+          _row(context, 'Expected Cash', cf.expectedCash, bold: true),
+          if (cf.closingCash != null) _row(context, 'Closing Cash (counted)', cf.closingCash!),
+          if (cf.cashDifference != null) _row(context, 'Difference', cf.cashDifference!, color: cf.isShortfall ? p.dangerFg : p.successFg, bold: true),
+        ],
+      ),
     );
   }
 
-  Widget _row(String label, double amount, {Color? color, bool bold = false}) {
+  Widget _row(BuildContext context, String label, double amount, {Color? color, bool bold = false}) {
+    final p = context.palette;
+    final t = context.type;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(children: [
-        CustomText(text: label, fontSize: AppFontSize.verySmall, fontWeight: bold ? FontWeight.bold : FontWeight.w400, color: AppColors.black2),
-        const Spacer(),
-        CustomText(
-          text: Money.format(amount),
-          fontSize: AppFontSize.verySmall,
-          fontWeight: FontWeight.w600,
-          color: color ?? AppColors.black2,
-        ),
-      ]),
+      padding: const EdgeInsets.symmetric(vertical: Space.s1),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(label, style: t.body.copyWith(color: p.textPrimary, fontWeight: bold ? FontWeight.w700 : FontWeight.w400)),
+          ),
+          const SizedBox(width: Space.s3),
+          Expanded(
+            flex: 2,
+            child: AmountText(Money.format(amount), style: t.amountMd, color: color ?? p.textPrimary, animate: false, alignment: MainAxisAlignment.end),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -244,20 +247,18 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+    final p = context.palette;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(header: true, child: Text(title, style: context.type.title.copyWith(color: p.textPrimary))),
+          const SizedBox(height: Space.s3),
+          Divider(height: 1, color: p.border),
+          const SizedBox(height: Space.s3),
+          child,
+        ],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        CustomText(text: title, fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2),
-        const SizedBox(height: 12),
-        const Divider(height: 1, color: AppColors.lightGrey2),
-        const SizedBox(height: 12),
-        child,
-      ]),
     );
   }
 }
