@@ -4,7 +4,7 @@
 // Ratchet: test/design_guard_baseline.txt lists the violations that existed when the guard was added (`<path> <count>`). A file may never
 // exceed its baseline, a file not listed must have none, and when a file improves the baseline must be lowered in the same commit (so the list
 // only ever shrinks). Regenerate after restyling: DESIGN_GUARD_WRITE=1 flutter test test/design_guard_test.dart
-// By the end of G6.3 the baseline is empty.
+// Since the G6.3 close-out the baseline is empty and must stay empty (the last test enforces it).
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -14,10 +14,15 @@ const _exemptDirs = ['lib/core/design/'];
 
 /// Individual exceptions that cannot follow the rule, each with its reason. Key: `<path>|<rule>`.
 const Map<String, String> allowlist = {
-  'lib/app/modules/splash_screen/views/splash_screen_view.dart|raw-color':
-      'SplashScreenView.nativeSplashInk must equal the native splash colour (pubspec flutter_native_splash #0B1020) so frame 0 '
-      'matches pixel for pixel; it is not a theme colour (the dark palette uses a different ink) and test/phase2_screens_test.dart pins it.',
+  // PDF documents drawn with the `pdf` package: pw.TextStyle sized in print points for paper, not app UI (no BuildContext, no theme).
+  'lib/utils/daybook_pdf.dart|font-size': _pdf, 'lib/utils/daybook_pdf.dart|ad-hoc-textstyle': _pdf,
+  'lib/utils/receipt_pdf_builder.dart|font-size': _pdf, 'lib/utils/receipt_pdf_builder.dart|ad-hoc-textstyle': _pdf,
+  'lib/utils/report_export.dart|font-size': _pdf, 'lib/utils/report_export.dart|ad-hoc-textstyle': _pdf,
+  'lib/utils/tax_document_pdf.dart|font-size': _pdf, 'lib/utils/tax_document_pdf.dart|ad-hoc-textstyle': _pdf,
+  'lib/utils/team_report_pdf.dart|font-size': _pdf, 'lib/utils/team_report_pdf.dart|ad-hoc-textstyle': _pdf,
 };
+
+const _pdf = 'A PDF document built with the pdf package (pw.TextStyle in print points for paper); not app UI, no theme or BuildContext.';
 
 final rules = <String, RegExp>{
   'raw-color': RegExp(r'\bColor\(0x|\bColor\.from(ARGB|RGBO)\('),
@@ -125,6 +130,10 @@ void main() {
       if (now < e.value) problems.add('${e.key}: now $now, baseline ${e.value} — lower the baseline (DESIGN_GUARD_WRITE=1)');
     }
     expect(problems, isEmpty, reason: problems.join('\n'));
+  });
+
+  test('G6.3 close-out: the baseline is empty — no screen is on the legacy kit any more, and none may come back', () {
+    expect(readBaseline(), isEmpty, reason: 'fix the violations instead of adding them to the baseline');
   });
 
   test('every allow-list entry names a real file and a reason', () {

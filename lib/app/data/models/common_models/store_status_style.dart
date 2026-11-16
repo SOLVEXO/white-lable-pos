@@ -1,7 +1,6 @@
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:flutter/material.dart';
+import 'package:solvexo_pos/core/design/design.dart' show StatusTone;
 
-/// Label + color for a [StoreModel.status] value — shared by every place
+/// Label + tone for a [StoreModel.status] value — shared by every place
 /// that renders a store status badge (`store_meta_card.dart`,
 /// `seller_stores/widgets/store_card.dart`, `store_verification_card.dart`)
 /// so the mapping can't drift between screens. No new enum: `status` stays
@@ -13,8 +12,9 @@ class StoreStatusStyle {
   final String label;
   /// Compact label — used in tight inline pills (store list card badge).
   final String shortLabel;
-  final Color color;
-  const StoreStatusStyle(this.label, this.shortLabel, this.color);
+  /// The design system's status tone (G6.3: was a legacy colour); draw it with `StatusBadge(label, tone: tone)`.
+  final StatusTone tone;
+  const StoreStatusStyle(this.label, this.shortLabel, this.tone);
 }
 
 StoreStatusStyle storeStatusStyle(String status) {
@@ -23,28 +23,28 @@ StoreStatusStyle storeStatusStyle(String status) {
       return const StoreStatusStyle(
         'Active & Verified',
         'Active',
-        AppColors.greenSuccess,
+        StatusTone.success,
       );
     case 'pending':
       return const StoreStatusStyle(
         'Pending Verification',
         'Pending',
-        AppColors.orange,
+        StatusTone.warning,
       );
     case 'rejected':
       return const StoreStatusStyle(
         'Verification Rejected',
         'Rejected',
-        AppColors.red,
+        StatusTone.danger,
       );
     case 'suspended':
-      return const StoreStatusStyle('Suspended', 'Suspended', AppColors.red);
+      return const StoreStatusStyle('Suspended', 'Suspended', StatusTone.danger);
     default:
-      return const StoreStatusStyle('Inactive', 'Inactive', AppColors.grey);
+      return const StoreStatusStyle('Inactive', 'Inactive', StatusTone.neutral);
   }
 }
 
-/// Label + color for a [StoreModel.verificationStatus] value
+/// Label + tone for a [StoreModel.verificationStatus] value
 /// (`not_started|pending|under_review|verified|rejected`) — the KYC review's
 /// own state, independent of the marketplace [storeStatusStyle] above. Used
 /// wherever a screen needs to show *where the review itself stands* while
@@ -53,8 +53,9 @@ StoreStatusStyle storeStatusStyle(String status) {
 class VerificationStatusStyle {
   final String label;
   final String shortLabel;
-  final Color color;
-  const VerificationStatusStyle(this.label, this.shortLabel, this.color);
+  /// The design system's status tone (G6.3: was a legacy colour); draw it with `StatusBadge(label, tone: tone)`.
+  final StatusTone tone;
+  const VerificationStatusStyle(this.label, this.shortLabel, this.tone);
 }
 
 VerificationStatusStyle verificationStatusStyle(String verificationStatus) {
@@ -63,32 +64,32 @@ VerificationStatusStyle verificationStatusStyle(String verificationStatus) {
       return const VerificationStatusStyle(
         'Verified',
         'Verified',
-        AppColors.greenSuccess,
+        StatusTone.success,
       );
     case 'pending':
       return const VerificationStatusStyle(
         'Submitted — Awaiting Review',
         'Submitted',
-        AppColors.amberDark,
+        StatusTone.warning,
       );
     case 'under_review':
       return const VerificationStatusStyle(
         'Under Review',
         'In Review',
-        AppColors.amberDark,
+        StatusTone.warning,
       );
     case 'rejected':
       return const VerificationStatusStyle(
         'Verification Rejected',
         'Rejected',
-        AppColors.red,
+        StatusTone.danger,
       );
     case 'not_started':
     default:
       return const VerificationStatusStyle(
         'Verification Not Started',
         'Not Started',
-        AppColors.orange,
+        StatusTone.warning,
       );
   }
 }

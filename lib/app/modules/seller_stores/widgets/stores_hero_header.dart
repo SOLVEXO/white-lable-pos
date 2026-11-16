@@ -7,7 +7,6 @@ import 'package:solvexo_pos/app/modules/seller_stores/widgets/stores_stats_strip
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/config/resources/app_icons.dart';
 import 'package:solvexo_pos/core/design/design.dart';
-import 'package:solvexo_pos/utils/custom_alert_dialog_util.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -33,26 +32,24 @@ class StoresHeroHeader extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              SvgIcon(
-                assetName: AppIcons.logoutIcon,
-                onTap: () {
-                  showCustomDialog(
+              IconButton(
+                tooltip: 'Logout',
+                constraints: const BoxConstraints(minWidth: Space.minTouch, minHeight: Space.minTouch),
+                icon: SvgIcon(assetName: AppIcons.logoutIcon, color: p.onAccentFill, size: 30),
+                onPressed: () async {
+                  final ok = await AppDialog.confirm(
+                    context,
                     title: 'Logout',
-                    content: 'Are you sure you want to logout?',
-                    leftButtonName: 'Cancel',
-                    rightButtonName: 'Logout',
-                    onLeftButtonTap: () => Get.back(),
-                    onRightButtonTap: () async {
-                      Get.back();
-                      // Sales still on this device are the only copy of that money — never sign out over them.
-                      if (await UnsyncedGuard.blockIfUnsynced(action: 'sign out')) return;
-                      await AuthRepository().logout();
-                      Get.offAllNamed(Routes.posLogin);
-                    },
+                    message: 'Are you sure you want to logout?',
+                    confirmLabel: 'Logout',
+                    destructive: true,
                   );
+                  if (!ok) return;
+                  // Sales still on this device are the only copy of that money — never sign out over them.
+                  if (await UnsyncedGuard.blockIfUnsynced(action: 'sign out')) return;
+                  await AuthRepository().logout();
+                  Get.offAllNamed(Routes.posLogin);
                 },
-                color: p.onAccentFill,
-                size: 30,
               ),
             ],
           ),

@@ -1,11 +1,9 @@
 import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/services/network_status_service.dart';
 import 'package:solvexo_pos/app/data/services/pending_sale_sync_service.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -42,21 +40,22 @@ class NetworkStatusBanner extends StatelessWidget {
         final lastText = last == null ? '' : ' · last sync ${DateFormat('HH:mm').format(last.toLocal())}';
         String sales(int n) => '$n sale${n == 1 ? '' : 's'}';
 
+        final p = context.palette;
         final String text;
-        final Color color;
+        final bool urgent; // danger fill; otherwise the warning fill (still syncing)
         if (failed > 0) {
           // A rejected sale is never hidden: it stays until a manager retries or discards it.
           text = '${sales(failed)} rejected — tap to review${pending > 0 ? ' · ${sales(pending)} waiting' : ''}$lastText';
-          color = AppColors.red;
+          urgent = true;
         } else if (offline && pending > 0) {
           text = 'No internet — ${sales(pending)} saved on this device, will sync$lastText';
-          color = AppColors.red;
+          urgent = true;
         } else if (offline) {
           text = 'No internet connection$lastText';
-          color = AppColors.red;
+          urgent = true;
         } else {
           text = '${sales(pending)} syncing…$lastText';
-          color = AppColors.amberDark;
+          urgent = false;
         }
         final tappable = (failed > 0 || pending > 0) && (AppPreferences.cachedToken ?? '').isNotEmpty;
 
@@ -68,14 +67,13 @@ class NetworkStatusBanner extends StatelessWidget {
               onTap: tappable && Get.currentRoute != Routes.posNeedsAttention ? () => Get.toNamed(Routes.posNeedsAttention) : null,
               child: Container(
                 width: double.infinity,
-                color: color,
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                color: urgent ? p.danger : p.warning,
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: Space.s2),
                 child: Center(
-                  child: CustomText(
-                    text: text,
-                    fontSize: AppFontSize.tiny,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.white,
+                  child: Text(
+                    text,
+                    textAlign: TextAlign.center,
+                    style: context.type.caption.copyWith(fontWeight: FontWeight.w600, color: urgent ? p.onDanger : p.onAccent),
                   ),
                 ),
               ),

@@ -1,5 +1,4 @@
 import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/common_image_view.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_status_style.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/controllers/seller_stores_controller.dart';
@@ -119,12 +118,9 @@ class _StoreAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     return isprofile
-        ? CommonImageView(
-            url: store.logo,
-            width: 40,
-            height: 40,
-            fit: BoxFit.cover,
-            radius: BorderRadius.circular(Radii.sm),
+        ? ClipRRect(
+            borderRadius: Radii.rSm,
+            child: SizedBox(width: 40, height: 40, child: AppNetworkImage(url: store.logo)),
           )
         : Container(
             height: 40,

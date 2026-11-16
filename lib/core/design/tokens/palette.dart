@@ -120,6 +120,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   // Brand coral from the Solvexo POS blueprint (design-tokens.json). Used for icons, highlights, selected states, focus
   // rings and illustrations — NEVER as a text colour or a white-label button fill (white on it is only 3.08:1).
+  /// The native launch screen's colour (flutter_native_splash in pubspec, #0B1020): the Flutter splash's first frame must match it
+  /// pixel for pixel, in both modes, so it is a fixed constant rather than a light / dark token (G6.3).
+  static const Color nativeSplash = Color(0xFF0B1020);
+
   static const Color _accent = Color(0xFFDC7758);
   static const Color _accentLight = Color(0xFFF39072);
   static const Color _ink = Color(0xFF15181D);

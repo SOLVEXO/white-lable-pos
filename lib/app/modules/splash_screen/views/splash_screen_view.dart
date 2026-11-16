@@ -17,7 +17,7 @@ class SplashScreenView extends StatefulWidget {
   /// The NATIVE splash colour (pubspec flutter_native_splash). The native splash and launcher icon are not regenerated yet
   /// (waiting for the vector/1024 logo master), so frame 0 must keep matching it exactly — the app's dark palette now
   /// uses the blueprint ink instead.
-  static const Color nativeSplashInk = Color(0xFF0B1020);
+  static const Color nativeSplashInk = AppPalette.nativeSplash;
 
   @override
   State<SplashScreenView> createState() => _SplashScreenViewState();

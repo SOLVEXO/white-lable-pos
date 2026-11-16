@@ -15,7 +15,6 @@ import 'package:solvexo_pos/app/modules/pos_plan/views/pos_plan_inactive_view.da
 import 'package:solvexo_pos/app/modules/pos_plan/views/pos_plan_status_view.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/config/app_brand.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 
 class MockSubRepo extends Mock implements PosSubscriptionRepository {}
@@ -57,7 +56,8 @@ void main() {
 
     test('Solvexo POS is one fixed brand (no fetched/white-label config)', () {
       expect(AppBrand.posName, 'Solvexo POS');
-      expect(AppColors.primaryColor, AppBrand.primary);
+      // the brand colour is one fixed token in both modes (the blueprint's coral), not a fetched or per-tenant value
+      expect([AppPalette.light.accent, AppPalette.dark.accent], [const Color(0xFFDC7758), const Color(0xFFDC7758)]);
       expect(Directory('lib').listSync(recursive: true).whereType<File>().any((f) => f.path.contains('branding')), isFalse);
       expect(File('lib/app/network/api_constaints.dart').readAsStringSync().contains('branding/config'), isFalse);
     });

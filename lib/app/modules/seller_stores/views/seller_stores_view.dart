@@ -1,4 +1,3 @@
-import 'package:solvexo_pos/app/components/custom_refresh_wrapper.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/controllers/seller_stores_controller.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/widgets/stores_hero_header.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/widgets/stores_list.dart';
@@ -41,9 +40,11 @@ class SellerStoresView extends StatelessWidget {
       backgroundColor: p.background,
       body: Obx(() {
         if (controller.isLoading.value) return const StoresShimmer();
-        return CustomRefreshWrapper(
+        return RefreshIndicator(
           onRefresh: controller.refreshStores,
+          color: p.accent,
           child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
               children: [
                 StoresHeroHeader(controller: controller),

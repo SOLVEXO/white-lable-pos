@@ -1,4 +1,3 @@
-import 'package:solvexo_pos/app/components/common_image_view.dart';
 import 'package:solvexo_pos/app/modules/seller_stores/controllers/seller_stores_controller.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
@@ -27,12 +26,7 @@ class StoresProfileSection extends StatelessWidget {
             ),
             child: controller.userProfileImage.value.isNotEmpty
                 ? ClipOval(
-                    child: CommonImageView(
-                      url: controller.userProfileImage.value,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                    ),
+                    child: SizedBox(width: 80, height: 80, child: AppNetworkImage(url: controller.userProfileImage.value, fallbackIcon: Icons.person_outline_rounded)),
                   )
                 : Center(
                     child: Text(
