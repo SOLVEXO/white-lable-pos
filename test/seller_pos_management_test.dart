@@ -17,11 +17,15 @@ import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
 import 'package:solvexo_pos/app/data/repositories/seller_repository.dart';
+import 'package:solvexo_pos/app/data/repositories/pos_subscription_repository.dart';
+import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.dart';
 import 'package:solvexo_pos/app/modules/seller_pos_management/controllers/seller_pos_management_controller.dart';
 
 class MockPosRepository extends Mock implements PosRepository {}
 
 class MockSellerRepository extends Mock implements SellerRepository {}
+
+class MockSubscriptionRepository extends Mock implements PosSubscriptionRepository {}
 
 PosEmployeeModel _employee({String id = 'emp-1'}) => PosEmployeeModel(
       id: id,
@@ -64,7 +68,9 @@ void main() {
   setUp(() {
     posRepo = MockPosRepository();
     sellerRepo = MockSellerRepository();
-    c = SellerPosManagementController(posRepository: posRepo, sellerRepository: sellerRepo);
+    final subscriptions = MockSubscriptionRepository();
+    when(() => subscriptions.getStatus(any())).thenAnswer((_) async => PosSubscriptionStatusModel.unknown()); // never the real API (G6.4 guard)
+    c = SellerPosManagementController(posRepository: posRepo, sellerRepository: sellerRepo, posSubscriptionRepository: subscriptions);
     c.storeId.value = 'store-1';
   });
 

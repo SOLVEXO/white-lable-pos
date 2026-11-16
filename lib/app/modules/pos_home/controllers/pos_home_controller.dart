@@ -191,6 +191,9 @@ class PosHomeController extends GetxController {
   }
 
   final PosRepository _posRepo;
+
+  /// The repository this sale screen talks to (the sale-success screen reuses it for the receipt link, G6.4).
+  PosRepository get posRepository => _posRepo;
   late final CartLotAdvisor _lots;
 
   /// G3.3: the attached customer's balances and the store's credit / loyalty rules, and the points chosen for this sale.

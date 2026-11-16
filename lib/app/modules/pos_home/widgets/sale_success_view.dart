@@ -53,7 +53,7 @@ class _SaleSuccessViewState extends State<SaleSuccessView> with SingleTickerProv
     final id = _receipt?.saleId;
     if (id == null || _outcome != SaleOutcome.completed) return;
     setState(() => _linkLoading = true);
-    final url = await (widget.repository ?? PosRepository()).getReceiptLink(id);
+    final url = await (widget.repository ?? widget.c.posRepository).getReceiptLink(id);
     if (!mounted) return;
     setState(() {
       _link = url;

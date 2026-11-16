@@ -5,6 +5,8 @@
 // product built from the sale item's own snapshot (name/sku/image/price),
 // which the backend always includes.
 
+import 'package:solvexo_pos/app/data/repositories/pos_repository.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
@@ -51,12 +53,16 @@ PosSaleModel _heldSale(List<PosSaleItemModel> items) {
   );
 }
 
+class MockPosRepository extends Mock implements PosRepository {}
+
 void main() {
   late PosHomeController c;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({}); // the cart is persisted to SharedPreferences
-    c = PosHomeController();
+    final repo = MockPosRepository();
+    when(() => repo.getLotPreview(any(), any(), any())).thenAnswer((_) async => null); // lot advice is not under test here
+    c = PosHomeController(posRepository: repo); // never the real API (G6.4 no-network guard)
   });
 
   tearDown(() {

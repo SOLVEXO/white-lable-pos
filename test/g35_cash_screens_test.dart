@@ -37,6 +37,7 @@ import 'package:solvexo_pos/utils/money.dart';
 
 import 'support/fake_payments.dart';
 import 'support/g35_fixtures.dart';
+import 'support/no_network.dart';
 
 class _Repo extends Mock implements PosRepository {}
 
@@ -763,6 +764,8 @@ void main() {
       await tapKey(t, 'viewReceipt');
       expect(find.byKey(const Key('receiptImage')), findsOneWidget);
       expect(find.textContaining('SECRET'), findsNothing);
+      // the image widget tries to load the signed URL: the no-network guard refused it (nothing left the machine) — that one fetch only
+      expectOnlyBlockedImageFetch('https://signed.example/img');
     });
 
     testWidgets('receipt problems are explained (no receipt / offline link)', (t) async {

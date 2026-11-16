@@ -233,6 +233,8 @@ class SaleHarness {
     when(() => repo.getPosSettings(any())).thenAnswer(
       (_) async => PosSettingsModel(storeId: 'store-1', taxRate: taxRate),
     );
+    // the sale-success screen asks the sale screen's repository for the shareable receipt link (G6.4: it used to build a real one)
+    when(() => repo.getReceiptLink(any())).thenAnswer((_) async => null);
     when(
       () => repo.searchProducts(
         storeId: any(named: 'storeId'),
