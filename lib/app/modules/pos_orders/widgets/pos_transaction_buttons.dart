@@ -35,9 +35,9 @@ class PosTransactionButtons extends StatelessWidget {
     }
     return Row(
       children: [
-        Expanded(child: receipt),
+        Expanded(flex: 2, child: receipt), // the longer label gets the wider half, so "Return / void" fits on a phone (G6.4)
         const SizedBox(width: Space.s3),
-        Expanded(child: ret),
+        Expanded(flex: 3, child: ret),
       ],
     );
   }

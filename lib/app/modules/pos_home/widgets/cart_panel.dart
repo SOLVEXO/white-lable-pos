@@ -19,8 +19,11 @@ import 'package:solvexo_pos/utils/money.dart';
 /// expandable cart sheet. Charge opens the payment sheet; Hold opens a confirm sheet — so the controller's own
 /// `Get.back()` always pops that sheet, never the POS screen underneath.
 class CartPanel extends StatelessWidget {
-  const CartPanel({super.key, required this.c, this.cartIconKey, this.perforated = true});
+  const CartPanel({super.key, required this.c, this.cartIconKey, this.perforated = true, this.compact = false});
   final PosHomeController c;
+
+  /// Phone sheet: the quick actions, price book, customer and discount scroll with the lines; totals and Hold / Charge stay pinned.
+  final bool compact;
 
   /// Target of the fly-to-cart dot (tablet pane); on a phone the total pill carries it instead.
   final GlobalKey? cartIconKey;
@@ -36,17 +39,19 @@ class CartPanel extends StatelessWidget {
         if (c.cartItems.isEmpty) {
           return const EmptyState(icon: Icons.shopping_bag_outlined, title: 'Cart is empty', message: 'Tap a product to add it to the sale.');
         }
+        final n = c.cartItems.length;
         return ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: Space.s4),
-          itemCount: c.cartItems.length,
+          itemCount: compact ? n + 1 : n,
           separatorBuilder: (_, __) => Divider(height: 1, color: context.palette.border),
           itemBuilder: (_, i) {
+            if (i == n) return Padding(padding: const EdgeInsets.only(top: Space.s2), child: CartFooter(c: c, part: CartFooterPart.extras, inset: false));
             final item = c.cartItems[i];
             return CartLine(key: ObjectKey(item), c: c, item: item);
           },
         );
       }),
-      footer: CartFooter(c: c),
+      footer: CartFooter(c: c, part: compact ? CartFooterPart.summary : CartFooterPart.all),
     );
   }
 }
@@ -188,16 +193,24 @@ class CartLine extends StatelessWidget {
 }
 
 /// Customer, discount, totals and the Hold / Charge buttons.
+/// Which part of the cart footer to draw. On a phone the cart sheet scrolls the [extras] with the lines and pins only the [summary]
+/// (totals + Hold / Charge), so the lines are never squeezed to nothing (G6.4); the tablet pane draws [all] as before.
+enum CartFooterPart { all, extras, summary }
+
 class CartFooter extends StatelessWidget {
-  const CartFooter({super.key, required this.c});
+  const CartFooter({super.key, required this.c, this.part = CartFooterPart.all, this.inset = true});
   final PosHomeController c;
+  final CartFooterPart part;
+
+  /// false when drawn inside the (already padded) line list.
+  final bool inset;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final t = context.type;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s4),
+      padding: inset ? const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s4) : const EdgeInsets.only(bottom: Space.s2),
       child: Obx(() {
         final totals = c.totals;
         final blockedDiscount = c.isDiscountBlocked;
@@ -206,6 +219,7 @@ class CartFooter extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (part != CartFooterPart.summary) ...[
             if (c.heldCouponNotice.value != null)
               Container(
                 key: const Key('heldCouponNotice'),
@@ -299,6 +313,8 @@ class CartFooter extends StatelessWidget {
                   ),
                 ),
               ),
+            ],
+            if (part != CartFooterPart.extras) ...[
             const ReceiptDivider(),
             ReceiptRow('Subtotal', Money.format(totals.subtotal)),
             if (totals.discount > 0) ReceiptRow(c.appliedCoupon.value != null ? 'Coupon ${c.appliedCoupon.value!.code}' : 'Discount', '-${Money.format(totals.discount)}', valueColor: p.successFg),
@@ -335,6 +351,7 @@ class CartFooter extends StatelessWidget {
                 ),
               ],
             ),
+            ],
           ],
         );
       }),

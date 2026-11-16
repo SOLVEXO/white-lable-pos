@@ -87,7 +87,7 @@ class _PhoneCartSheetState extends State<PhoneCartSheet> with SingleTickerProvid
                         height: range,
                         child: IgnorePointer(
                           ignoring: _a.value < 0.6,
-                          child: Opacity(opacity: Curves.easeIn.transform(_a.value.clamp(0.0, 1.0)), child: Padding(padding: const EdgeInsets.fromLTRB(Space.s2, 0, Space.s2, Space.s2), child: CartPanel(c: widget.c, perforated: false))),
+                          child: Opacity(opacity: Curves.easeIn.transform(_a.value.clamp(0.0, 1.0)), child: Padding(padding: const EdgeInsets.fromLTRB(Space.s2, 0, Space.s2, Space.s2), child: CartPanel(c: widget.c, perforated: false, compact: true))),
                         ),
                       ),
                       Positioned(

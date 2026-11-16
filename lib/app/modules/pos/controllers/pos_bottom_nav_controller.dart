@@ -1,4 +1,6 @@
+import 'package:solvexo_pos/app/modules/pos/controllers/pos_home_tab_controller.dart';
 import 'package:solvexo_pos/app/modules/pos/utils/pos_access.dart';
+import 'package:solvexo_pos/app/modules/pos_orders/controllers/pos_orders_controller.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_home_tab_view.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_more_hub_view.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_stock_hub_view.dart';
@@ -62,10 +64,25 @@ class PosBottomNavController extends GetxController {
       return;
     }
     _userChoseTab = true;
+    final wasOther = selectedIndex.value != index;
     selectedIndex.value = index;
+    // G6.4: tabs are built once and kept, so a sale rung up on Sell did not show on Orders (or in Home's figures) until a pull-to-refresh.
+    // Re-read when the user comes back to them — the same loads their pull-to-refresh runs; nothing new is called.
+    if (wasOther) refreshTab(index);
   }
 
-  final List<Widget> screens = [
+  /// Re-reads the Orders list / Home figures when their tab is opened (no-op if their controller is not up yet: it loads on creation).
+  @visibleForTesting
+  void refreshTab(int index) {
+    if (index == ordersTab && Get.isRegistered<PosOrdersController>() && !Get.isPrepared<PosOrdersController>()) {
+      Get.find<PosOrdersController>().refreshData();
+    } else if (index == homeTab && Get.isRegistered<PosHomeTabController>() && !Get.isPrepared<PosHomeTabController>()) {
+      Get.find<PosHomeTabController>().load();
+    }
+  }
+
+  // built when the shell first draws them (G6.4: so the controller can be created without building every tab — and its controllers)
+  late final List<Widget> screens = [
     PosHomeTabView(),
     PosHomeView(),
     PosOrdersView(),

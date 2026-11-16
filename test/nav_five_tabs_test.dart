@@ -19,6 +19,7 @@ import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 
+import 'support/fake_payments.dart';
 import 'support/sale_harness.dart' show MockPosRepository;
 
 class MockInventoryRepository extends Mock implements InventoryRepository {}
@@ -62,7 +63,7 @@ void main() {
     t.view.physicalSize = const Size(390, 2600); // G6.3: Home is longer; the whole tab is built
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
-    final c = PosHomeTabController(posRepository: pos, inventoryRepository: inv, accessOverride: access);
+    final c = PosHomeTabController(posRepository: pos, inventoryRepository: inv, paymentsRepository: FakePaymentsRepo(), accessOverride: access);
     Get.put<PosHomeTabController>(c);
     await t.pumpWidget(MaterialApp(
       theme: AppTheme.light,
