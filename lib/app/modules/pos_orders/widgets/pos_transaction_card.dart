@@ -1,14 +1,11 @@
 import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/controllers/pos_orders_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_payment_badge.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_status_badge.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_transaction_buttons.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -27,43 +24,30 @@ class PosTransactionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final isProcessing = controller.processingId.value == sale.id;
+      final p = context.palette;
 
-      return GestureDetector(
+      return AppCard(
         onTap: () => controller.openSaleDetail(sale),
-        child: Container(
-        padding: const EdgeInsets.all(AppDimen.allPadding),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius:
-              BorderRadius.circular(AppDimen.serviceCountTileRadius),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _topRow(),
-            const SizedBox(height: 8),
-            _metaRow(),
+            _topRow(context),
+            const SizedBox(height: Space.s2),
+            _metaRow(context),
             if (sale.items.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              _itemsPreview(),
+              const SizedBox(height: Space.s3),
+              _itemsPreview(context),
             ],
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: AppColors.lightGrey2),
-            const SizedBox(height: 12),
+            const SizedBox(height: Space.s3),
+            Divider(height: 1, color: p.border),
+            const SizedBox(height: Space.s3),
             isProcessing
                 ? Center(
                     child: SizedBox(
                       width: 20, height: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: AppColors.primaryColor),
+                          color: p.accentFg),
                     ),
                   )
                 : PosTransactionButtons(
@@ -73,91 +57,108 @@ class PosTransactionCard extends StatelessWidget {
                   ),
           ],
         ),
-        ),
       );
     });
   }
 
-  Widget _topRow() {
+  Widget _topRow(BuildContext context) {
+    final p = context.palette;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        CustomText(
-          text: sale.saleNumber.isNotEmpty
-              ? sale.saleNumber
-              : '#${sale.id.length > 8 ? sale.id.substring(sale.id.length - 8) : sale.id}',
-          fontSize: AppFontSize.small2,
-          fontWeight: FontWeight.bold,
-          color: AppColors.primaryColor,
+        Expanded(
+          child: Text(
+            sale.saleNumber.isNotEmpty
+                ? sale.saleNumber
+                : '#${sale.id.length > 8 ? sale.id.substring(sale.id.length - 8) : sale.id}',
+            style: context.type.subtitle.copyWith(color: p.accentFg, fontWeight: FontWeight.w700),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        CustomText(
-          text: Money.format(sale.total),
-          fontSize: AppFontSize.small,
-          fontWeight: FontWeight.bold,
-          color: AppColors.black,
+        const SizedBox(width: Space.s3),
+        Flexible(
+          child: AmountText(
+            Money.format(sale.total),
+            style: context.type.amountMd,
+            color: p.textPrimary,
+            animate: false,
+            alignment: MainAxisAlignment.end,
+          ),
         ),
       ],
     );
   }
 
-  Widget _metaRow() {
+  Widget _metaRow(BuildContext context) {
+    final p = context.palette;
     final timeStr = DateFormat('h:mm a').format(sale.createdAt.toLocal());
+    final name = Text(
+      sale.customerName.isEmpty || sale.customerName == 'Walk-in'
+          ? 'Walk-in'
+          : sale.customerName,
+      style: context.type.bodySmall.copyWith(color: p.textSecondary),
+    );
+    final time = Text(timeStr, style: context.type.bodySmall.copyWith(color: p.textMuted));
+    final badges = [
+      PosPaymentBadge(method: sale.paymentMethod),
+      PosStatusBadge(status: sale.status),
+    ];
+    // Large text: name + time on one line, the badges on their own line below.
+    if (MediaQuery.textScalerOf(context).scale(16) > 19) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: name), const SizedBox(width: Space.s2), time]),
+          const SizedBox(height: Space.s1),
+          Wrap(spacing: Space.s2, runSpacing: Space.s1, children: badges),
+        ],
+      );
+    }
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CustomText(
-          text: sale.customerName.isEmpty || sale.customerName == 'Walk-in'
-              ? 'Walk-in'
-              : sale.customerName,
-          fontSize: AppFontSize.verySmall,
-          color: AppColors.grey,
+        Expanded(
+          child: Wrap(
+            spacing: Space.s2,
+            runSpacing: Space.s1,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [name, ...badges],
+          ),
         ),
-        const SizedBox(width: 8),
-        PosPaymentBadge(method: sale.paymentMethod),
-        const SizedBox(width: 8),
-        PosStatusBadge(status: sale.status),
-        const Spacer(),
-        CustomText(
-          text: timeStr,
-          fontSize: AppFontSize.verySmall,
-          color: AppColors.lightGrey5,
-        ),
+        const SizedBox(width: Space.s2),
+        time,
       ],
     );
   }
 
-  Widget _itemsPreview() {
+  Widget _itemsPreview(BuildContext context) {
+    final p = context.palette;
     final preview = sale.items.take(2);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s2),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(8),
+        color: p.fill,
+        borderRadius: Radii.rSm,
       ),
       child: Column(
         children: [
           ...preview.map((item) => Row(children: [
             Expanded(
-              child: CustomText(
-                text: item.name,
-                fontSize: AppFontSize.tiny,
-                color: AppColors.black2,
+              child: Text(
+                item.name,
+                style: context.type.caption.copyWith(color: p.textPrimary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            CustomText(
-              text: '×${item.qty}',
-              fontSize: AppFontSize.tiny,
-              color: AppColors.iosGrey,
-            ),
+            Text('×${item.qty}', style: context.type.caption.copyWith(color: p.textMuted)),
           ])),
           if (sale.items.length > 2)
             Align(
               alignment: Alignment.centerLeft,
-              child: CustomText(
-                text: '+${sale.items.length - 2} more',
-                fontSize: AppFontSize.tiny,
-                color: AppColors.iosGrey,
+              child: Text(
+                '+${sale.items.length - 2} more',
+                style: context.type.caption.copyWith(color: p.textMuted),
               ),
             ),
         ],

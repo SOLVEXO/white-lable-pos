@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/utils/money.dart';
 import 'package:solvexo_pos/utils/refund_instructions.dart';
 
@@ -15,15 +16,25 @@ Future<void> showRefundDoneDialog(PosSaleModel sale, List<PosPaymentLine> tender
   );
   if (lines.isEmpty) return;
   await Get.dialog<void>(
-    AlertDialog(
-      title: const Text('Refund recorded'),
-      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (amount != null)
-          Text('Refunded ${Money.format(amount, currency: sale.currency, exponent: sale.currencyExponent)}. Now:', style: const TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        for (final l in lines) Padding(padding: const EdgeInsets.only(bottom: 6), child: Text('• $l')),
-      ]),
-      actions: [TextButton(onPressed: () => Get.back(), child: const Text('Done'))],
+    Builder(
+      builder: (context) {
+        final p = context.palette;
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Space.s4),
+            child: AppDialogCard(
+              title: 'Refund recorded',
+              content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (amount != null)
+                  Text('Refunded ${Money.format(amount, currency: sale.currency, exponent: sale.currencyExponent)}. Now:', style: context.type.body.copyWith(color: p.textPrimary, fontWeight: FontWeight.w600)),
+                const SizedBox(height: Space.s2),
+                for (final l in lines) Padding(padding: const EdgeInsets.only(bottom: 6), child: Text('• $l', style: context.type.body.copyWith(color: p.textSecondary))),
+              ]),
+              actions: [AppButton(label: 'Done', onPressed: () => Get.back())],
+            ),
+          ),
+        );
+      },
     ),
   );
 }

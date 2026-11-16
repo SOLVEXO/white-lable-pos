@@ -1,18 +1,13 @@
 import 'package:solvexo_pos/app/components/fiscal_status_card.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
-import 'package:solvexo_pos/app/components/custom_button.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_payment_badge.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_status_badge.dart';
 import 'package:solvexo_pos/app/modules/pos_sale_detail/controllers/pos_sale_detail_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_sale_detail/widgets/pos_sale_detail_shimmer.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -24,91 +19,75 @@ class PosSaleDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: CustomAppBarTwo(
-        title: 'Sale Detail',
-        color: AppColors.black2,
-        actions: [
-          Obx(() {
-            final sale = c.sale.value;
-            if (sale == null) return const SizedBox.shrink();
-            return Row(mainAxisSize: MainAxisSize.min, children: [
-              GestureDetector(
-                onTap: c.isPrinting.value ? null : c.printReceipt,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: c.isPrinting.value
-                      ? SizedBox(
-                          width: 18, height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor),
-                        )
-                      : Icon(Icons.print_outlined, color: AppColors.primaryColor, size: 20),
-                ),
-              ),
-              // G5.8: view the receipt PDF in the app (print / share from the viewer)
-              GestureDetector(
-                key: const Key('saleViewPdf'),
-                onTap: () => c.viewReceiptPdf(),
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Icon(Icons.preview_outlined, color: AppColors.primaryColor, size: 20),
-                ),
-              ),
-              GestureDetector(
-                onTap: c.isExportingPdf.value ? null : c.shareReceiptPdf,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: c.isExportingPdf.value
-                      ? SizedBox(
-                          width: 18, height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor),
-                        )
-                      : Icon(Icons.picture_as_pdf_outlined, color: AppColors.primaryColor, size: 20),
-                ),
-              ),
-              // G5.1: share the public receipt link (share sheet)
-              GestureDetector(
-                key: const Key('saleShareLink'),
-                onTap: () => c.openSendReceipt(), // G5.3: share / WhatsApp / e-mail / SMS
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Icon(Icons.link_rounded, color: AppColors.primaryColor, size: 20),
-                ),
-              ),
-              GestureDetector(
-                onTap: c.shareReceipt,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: Icon(Icons.share_outlined, color: AppColors.primaryColor, size: 20),
-                ),
-              ),
-            ]);
-          }),
-        ],
-      ),
+    final p = context.palette;
+    Widget busy() => SizedBox(
+          width: 18, height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2, color: p.accentFg),
+        );
+    return AppPage(
+      title: 'Sale Detail',
+      actions: [
+        Obx(() {
+          final sale = c.sale.value;
+          if (sale == null) return const SizedBox.shrink();
+          return Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(
+              tooltip: 'Print receipt',
+              onPressed: c.isPrinting.value ? null : c.printReceipt,
+              icon: c.isPrinting.value
+                  ? busy()
+                  : Icon(Icons.print_outlined, color: p.accentFg, size: IconSizes.sm),
+            ),
+            // G5.8: view the receipt PDF in the app (print / share from the viewer)
+            IconButton(
+              key: const Key('saleViewPdf'),
+              tooltip: 'View receipt PDF',
+              onPressed: () => c.viewReceiptPdf(),
+              icon: Icon(Icons.preview_outlined, color: p.accentFg, size: IconSizes.sm),
+            ),
+            IconButton(
+              tooltip: 'Share receipt PDF',
+              onPressed: c.isExportingPdf.value ? null : c.shareReceiptPdf,
+              icon: c.isExportingPdf.value
+                  ? busy()
+                  : Icon(Icons.picture_as_pdf_outlined, color: p.accentFg, size: IconSizes.sm),
+            ),
+            // G5.1: share the public receipt link (share sheet)
+            IconButton(
+              key: const Key('saleShareLink'),
+              tooltip: 'Send receipt link',
+              onPressed: () => c.openSendReceipt(), // G5.3: share / WhatsApp / e-mail / SMS
+              icon: Icon(Icons.link_rounded, color: p.accentFg, size: IconSizes.sm),
+            ),
+            IconButton(
+              tooltip: 'Share receipt',
+              onPressed: c.shareReceipt,
+              icon: Icon(Icons.share_outlined, color: p.accentFg, size: IconSizes.sm),
+            ),
+            const SizedBox(width: Space.s1),
+          ]);
+        }),
+      ],
       body: Obx(() {
         if (c.isLoading.value) {
           return const PosSaleDetailShimmer();
         }
         final sale = c.sale.value;
         if (sale == null) {
-          return const Center(
-            child: CustomText(text: 'Sale not found.', fontSize: AppFontSize.small2, color: AppColors.iosGrey),
-          );
+          return const EmptyState(icon: Icons.receipt_long_outlined, title: 'Sale not found.');
         }
         return RefreshIndicator(
           onRefresh: c.refreshData,
-          color: AppColors.primaryColor,
+          color: p.accent,
           child: ListView(
-            padding: const EdgeInsets.all(AppDimen.allPadding),
+            padding: const EdgeInsets.all(Space.s4),
             children: [
               _HeaderCard(sale: sale, currencySymbol: c.currencySymbol.value, offlineRef: c.offlineRef.value),
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.s4),
               _ItemsCard(sale: sale, c: c),
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.s4),
               _TotalsCard(sale: sale, currencySymbol: c.currencySymbol.value),
-              const SizedBox(height: 20),
+              const SizedBox(height: Space.s5),
               _ActionsSection(sale: sale, c: c),
             ],
           ),
@@ -126,62 +105,55 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
+    final p = context.palette;
+    final meta = context.type.caption.copyWith(color: p.textMuted);
+    return AppCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          CustomText(
-            text: sale.saleNumber.isNotEmpty ? sale.saleNumber : sale.id,
-            fontSize: AppFontSize.small2,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryColor,
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            child: Text(
+              sale.saleNumber.isNotEmpty ? sale.saleNumber : sale.id,
+              style: context.type.title.copyWith(color: p.accentFg),
+            ),
           ),
+          const SizedBox(width: Space.s2),
           PosStatusBadge(status: sale.status),
         ]),
-        const SizedBox(height: 8),
-        CustomText(
-          text: DateFormat('MMM d, y  h:mm a').format(sale.createdAt.toLocal()),
-          fontSize: AppFontSize.tiny,
-          color: AppColors.iosGrey,
-        ),
+        const SizedBox(height: Space.s2),
+        Text(DateFormat('MMM d, y  h:mm a').format(sale.createdAt.toLocal()), style: meta),
         if (offlineRef != null) ...[
-          const SizedBox(height: 4),
-          CustomText(text: 'Offline receipt ref $offlineRef', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+          const SizedBox(height: Space.s1),
+          Text('Offline receipt ref $offlineRef', style: meta),
         ],
-        const SizedBox(height: 10),
-        Row(children: [
-          PosPaymentBadge(method: sale.paymentMethod),
-          const SizedBox(width: 8),
-          CustomText(
-            text: sale.customerName.isEmpty || sale.customerName == 'Walk-in' ? 'Walk-in' : sale.customerName,
-            fontSize: AppFontSize.verySmall,
-            color: AppColors.grey,
-          ),
-        ]),
+        const SizedBox(height: Space.s3),
+        Wrap(
+          spacing: Space.s2,
+          runSpacing: Space.s1,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            PosPaymentBadge(method: sale.paymentMethod),
+            Text(
+              sale.customerName.isEmpty || sale.customerName == 'Walk-in' ? 'Walk-in' : sale.customerName,
+              style: context.type.bodySmall.copyWith(color: p.textSecondary),
+            ),
+          ],
+        ),
         if (sale.notes.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          CustomText(text: sale.notes, fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+          const SizedBox(height: Space.s2),
+          Text(sale.notes, style: meta),
         ],
         if (sale.isVoided) ...[
-          const SizedBox(height: 8),
-          CustomText(
-            text: 'Voided${sale.voidedAt != null ? ' on ${DateFormat('MMM d, h:mm a').format(sale.voidedAt!.toLocal())}' : ''}',
-            fontSize: AppFontSize.tiny,
-            color: AppColors.iosGrey,
+          const SizedBox(height: Space.s2),
+          Text(
+            'Voided${sale.voidedAt != null ? ' on ${DateFormat('MMM d, h:mm a').format(sale.voidedAt!.toLocal())}' : ''}',
+            style: meta,
           ),
         ],
         if (sale.refundedAmount > 0) ...[
-          const SizedBox(height: 8),
-          CustomText(
-            text: 'Refunded: ${Money.format(sale.refundedAmount)}',
-            fontSize: AppFontSize.tiny,
-            fontWeight: FontWeight.w600,
-            color: AppColors.red,
+          const SizedBox(height: Space.s2),
+          Text(
+            'Refunded: ${Money.format(sale.refundedAmount)}',
+            style: context.type.caption.copyWith(color: p.dangerFg, fontWeight: FontWeight.w600),
           ),
         ],
       ]),
@@ -196,59 +168,52 @@ class _ItemsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final meta = context.type.caption.copyWith(color: p.textMuted);
     // Refund is only offered to managers, matching the backend's real,
     // signed-token-verified enforcement — see PosRole's doc comment.
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
+    return AppCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const CustomText(text: 'Items', fontSize: AppFontSize.small2, fontWeight: FontWeight.bold, color: AppColors.black2),
-        if (sale.priceBookName != null) CustomText(key: const Key('salePriceBook'), text: 'Priced with: ${sale.priceBookName}', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
-        const SizedBox(height: 10),
+        SectionHeader('Items', padding: EdgeInsets.zero),
+        if (sale.priceBookName != null) Text(key: const Key('salePriceBook'), 'Priced with: ${sale.priceBookName}', style: meta),
+        const SizedBox(height: Space.s3),
         ...sale.items.map((item) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Row(children: [
+          padding: const EdgeInsets.only(bottom: Space.s3),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                CustomText(
-                  text: item.name,
-                  fontSize: AppFontSize.verySmall,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.black2,
+                Text(
+                  item.name,
+                  style: context.type.body.copyWith(color: p.textPrimary, fontWeight: FontWeight.w600),
                 ),
-                CustomText(
-                  text: '${Money.format(item.price)} × ${item.qty}'
+                Text(
+                  '${Money.format(item.price)} × ${item.qty}'
                       '${item.refundedQty > 0 ? ' (${item.refundedQty} refunded)' : ''}',
-                  fontSize: AppFontSize.tiny,
-                  color: AppColors.iosGrey,
+                  style: meta,
                 ),
                 // G4.5: the base price (list or price book) and each option's price, when the server priced the line with them
                 if (item.basePriceMinor != null)
-                  CustomText(
+                  Text(
                     key: Key('saleBase_${item.saleItemId ?? item.productId}'),
-                    text: [
+                    [
                       'Base ${Money.format(Money.fromMinor(item.basePriceMinor!, sale.currencyExponent), currency: sale.currency, exponent: sale.currencyExponent)}',
                       for (final m in item.modifiers) '${m.name} ${m.priceDeltaMinor < 0 ? '−' : '+'}${Money.format(Money.fromMinor(m.priceDeltaMinor.abs(), sale.currencyExponent), currency: sale.currency, exponent: sale.currencyExponent)}',
                     ].join(' · '),
-                    fontSize: AppFontSize.tiny,
-                    color: AppColors.iosGrey,
+                    style: meta,
                   ),
                 // G3.2: which lot(s) this line was taken from, and a plain mark when any of it was expired stock
                 if (item.lots.isNotEmpty)
-                  CustomText(key: Key('saleLots_${item.saleItemId ?? item.productId}'), text: item.lots.map((l) => l.label).join(' · '), fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
+                  Text(key: Key('saleLots_${item.saleItemId ?? item.productId}'), item.lots.map((l) => l.label).join(' · '), style: meta),
                 if (item.soldExpired)
-                  CustomText(key: Key('saleExpired_${item.saleItemId ?? item.productId}'), text: 'Sold from an expired lot', fontSize: AppFontSize.tiny, fontWeight: FontWeight.w600, color: AppColors.red),
+                  Text(key: Key('saleExpired_${item.saleItemId ?? item.productId}'), 'Sold from an expired lot', style: context.type.caption.copyWith(color: p.dangerFg, fontWeight: FontWeight.w600)),
               ]),
             ),
-            CustomText(
-              text: Money.format(item.lineTotal),
-              fontSize: AppFontSize.verySmall,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black2,
+            const SizedBox(width: Space.s3),
+            AmountText(
+              Money.format(item.lineTotal),
+              style: context.type.amountMd,
+              color: p.textPrimary,
+              animate: false,
             ),
           ]),
         )),
@@ -265,40 +230,36 @@ class _TotalsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: AppColors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
+    final pal = context.palette;
+    Widget divider() => Padding(padding: const EdgeInsets.symmetric(vertical: Space.s2), child: Divider(height: 1, color: pal.border));
+    return AppCard(
       child: Column(children: [
-        _row('Subtotal', sale.subtotal),
-        if (sale.discount > 0) _row('Discount', -sale.discount, color: AppColors.green2),
+        _row(context, 'Subtotal', sale.subtotal),
+        if (sale.discount > 0) _row(context, 'Discount', -sale.discount, color: pal.successFg),
         if (sale.tax > 0)
-          _row(sale.taxRate != null ? 'Tax (${(sale.taxRate! * 100).toStringAsFixed((sale.taxRate! * 100) % 1 == 0 ? 0 : 2)}%)' : 'Tax', sale.tax),
-        const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.lightGrey2)),
-        _row('Total', sale.total, bold: true),
+          _row(context, sale.taxRate != null ? 'Tax (${(sale.taxRate! * 100).toStringAsFixed((sale.taxRate! * 100) % 1 == 0 ? 0 : 2)}%)' : 'Tax', sale.tax),
+        divider(),
+        _row(context, 'Total', sale.total, bold: true),
         if (!sale.isHeld) ...[
-          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.lightGrey2)),
+          divider(),
           // one row per tender (split payments show each); cash also shows what was handed over
           for (final p in sale.paymentLines) ...[
-            _row(PosPaymentMethodLabel.of(p.method), p.amount),
-            if (p.tendered != null && p.tendered! > p.amount) _note('Tendered ${_m(p.tendered!)}'),
-            if ((p.reference ?? '').isNotEmpty) _note('Ref ${p.reference}'),
+            _row(context, PosPaymentMethodLabel.of(p.method), p.amount),
+            if (p.tendered != null && p.tendered! > p.amount) _note(context, 'Tendered ${_m(p.tendered!)}'),
+            if ((p.reference ?? '').isNotEmpty) _note(context, 'Ref ${p.reference}'),
           ],
-          if (sale.changeGiven > 0) _row('Change given', sale.changeGiven),
+          if (sale.changeGiven > 0) _row(context, 'Change given', sale.changeGiven),
         ],
         // G3.3: points spent / earned on this sale (the discount above already includes the redemption)
-        if ((sale.loyalty?.redeemedPoints ?? 0) > 0) _note('Includes ${sale.loyalty!.redeemedPoints} ${sale.loyalty!.redeemedPoints == 1 ? 'point' : 'points'} redeemed'),
-        if ((sale.loyalty?.earnedPoints ?? 0) > 0) _note('Earned ${sale.loyalty!.earnedPoints} ${sale.loyalty!.earnedPoints == 1 ? 'point' : 'points'}'),
+        if ((sale.loyalty?.redeemedPoints ?? 0) > 0) _note(context, 'Includes ${sale.loyalty!.redeemedPoints} ${sale.loyalty!.redeemedPoints == 1 ? 'point' : 'points'} redeemed'),
+        if ((sale.loyalty?.earnedPoints ?? 0) > 0) _note(context, 'Earned ${sale.loyalty!.earnedPoints} ${sale.loyalty!.earnedPoints == 1 ? 'point' : 'points'}'),
         if (sale.refunds.isNotEmpty || sale.refundedAmount > 0) ...[
-          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.lightGrey2)),
+          divider(),
           for (final r in sale.refunds)
-            _row(r.kind == 'full' ? 'Refund' : 'Partial refund', -r.amount, color: AppColors.red),
-          if (sale.refunds.isEmpty) _row('Refunded', -sale.refundedAmount, color: AppColors.red),
+            _row(context, r.kind == 'full' ? 'Refund' : 'Partial refund', -r.amount, color: pal.dangerFg),
+          if (sale.refunds.isEmpty) _row(context, 'Refunded', -sale.refundedAmount, color: pal.dangerFg),
           for (final r in sale.refunds)
-            if (r.tenders.isNotEmpty) _note('Returned to ${r.tenders.map((t) => PosPaymentMethodLabel.of(t.method)).join(' + ')}'),
+            if (r.tenders.isNotEmpty) _note(context, 'Returned to ${r.tenders.map((t) => PosPaymentMethodLabel.of(t.method)).join(' + ')}'),
         ],
       ]),
     );
@@ -307,22 +268,32 @@ class _TotalsCard extends StatelessWidget {
   /// Always in the SALE's own currency and decimals (a sale made in another currency/exponent keeps its own).
   String _m(double v) => Money.format(v, currency: sale.currency, exponent: sale.currencyExponent);
 
-  Widget _note(String text) => Padding(
+  Widget _note(BuildContext context, String text) => Padding(
         padding: const EdgeInsets.only(bottom: 2),
-        child: Align(alignment: Alignment.centerRight, child: CustomText(text: text, fontSize: AppFontSize.tiny, color: AppColors.iosGrey)),
+        child: Align(alignment: Alignment.centerRight, child: Text(text, style: context.type.caption.copyWith(color: context.palette.textMuted))),
       );
 
-  Widget _row(String label, double amount, {Color? color, bool bold = false}) {
+  Widget _row(BuildContext context, String label, double amount, {Color? color, bool bold = false}) {
+    final p = context.palette;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: Space.s1),
       child: Row(children: [
-        CustomText(text: label, fontSize: AppFontSize.verySmall, fontWeight: bold ? FontWeight.bold : FontWeight.w400, color: AppColors.black2),
-        const Spacer(),
-        CustomText(
-          text: _m(amount),
-          fontSize: bold ? AppFontSize.small2 : AppFontSize.verySmall,
-          fontWeight: bold ? FontWeight.bold : FontWeight.w600,
-          color: color ?? AppColors.black2,
+        Expanded(
+          child: Text(
+            label,
+            style: (bold ? context.type.subtitle : context.type.body).copyWith(
+              color: p.textPrimary,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+            ),
+          ),
+        ),
+        const SizedBox(width: Space.s3),
+        AmountText(
+          _m(amount),
+          style: bold ? context.type.amountLg : context.type.amountMd,
+          color: color ?? p.textPrimary,
+          animate: false,
+          alignment: MainAxisAlignment.end,
         ),
       ]),
     );
@@ -336,25 +307,27 @@ class _ActionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Obx(() {
       if (c.isProcessing.value) {
-        return Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor));
+        return Center(child: CircularProgressIndicator(strokeWidth: 2, color: p.accent));
       }
       return Column(children: [
         if (sale.canDiscard)
           _ActionButton(
             label: 'Discard Held Sale',
-            color: AppColors.red,
+            variant: AppButtonVariant.danger,
+            icon: Icons.delete_outline_rounded,
             onTap: () => _confirm(context, 'Discard Sale', 'Permanently delete this held sale?', c.discard),
           ),
         // G6.1: the invoice's fiscal state (failed / refused visible to the cashier and the owner; never blocks the sale)
-        if (sale.invoice?.fiscal?.required == true) Padding(padding: const EdgeInsets.only(bottom: 12), child: FiscalStatusCard(fiscal: sale.invoice!.fiscal)),
+        if (sale.invoice?.fiscal?.required == true) Padding(padding: const EdgeInsets.only(bottom: Space.s3), child: FiscalStatusCard(fiscal: sale.invoice!.fiscal)),
         if (sale.status != 'held' && sale.status != 'discarded')
           _ActionButton(
             key: const Key('openTaxInvoice'),
             label: sale.invoice != null ? 'Tax invoice ${sale.invoice!.number}' : 'Tax invoice',
-            color: AppColors.black2,
-            outline: true,
+            variant: AppButtonVariant.secondary,
+            icon: Icons.description_outlined,
             onTap: () => Get.toNamed(Routes.posTaxInvoice, arguments: sale.id),
           ),
         // ONE path for every refund AND void: the Return flow (credit note, approval rules, restock, void for managers).
@@ -362,8 +335,8 @@ class _ActionsSection extends StatelessWidget {
           _ActionButton(
             key: const Key('openReturn'),
             label: 'Return or void',
-            color: AppColors.red,
-            outline: true,
+            variant: AppButtonVariant.danger,
+            icon: Icons.undo_rounded,
             onTap: () => Get.toNamed(Routes.posReturn, arguments: sale.id),
           ),
       ]);
@@ -376,36 +349,25 @@ class _ActionsSection extends StatelessWidget {
       title: title,
       message: body,
       confirmLabel: 'Confirm',
-      confirmColor: AppColors.red,
+      destructive: true,
       onConfirm: onConfirm,
     );
   }
 }
 
-/// A soft, tinted secondary action button — mirrors the tinted-pill style
-/// already used by [PosTransactionButtons] elsewhere in the POS module,
-/// built on the shared [CustomButton] component.
+/// A full-width action on the design-system [AppButton].
 class _ActionButton extends StatelessWidget {
   final String label;
-  final Color color;
-  final bool outline;
+  final AppButtonVariant variant;
+  final IconData? icon;
   final VoidCallback onTap;
-  const _ActionButton({super.key, required this.label, required this.color, required this.onTap, this.outline = false});
+  const _ActionButton({super.key, required this.label, required this.variant, required this.onTap, this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: CustomButton(
-        label: label,
-        width: double.infinity,
-        height: 48,
-        borderRadius: 12,
-        color: outline ? AppColors.transparent : color.withOpacity(0.1),
-        textColor: color,
-        borderColor: outline ? color.withOpacity(0.4) : AppColors.transparent,
-        onPressed: onTap,
-      ),
+      padding: const EdgeInsets.only(bottom: Space.s3),
+      child: AppButton(label: label, icon: icon, variant: variant, onPressed: onTap),
     );
   }
 }

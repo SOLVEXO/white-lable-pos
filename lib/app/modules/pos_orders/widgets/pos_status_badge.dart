@@ -1,8 +1,5 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
 class PosStatusBadge extends StatelessWidget {
   final String status;
@@ -10,40 +7,23 @@ class PosStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = _resolve(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: style.bg, borderRadius: BorderRadius.circular(6)),
-      child: CustomText(
-        text: style.label,
-        fontSize: AppFontSize.tiny,
-        fontWeight: FontWeight.w700,
-        color: style.fg,
-        fontFamily: AppTextStyles.monoFontFamily,
-      ),
-    );
+    final (label, tone) = _resolve(status);
+    return StatusBadge(label, tone: tone, dot: true);
   }
 
-  static _Style _resolve(String status) {
+  static (String, StatusTone) _resolve(String status) {
     switch (status) {
       case 'held':
-        return const _Style('Held', AppColors.orange, AppColors.heldStatusBg);
+        return ('Held', StatusTone.warning);
       case 'refunded':
-        return const _Style('Refunded', AppColors.red, AppColors.lightRed);
+        return ('Refunded', StatusTone.danger);
       case 'partially_refunded':
-        return const _Style('Partial refund', AppColors.red, AppColors.lightRed);
+        return ('Partial refund', StatusTone.danger);
       case 'voided':
-        return const _Style('Voided', AppColors.iosGrey, AppColors.background);
+        return ('Voided', StatusTone.neutral);
       case 'completed':
       default:
-        return const _Style('Completed', AppColors.darkGreen, AppColors.greenContainerInnerColor);
+        return ('Completed', StatusTone.success);
     }
   }
-}
-
-class _Style {
-  final String label;
-  final Color fg;
-  final Color bg;
-  const _Style(this.label, this.fg, this.bg);
 }

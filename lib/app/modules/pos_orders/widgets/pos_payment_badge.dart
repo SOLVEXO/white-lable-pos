@@ -1,8 +1,5 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
 class PosPaymentBadge extends StatelessWidget {
   final String method;
@@ -11,68 +8,20 @@ class PosPaymentBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = _resolve(method);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: style.bg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: style.border, width: 1),
-      ),
-      child: CustomText(
-        text: style.label,
-        fontSize: AppFontSize.tiny,
-        fontWeight: FontWeight.w600,
-        color: style.fg,
-        fontFamily: AppTextStyles.monoFontFamily,
-      ),
-    );
+    final (label, tone) = _resolve(method);
+    return StatusBadge(label, tone: tone);
   }
 
-  static _BadgeStyle _resolve(String method) {
+  static (String, StatusTone) _resolve(String method) {
     switch (method.toLowerCase()) {
       case 'card':
-        return const _BadgeStyle(
-          label: 'Card',
-          fg: AppColors.black2,
-          bg: AppColors.white,
-          border: AppColors.lightGrey2,
-        );
+        return ('Card', StatusTone.neutral);
       case 'store_credit':
-        return _BadgeStyle(
-          label: 'Store credit',
-          fg: AppColors.primaryColor,
-          bg: AppColors.languageBg,
-          border: AppColors.primaryColor,
-        );
+        return ('Store credit', StatusTone.accent);
       case 'cash':
-        return const _BadgeStyle(
-          label: 'Cash',
-          fg: AppColors.darkGreen,
-          bg: AppColors.greenContainerInnerColor,
-          border: AppColors.darkGreen,
-        );
+        return ('Cash', StatusTone.success);
       default:
-        return _BadgeStyle(
-          label: 'Other',
-          fg: AppColors.primaryColor,
-          bg: AppColors.languageBg,
-          border: AppColors.primaryColor,
-        );
+        return ('Other', StatusTone.accent);
     }
   }
-}
-
-class _BadgeStyle {
-  final String label;
-  final Color fg;
-  final Color bg;
-  final Color border;
-
-  const _BadgeStyle({
-    required this.label,
-    required this.fg,
-    required this.bg,
-    required this.border,
-  });
 }

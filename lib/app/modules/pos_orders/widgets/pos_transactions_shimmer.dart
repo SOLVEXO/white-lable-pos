@@ -1,27 +1,22 @@
-import 'package:solvexo_pos/app/components/skeleton.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
 class PosTransactionsShimmer extends StatelessWidget {
   const PosTransactionsShimmer({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: AppColors.shimmerBase,
-      highlightColor: AppColors.shimmerHighlight,
+    return SkeletonShimmer(
       child: Column(
         children: [
           _statsRowSkeleton(),
-          const Divider(height: 1, color: AppColors.lightGrey2),
+          Divider(height: 1, color: context.palette.border),
           Expanded(
             child: ListView.separated(
-              padding: const EdgeInsets.all(AppDimen.allPadding),
+              padding: const EdgeInsets.all(Space.s4),
               itemCount: 4,
               physics: const NeverScrollableScrollPhysics(),
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: Space.s3),
               itemBuilder: (_, __) => const _ShimmerCard(),
             ),
           ),
@@ -31,39 +26,15 @@ class PosTransactionsShimmer extends StatelessWidget {
   }
 
   Widget _statsRowSkeleton() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimen.allPadding,
-        12,
-        AppDimen.allPadding,
-        12,
-      ),
+    return const Padding(
+      padding: EdgeInsets.all(Space.s4),
       child: Row(
-        children: const [
-          Expanded(
-            flex: 2,
-            child: Skeleton(
-              height: 68,
-              width: double.infinity,
-              cornerRadius: AppDimen.serviceCountTileRadius,
-            ),
-          ),
-          SizedBox(width: 10),
-          Expanded(
-            child: Skeleton(
-              height: 68,
-              width: double.infinity,
-              cornerRadius: AppDimen.serviceCountTileRadius,
-            ),
-          ),
-          SizedBox(width: 10),
-          Expanded(
-            child: Skeleton(
-              height: 68,
-              width: double.infinity,
-              cornerRadius: AppDimen.serviceCountTileRadius,
-            ),
-          ),
+        children: [
+          Expanded(flex: 2, child: SkeletonBox(height: 68, radius: Radii.lg)),
+          SizedBox(width: Space.s3),
+          Expanded(child: SkeletonBox(height: 68, radius: Radii.lg)),
+          SizedBox(width: Space.s3),
+          Expanded(child: SkeletonBox(height: 68, radius: Radii.lg)),
         ],
       ),
     );
@@ -75,40 +46,35 @@ class _ShimmerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppDimen.allPadding),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppDimen.serviceCountTileRadius),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Skeleton(height: 14, width: 80),
-              Skeleton(height: 14, width: 52),
+            children: [
+              SkeletonBox(height: 14, width: 80),
+              SkeletonBox(height: 14, width: 52),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: const [
-              Skeleton(height: 12, width: 60),
-              SizedBox(width: 8),
-              Skeleton(height: 22, width: 50, cornerRadius: 20),
+          const SizedBox(height: Space.s3),
+          const Row(
+            children: [
+              SkeletonBox(height: 12, width: 60),
+              SizedBox(width: Space.s2),
+              SkeletonBox(height: 22, width: 50, radius: Radii.full),
               Spacer(),
-              Skeleton(height: 12, width: 55),
+              SkeletonBox(height: 12, width: 55),
             ],
           ),
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: AppColors.lightGrey2),
-          const SizedBox(height: 12),
-          Row(
-            children: const [
-              Expanded(child: Skeleton(height: 36, cornerRadius: AppDimen.borderRadius)),
-              SizedBox(width: 10),
-              Expanded(child: Skeleton(height: 36, cornerRadius: AppDimen.borderRadius)),
+          const SizedBox(height: Space.s3),
+          Divider(height: 1, color: context.palette.border),
+          const SizedBox(height: Space.s3),
+          const Row(
+            children: [
+              Expanded(child: SkeletonBox(height: Space.minTouch, radius: Radii.md)),
+              SizedBox(width: Space.s3),
+              Expanded(child: SkeletonBox(height: Space.minTouch, radius: Radii.md)),
             ],
           ),
         ],

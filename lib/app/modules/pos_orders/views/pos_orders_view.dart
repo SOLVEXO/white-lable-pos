@@ -1,16 +1,10 @@
-import 'package:solvexo_pos/app/components/custom_refresh_wrapper.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/controllers/pos_orders_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_stats_row.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_transaction_card.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_transactions_empty.dart';
 import 'package:solvexo_pos/app/modules/pos_orders/widgets/pos_transactions_shimmer.dart';
 import 'package:solvexo_pos/app/modules/pos/widgets/pos_app_bar.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:solvexo_pos/core/design/design.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -21,18 +15,24 @@ class PosOrdersView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: p.background,
       body: Column(
         children: [
           const PosAppBar(title: 'Transactions'),
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppDimen.allPadding, 8, AppDimen.allPadding, 4),
+            padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s1),
             child: TextField(
               key: const Key('ordersSearch'),
               textInputAction: TextInputAction.search,
               textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Find by receipt no. (OFF-…, INV-…, CN-…)', isDense: true),
+              style: context.type.body.copyWith(color: p.textPrimary),
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.search_rounded, color: p.textMuted),
+                hintText: 'Find by receipt no. (OFF-…, INV-…, CN-…)',
+                isDense: true,
+              ),
               onSubmitted: controller.searchByReceipt,
             ),
           ),
@@ -43,30 +43,35 @@ class PosOrdersView extends StatelessWidget {
               }
               final txns = controller.filteredSales;
 
-              return CustomRefreshWrapper(
+              return RefreshIndicator(
                 onRefresh: controller.refreshData,
+                color: p.accent,
                 child: txns.isEmpty
-                    ? PosTransactionsEmpty()
+                    ? LayoutBuilder(
+                        builder: (_, box) => SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: box.maxHeight),
+                            child: const PosTransactionsEmpty(),
+                          ),
+                        ),
+                      )
                     : SingleChildScrollView(
                         controller: controller.scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _FilterHeader(controller: controller),
                             PosStatsRow(controller: controller),
-                            const Divider(
-                              height: 1,
-                              color: AppColors.lightGrey2,
-                            ),
+                            Divider(height: 1, color: p.border),
                             ListView.separated(
-                              padding: const EdgeInsets.all(
-                                AppDimen.allPadding,
-                              ),
+                              padding: const EdgeInsets.all(Space.s4),
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               itemCount: txns.length,
                               separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: Space.s3),
                               itemBuilder: (_, i) => PosTransactionCard(
                                 sale: txns[i],
                                 controller: controller,
@@ -74,14 +79,14 @@ class PosOrdersView extends StatelessWidget {
                             ),
                             if (controller.isLoadingMore.value)
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(vertical: Space.s4),
                                 child: Center(
                                   child: SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: AppColors.primaryColor,
+                                      color: p.accent,
                                     ),
                                   ),
                                 ),
@@ -98,6 +103,54 @@ class PosOrdersView extends StatelessWidget {
   }
 }
 
+/// A token-styled filter pill with a full 48 dp tap target.
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({required this.label, required this.onTap, this.active = false, this.icon, this.trailing});
+  final String label;
+  final VoidCallback onTap;
+  final bool active;
+  final IconData? icon;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final fg = active ? p.accentFg : p.textPrimary;
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: Radii.rFull,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: Space.minTouch),
+          child: Center(
+            widthFactor: 1,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s1 + 2),
+              decoration: BoxDecoration(
+                color: active ? p.accentSoft : p.surface,
+                borderRadius: Radii.rFull,
+                border: Border.all(color: active ? p.accent : p.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: IconSizes.xs, color: active ? p.accentFg : p.textSecondary),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(label, style: context.type.label.copyWith(color: fg, fontWeight: FontWeight.w600)),
+                  if (trailing != null) ...[const SizedBox(width: Space.s1), trailing!],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _FilterHeader extends StatelessWidget {
   final PosOrdersController controller;
   const _FilterHeader({required this.controller});
@@ -106,225 +159,123 @@ class _FilterHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimen.allPadding,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.fromLTRB(Space.s4, Space.s3, Space.s4, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: Space.s2,
             children: [
-              const CustomText(
-                text: 'Transactions',
-                fontFamily: AppTextStyles.headingFontFamily,
-                fontSize: AppFontSize.medium,
-                fontWeight: FontWeight.bold,
-                color: AppColors.black2,
+              Text(
+                'Transactions',
+                style: context.type.title.copyWith(color: p.textPrimary),
               ),
               _buildFilterRow(context),
             ],
           ),
-          const SizedBox(height: 8),
           _DateFilterChip(controller: controller),
           // G5.1: managers filter by cashier / register (store-wide)
-          Obx(() => controller.isManager.value ? Padding(padding: const EdgeInsets.only(top: 8), child: OrdersPeopleFilters(controller: controller)) : const SizedBox.shrink()),
+          Obx(() => controller.isManager.value ? Padding(padding: const EdgeInsets.only(top: Space.s1), child: OrdersPeopleFilters(controller: controller)) : const SizedBox.shrink()),
         ],
       ),
     );
   }
 
   Widget _buildFilterRow(BuildContext context) {
+    final p = context.palette;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
           Obx(
-            () => GestureDetector(
+            () => _FilterPill(
               onTap: () => _showFilterSheet(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(
-                    AppDimen.draggableBorderRadius,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CustomText(
-                      text: controller.paymentFilter.value == 'All'
-                          ? 'All'
-                          : controller.paymentFilter.value.capitalizeFirst ??
-                                '',
-                      fontSize: AppFontSize.verySmall,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 16,
-                      color: AppColors.primaryColor,
-                    ),
-                  ],
-                ),
-              ),
+              active: true,
+              label: controller.paymentFilter.value == 'All'
+                  ? 'All'
+                  : controller.paymentFilter.value.capitalizeFirst ??
+                        '',
+              trailing: Icon(Icons.keyboard_arrow_down_rounded, size: IconSizes.sm, color: p.accentFg),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: Space.s2),
           Obx(
-            () => GestureDetector(
+            () => _FilterPill(
               onTap: () => _showStatusFilterSheet(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(
-                    AppDimen.draggableBorderRadius,
-                  ),
-                  border: Border.all(color: AppColors.lightGrey2),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CustomText(
-                      text: controller.statusFilter.value == 'All'
-                          ? 'Status'
-                          : controller.statusFilter.value.capitalizeFirst ?? '',
-                      fontSize: AppFontSize.verySmall,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.black2,
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 16,
-                      color: AppColors.black2,
-                    ),
-                  ],
-                ),
-              ),
+              label: controller.statusFilter.value == 'All'
+                  ? 'Status'
+                  : controller.statusFilter.value.capitalizeFirst ?? '',
+              trailing: Icon(Icons.keyboard_arrow_down_rounded, size: IconSizes.sm, color: p.textPrimary),
             ),
           ),
       ],
     );
   }
 
+  Widget _option(BuildContext context, {required String label, required bool selected, required VoidCallback onTap}) {
+    final p = context.palette;
+    return ListTile(
+      onTap: onTap,
+      minTileHeight: Space.minTouch,
+      shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
+      title: Text(label, style: context.type.body.copyWith(color: p.textPrimary)),
+      trailing: selected ? Icon(Icons.check_rounded, color: p.accentFg) : null,
+    );
+  }
+
   void _showStatusFilterSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.lightGrey2,
-                borderRadius: BorderRadius.circular(2),
+    AppBottomSheet.show<void>(
+      context,
+      title: 'Filter by Status',
+      useRootNavigator: false,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ...PosOrdersController.statusFilters.map(
+            (s) => Obx(
+              () => _option(
+                context,
+                onTap: () {
+                  controller.setStatusFilter(s);
+                  Navigator.pop(context);
+                },
+                label: s == 'All'
+                    ? 'All Statuses'
+                    : (s.capitalizeFirst ?? s).replaceAll('_', ' '),
+                selected: controller.statusFilter.value == s,
               ),
             ),
-            const SizedBox(height: 16),
-            const CustomText(
-              text: 'Filter by Status',
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black2,
-            ),
-            const SizedBox(height: 12),
-            ...PosOrdersController.statusFilters.map(
-              (s) => Obx(
-                () => ListTile(
-                  onTap: () {
-                    controller.setStatusFilter(s);
-                    Navigator.pop(context);
-                  },
-                  title: CustomText(
-                    text: s == 'All'
-                        ? 'All Statuses'
-                        : (s.capitalizeFirst ?? s).replaceAll('_', ' '),
-                    fontSize: AppFontSize.verySmall,
-                    color: AppColors.black2,
-                  ),
-                  trailing: controller.statusFilter.value == s
-                      ? Icon(
-                          Icons.check_rounded,
-                          color: AppColors.primaryColor,
-                        )
-                      : null,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   void _showFilterSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.lightGrey2,
-                borderRadius: BorderRadius.circular(2),
+    AppBottomSheet.show<void>(
+      context,
+      title: 'Filter by Payment',
+      useRootNavigator: false,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ..._filters.map(
+            (f) => Obx(
+              () => _option(
+                context,
+                onTap: () {
+                  controller.setPaymentFilter(f);
+                  Navigator.pop(context);
+                },
+                label: f == 'All' ? 'All Methods' : (f.capitalizeFirst ?? f),
+                selected: controller.paymentFilter.value == f,
               ),
             ),
-            const SizedBox(height: 16),
-            const CustomText(
-              text: 'Filter by Payment',
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black2,
-            ),
-            const SizedBox(height: 12),
-            ..._filters.map(
-              (f) => Obx(
-                () => ListTile(
-                  onTap: () {
-                    controller.setPaymentFilter(f);
-                    Navigator.pop(context);
-                  },
-                  title: CustomText(
-                    text: f == 'All' ? 'All Methods' : (f.capitalizeFirst ?? f),
-                    fontSize: AppFontSize.verySmall,
-                    color: AppColors.black2,
-                  ),
-                  trailing: controller.paymentFilter.value == f
-                      ? Icon(
-                          Icons.check_rounded,
-                          color: AppColors.primaryColor,
-                        )
-                      : null,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -336,56 +287,41 @@ class _DateFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() => GestureDetector(
-      onTap: () async {
-        final now = DateTime.now();
-        final picked = await showDateRangePicker(
-          context: context,
-          firstDate: now.subtract(const Duration(days: 365)),
-          lastDate: now,
-          initialDateRange: controller.fromDate.value != null && controller.toDate.value != null
-              ? DateTimeRange(start: controller.fromDate.value!, end: controller.toDate.value!)
-              : null,
-        );
-        if (picked != null) {
-          controller.setDateRange(picked.start, picked.end);
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: controller.fromDate.value != null ? AppColors.primaryColor.withOpacity(0.1) : AppColors.background,
-          borderRadius: BorderRadius.circular(AppDimen.draggableBorderRadius),
-          border: Border.all(
-            color: controller.fromDate.value != null ? AppColors.primaryColor : AppColors.lightGrey2,
+    final p = context.palette;
+    return Obx(() {
+      final active = controller.fromDate.value != null;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _FilterPill(
+            onTap: () async {
+              final now = DateTime.now();
+              final picked = await showDateRangePicker(
+                context: context,
+                firstDate: now.subtract(const Duration(days: 365)),
+                lastDate: now,
+                initialDateRange: controller.fromDate.value != null && controller.toDate.value != null
+                    ? DateTimeRange(start: controller.fromDate.value!, end: controller.toDate.value!)
+                    : null,
+              );
+              if (picked != null) {
+                controller.setDateRange(picked.start, picked.end);
+              }
+            },
+            active: active,
+            icon: Icons.calendar_today_outlined,
+            label: controller.dateFilter.value,
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.calendar_today_outlined,
-              size: 14,
-              color: controller.fromDate.value != null ? AppColors.primaryColor : AppColors.iosGrey,
+          if (active)
+            IconButton(
+              tooltip: 'Clear dates',
+              constraints: const BoxConstraints(minWidth: Space.minTouch, minHeight: Space.minTouch),
+              onPressed: () => controller.setDateRange(null, null),
+              icon: Icon(Icons.close_rounded, size: IconSizes.sm, color: p.accentFg),
             ),
-            const SizedBox(width: 6),
-            CustomText(
-              text: controller.dateFilter.value,
-              fontSize: AppFontSize.tiny,
-              fontWeight: FontWeight.w600,
-              color: controller.fromDate.value != null ? AppColors.primaryColor : AppColors.black2,
-            ),
-            if (controller.fromDate.value != null) ...[
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () => controller.setDateRange(null, null),
-                child: Icon(Icons.close_rounded, size: 14, color: AppColors.primaryColor),
-              ),
-            ],
-          ],
-        ),
-      ),
-    ));
+        ],
+      );
+    });
   }
 }
 

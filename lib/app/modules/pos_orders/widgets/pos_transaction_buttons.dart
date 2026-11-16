@@ -1,8 +1,5 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
 class PosTransactionButtons extends StatelessWidget {
   final VoidCallback onReceipt;
@@ -16,68 +13,32 @@ class PosTransactionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final receipt = AppButton(
+      label: 'Receipt',
+      icon: Icons.receipt_long_outlined,
+      variant: AppButtonVariant.secondary,
+      onPressed: onReceipt,
+    );
+    if (onReturn == null) return receipt;
+    final ret = AppButton(
+      label: 'Return / void',
+      icon: Icons.undo_rounded,
+      variant: AppButtonVariant.danger,
+      onPressed: onReturn,
+    );
+    // Stack the two buttons when large text would squeeze the labels.
+    if (MediaQuery.textScalerOf(context).scale(16) > 19) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [receipt, const SizedBox(height: Space.s2), ret],
+      );
+    }
     return Row(
       children: [
-        Expanded(
-          child: _TxnBtn(
-            label: 'Receipt',
-            onTap: onReceipt,
-            color: AppColors.black2,
-            bgColor: AppColors.background,
-            borderColor: AppColors.lightGrey2,
-          ),
-        ),
-        if (onReturn != null) ...[
-          const SizedBox(width: 10),
-          Expanded(
-            child: _TxnBtn(
-              label: 'Return / void',
-              onTap: onReturn!,
-              color: AppColors.red,
-              bgColor: AppColors.lightRed,
-              borderColor: AppColors.red,
-            ),
-          ),
-        ],
+        Expanded(child: receipt),
+        const SizedBox(width: Space.s3),
+        Expanded(child: ret),
       ],
-    );
-  }
-}
-
-class _TxnBtn extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final Color color;
-  final Color bgColor;
-  final Color borderColor;
-
-  const _TxnBtn({
-    required this.label,
-    required this.onTap,
-    required this.color,
-    required this.bgColor,
-    required this.borderColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-          border: Border.all(color: borderColor.withOpacity(0.4)),
-        ),
-        alignment: Alignment.center,
-        child: CustomText(
-          text: label,
-          fontSize: AppFontSize.verySmall,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
     );
   }
 }

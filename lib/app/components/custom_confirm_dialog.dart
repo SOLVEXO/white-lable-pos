@@ -1,14 +1,12 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
-/// The app's standard confirm/cancel dialog: a `CustomText` title, either a
-/// plain `message` or a custom `content` widget (e.g. a form field), a plain
-/// `TextButton` cancel action, and a colored pill confirm action — matching
-/// the destructive-action pattern already used across the app (see
-/// EditProductDangerZone's delete-product dialog).
+/// The app's standard confirm/cancel dialog, drawn on the design system
+/// ([AppDialogCard] + [AppButton]): a title, either a plain `message` or a
+/// custom `content` widget (e.g. a form field), a secondary cancel action and
+/// a primary confirm action — the danger variant when [destructive] is set
+/// (or, for older callers, when any [confirmColor] is passed: every existing
+/// caller passes a red one for a destructive action).
 ///
 /// Pops the dialog immediately on confirm, then invokes [onConfirm] — use
 /// this for any action whose result is reported via a toast/snackbar rather
@@ -19,7 +17,10 @@ class CustomConfirmDialog extends StatelessWidget {
   final Widget? content;
   final String confirmLabel;
   final String cancelLabel;
+
+  /// Legacy: any non-null value means "destructive" (danger button). Prefer [destructive].
   final Color? confirmColor;
+  final bool destructive;
   final VoidCallback? onConfirm;
 
   const CustomConfirmDialog({
@@ -30,6 +31,7 @@ class CustomConfirmDialog extends StatelessWidget {
     this.confirmLabel = 'Confirm',
     this.cancelLabel = 'Cancel',
     this.confirmColor,
+    this.destructive = false,
     this.onConfirm,
   }) : assert(message != null || content != null, 'Provide either message or content');
 
@@ -41,11 +43,12 @@ class CustomConfirmDialog extends StatelessWidget {
     String confirmLabel = 'Confirm',
     String cancelLabel = 'Cancel',
     Color? confirmColor,
+    bool destructive = false,
     VoidCallback? onConfirm,
     bool barrierDismissible = true,
   }) {
-    return showDialog<T>(
-      context: context,
+    return AppDialog.show<T>(
+      context,
       barrierDismissible: barrierDismissible,
       builder: (ctx) => CustomConfirmDialog(
         title: title,
@@ -54,6 +57,7 @@ class CustomConfirmDialog extends StatelessWidget {
         confirmLabel: confirmLabel,
         cancelLabel: cancelLabel,
         confirmColor: confirmColor,
+        destructive: destructive,
         onConfirm: onConfirm == null
             ? null
             : () {
@@ -66,43 +70,31 @@ class CustomConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimen.dialogRadius)),
-      title: CustomText(
-        text: title,
-        fontSize: AppFontSize.small,
-        fontWeight: FontWeight.bold,
-        color: AppColors.black,
+    final danger = destructive || confirmColor != null;
+    // Lift above the keyboard when the content holds a text field (AlertDialog did this for us before).
+    return AnimatedPadding(
+      duration: Motion.of(context, Motion.base),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: Space.s4),
+        child: AppDialogCard(
+          title: title,
+          message: content == null ? message : null,
+          content: content,
+          actions: [
+            AppButton(
+              label: cancelLabel,
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Navigator.pop(context),
+            ),
+            AppButton(
+              label: confirmLabel,
+              variant: danger ? AppButtonVariant.danger : AppButtonVariant.primary,
+              onPressed: onConfirm,
+            ),
+          ],
+        ),
       ),
-      content: content ??
-          CustomText(
-            text: message!,
-            fontSize: AppFontSize.verySmall,
-            color: AppColors.grey,
-          ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: CustomText(text: cancelLabel, fontSize: AppFontSize.verySmall, color: AppColors.grey),
-        ),
-        GestureDetector(
-          onTap: onConfirm,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-            decoration: BoxDecoration(
-              color: confirmColor ?? AppColors.primaryColor,
-              borderRadius: BorderRadius.circular(AppDimen.borderRadius),
-            ),
-            child: CustomText(
-              text: confirmLabel,
-              fontSize: AppFontSize.verySmall,
-              fontWeight: FontWeight.w600,
-              color: AppColors.white,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
