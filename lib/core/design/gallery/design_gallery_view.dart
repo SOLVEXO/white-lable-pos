@@ -187,6 +187,7 @@ class _PaneState extends State<_Pane> {
                   _pin(context),
                   _overlays(context),
                   _states(context),
+                  _patterns(context),
                   _badges(context),
                   _receipt(context),
                   _shell(context),
@@ -221,6 +222,43 @@ class _PaneState extends State<_Pane> {
     ),
   );
 
+  /// G6.3 page patterns: the hero, list rows (navigation / alert / placeholder), banners and the error state.
+  Widget _patterns(BuildContext context) {
+    final p = context.palette;
+    return _section(
+      context,
+      'Page patterns (G6.3)',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppHero(
+            caption: 'Net sales · Today',
+            figure: AmountText(Money.format(84260), style: context.type.amountXl, color: p.onHero, animate: false),
+            footnote: '126 sales today',
+          ),
+          const SizedBox(height: Space.s3),
+          AppListRow(icon: Icons.inventory_2_outlined, title: 'Products', subtitle: 'Navigation row', onTap: () {}),
+          const SizedBox(height: Space.s2),
+          AppListRow(icon: Icons.gpp_maybe_outlined, tone: StatusTone.danger, title: '2 fiscal documents not accepted', subtitle: 'Alert row (danger)', onTap: () {}),
+          const SizedBox(height: Space.s2),
+          AppListRow(icon: Icons.inventory_2_outlined, tone: StatusTone.warning, title: '8 low-stock items', subtitle: 'Alert row (warning) with a badge', badge: 8, onTap: () {}),
+          const SizedBox(height: Space.s2),
+          AppListRow(icon: Icons.shield_outlined, title: 'Audit log', subtitle: 'Behind the owner gate', locked: true, onTap: () {}),
+          const SizedBox(height: Space.s2),
+          const AppListRow(icon: Icons.swap_horiz_rounded, title: 'Placeholder row', subtitle: 'Managers only, never cashiers', soon: true),
+          const SizedBox(height: Space.s3),
+          const AppBanner.offline(),
+          const SizedBox(height: Space.s2),
+          AppBanner(title: 'Needs the newer server', message: 'This feature appears once the store\'s server is updated.', icon: Icons.update_rounded, actionLabel: 'Check', onAction: () {}),
+          const SizedBox(height: Space.s2),
+          const AppBanner(message: 'Selling is off until the plan is renewed on the web.', icon: Icons.lock_outline_rounded, tone: StatusTone.warning),
+          const SizedBox(height: Space.s3),
+          SizedBox(height: 240, child: AppCard(child: AppErrorState(message: 'Check the connection and try again.', onRetry: () {}))),
+        ],
+      ),
+    );
+  }
+
   Widget _colors(BuildContext context) {
     final p = context.palette;
     final items = <(String, Color)>[
@@ -240,6 +278,8 @@ class _PaneState extends State<_Pane> {
       ('warning', p.warning),
       ('danger', p.danger),
       ('info', p.info),
+      ('hero', p.heroStart),
+      ('hero end', p.heroEnd),
     ];
     return _section(
       context,

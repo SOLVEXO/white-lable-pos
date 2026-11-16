@@ -17,6 +17,7 @@ import 'package:solvexo_pos/app/modules/pos/views/pos_more_hub_view.dart';
 import 'package:solvexo_pos/app/modules/pos/views/pos_stock_hub_view.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/core/design/design.dart';
+import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 
 import 'support/sale_harness.dart' show MockPosRepository;
 
@@ -58,7 +59,7 @@ void main() {
   tearDown(Get.reset);
 
   Future<void> mountHome(WidgetTester t, PosAccess access, {double scale = 1}) async {
-    t.view.physicalSize = const Size(390, 844);
+    t.view.physicalSize = const Size(390, 2600); // G6.3: Home is longer; the whole tab is built
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     final c = PosHomeTabController(posRepository: pos, inventoryRepository: inv, accessOverride: access);
@@ -130,27 +131,45 @@ void main() {
       expect(find.text('Last 7 days'), findsNothing);
       expect(find.byKey(const Key('homeAction-newSale')), findsOneWidget);
       expect(find.textContaining('Good '), findsOneWidget);
-      expect(find.textContaining('Cal'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^Good \w+, Cal$')), findsOneWidget); // the greeting (the register card also says "Opened by Cal Cashier")
       // the manager-only endpoints are never even called for a cashier
       verifyNever(() => pos.getDailyReport(any()));
       verifyNever(() => pos.getRangeReport(any(), from: any(named: 'from'), to: any(named: 'to')));
       verifyNever(() => inv.getLowStockSummary(any()));
     });
 
-    testWidgets('manager: business pulse, 7-day trend, and "coming soon" placeholders for what has no endpoint yet', (t) async {
+    testWidgets('manager: business pulse, 7-day trend, refunds instead of a profit placeholder, and real quick actions (G6.3)', (t) async {
       await mountHome(t, PosAccess.manager);
       expect(find.text('Business pulse'), findsOneWidget);
       expect(find.byKey(const Key('homeTile-orders')), findsOneWidget);
       expect(find.byKey(const Key('homeTile-avg')), findsOneWidget);
-      expect(find.byKey(const Key('homeTile-profit')), findsOneWidget);
-      expect(find.text('Coming soon'), findsOneWidget); // the profit tile
-      expect(find.byKey(const Key('homeAction-expense')), findsOneWidget);
-      expect(find.byKey(const Key('homeAction-count')), findsOneWidget);
-      expect(find.text('Soon'), findsNWidgets(2));
-      expect(find.byKey(const Key('homeTrend')), findsOneWidget);
-      // the placeholder actions are disabled (no onTap)
-      expect(t.widget<InkWell>(find.byKey(const Key('homeAction-expense'))).onTap, isNull);
+      expect(find.byKey(const Key('homeTile-refunds')), findsOneWidget);
+      // no unfinished placeholders any more: profit is not on Home (costs may be hidden from managers), expense and count are real screens
+      expect(find.byKey(const Key('homeTile-profit')), findsNothing);
+      expect(find.text('Coming soon'), findsNothing);
+      expect(find.text('Soon'), findsNothing);
+      for (final k in ['newSale', 'heldSales', 'products', 'orders', 'cash', 'expense', 'count', 'reports', 'team']) {
+        expect(find.byKey(Key('homeAction-$k'), skipOffstage: false), findsOneWidget, reason: k);
+        expect(t.widget<InkWell>(find.byKey(Key('homeAction-$k'), skipOffstage: false)).onTap, isNotNull, reason: k);
+      }
+      expect(find.byKey(const Key('homeAction-mySales'), skipOffstage: false), findsNothing);
+      expect(find.byKey(const Key('homeTrend'), skipOffstage: false), findsOneWidget);
       verify(() => pos.getDailyReport('store-1')).called(1);
+    });
+
+    testWidgets('register card: open → who / since / float, Continue selling; closed → Open register (G6.3)', (t) async {
+      await mountHome(t, PosAccess.cashier);
+      expect(find.byKey(const Key('homeRegister')), findsOneWidget);
+      expect(find.text('Register open'), findsOneWidget);
+      expect(find.byKey(const Key('homeRegisterSell')), findsOneWidget);
+      Get.reset();
+      SharedPreferences.setMockInitialValues({'store_id': 'store-1', 'pos_employee_role': 'manager'});
+      await AppPreferences.warmCache();
+      when(() => pos.getSessionReport(any())).thenAnswer((_) async => null);
+      await mountHome(t, PosAccess.manager);
+      expect(find.text('Register closed'), findsOneWidget);
+      expect(find.byKey(const Key('homeRegisterOpen')), findsOneWidget);
+      expect(find.byKey(const Key('homeRegisterSell')), findsNothing);
     });
 
     testWidgets('manager without a manager PIN session: a clear note, not an error', (t) async {
@@ -177,7 +196,7 @@ void main() {
       when(() => inv.getLowStockSummary(any())).thenAnswer((_) async => const LowStockSummary(count: 3, threshold: 10, items: []));
       await mountHome(t, PosAccess.manager);
       expect(find.byKey(const Key('homeAttention-lowStock'), skipOffstage: false), findsOneWidget);
-      expect(find.byKey(const Key('homeAttention-shift'), skipOffstage: false), findsOneWidget);
+      expect(find.byKey(const Key('homeRegister'), skipOffstage: false), findsOneWidget); // G6.3: the open shift is the register card now
     });
 
     testWidgets('large text (200 %) does not overflow, for both roles', (t) async {

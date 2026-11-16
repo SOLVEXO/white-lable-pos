@@ -8,9 +8,15 @@ import 'package:solvexo_pos/utils/money.dart';
 /// what needs attention and the open shift(s). A cashier gets only their own shift (the server decides); the manager-only parts are simply
 /// absent from their answer.
 class DashboardPulse extends StatelessWidget {
-  const DashboardPulse({super.key, required this.d, this.onAttention});
+  const DashboardPulse({super.key, required this.d, this.onAttention, this.summary = true, this.attention = true});
   final PosDashboard d;
   final VoidCallback? onAttention;
+
+  /// The "Today" figures grid. Home shows these in its hero and tiles, so it turns this off (G6.3).
+  final bool summary;
+
+  /// The "N items need attention" card. Home lists each alert itself, so it turns this off.
+  final bool attention;
 
   String _m(num v) => Money.format(v, currency: d.currency, exponent: d.exponent);
 
@@ -23,6 +29,7 @@ class DashboardPulse extends StatelessWidget {
       key: const Key('dashboardPulse'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (summary) ...[
         SectionHeader(d.isShiftScope ? 'Your shift so far' : 'Today'),
         Row(
           children: [
@@ -39,7 +46,8 @@ class DashboardPulse extends StatelessWidget {
             Expanded(child: _Stat(label: 'Refunds', value: _m(d.refunds), keyName: 'pulseRefunds', tone: d.refunds > 0 ? p.dangerFg : null)),
           ],
         ),
-        if (d.showsAttention && d.attentionTotal > 0) ...[
+        ],
+        if (attention && d.showsAttention && d.attentionTotal > 0) ...[
           const SizedBox(height: Space.s2),
           AppCard(
             key: const Key('pulseAttention'),
@@ -59,7 +67,7 @@ class DashboardPulse extends StatelessWidget {
           ),
         ],
         if (d.topProducts.isNotEmpty) ...[
-          const SizedBox(height: Space.s4),
+          if (summary || attention) const SizedBox(height: Space.s4),
           const SectionHeader('Top products'),
           AppCard(
             key: const Key('pulseTop'),
@@ -69,7 +77,7 @@ class DashboardPulse extends StatelessWidget {
                 for (final tp in d.topProducts)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: Space.s1),
-                    child: Row(children: [Expanded(child: Text(tp.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.body.copyWith(color: p.textPrimary))), Text('×${tp.qty}', style: t.caption.copyWith(color: p.textMuted)), const SizedBox(width: Space.s3), Text(_m(tp.revenue), style: t.amountMd.copyWith(color: p.textPrimary))]),
+                    child: Row(children: [Expanded(child: Text(tp.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.body.copyWith(color: p.textPrimary))), Text('×${tp.qty}', style: t.caption.copyWith(color: p.textMuted)), const SizedBox(width: Space.s3), AmountText(_m(tp.revenue), style: t.amountMd, color: p.textPrimary, animate: false)]),
                   ),
               ],
             ),
@@ -89,7 +97,7 @@ class DashboardPulse extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(children: [Expanded(child: Text(_label(pm.method), style: t.body.copyWith(color: p.textPrimary))), Text('${pm.count}', style: t.caption.copyWith(color: p.textMuted)), const SizedBox(width: Space.s3), Text(_m(pm.total), style: t.amountMd.copyWith(color: p.textPrimary))]),
+                        Row(children: [Expanded(child: Text(_label(pm.method), style: t.body.copyWith(color: p.textPrimary))), Text('${pm.count}', style: t.caption.copyWith(color: p.textMuted)), const SizedBox(width: Space.s3), AmountText(_m(pm.total), style: t.amountMd, color: p.textPrimary, animate: false)]),
                         const SizedBox(height: 4),
                         ClipRRect(borderRadius: Radii.rFull, child: LinearProgressIndicator(value: maxMix <= 0 ? 0 : (pm.total / maxMix).clamp(0, 1).toDouble(), minHeight: 6, backgroundColor: p.fill, color: p.accent)),
                       ],
@@ -129,7 +137,7 @@ class DashboardPulse extends StatelessWidget {
                     Icon(Icons.schedule_rounded, color: p.textSecondary),
                     const SizedBox(width: Space.s3),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(s.employeeName ?? 'Till', style: t.subtitle.copyWith(color: p.textPrimary)), Text(s.openedAt == null ? 'Open' : 'Open since ${DateFormat('HH:mm').format(s.openedAt!.toLocal())} · ${s.transactions} sales', style: t.caption.copyWith(color: p.textMuted))])),
-                    Text(_m(s.totalSales), style: t.amountMd.copyWith(color: p.textPrimary)),
+                    AmountText(_m(s.totalSales), style: t.amountMd, color: p.textPrimary, animate: false),
                   ],
                 ),
               ),

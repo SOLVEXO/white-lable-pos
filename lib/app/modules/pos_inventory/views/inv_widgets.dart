@@ -9,7 +9,7 @@ String invSigned(int v) => v > 0 ? '+$v' : (v < 0 ? '−${v.abs()}' : '0');
 String invDate(DateTime? d) => d == null ? '' : DateFormat('d MMM yyyy').format(d);
 String invDateTime(DateTime? d) => d == null ? '' : DateFormat('d MMM, HH:mm').format(d);
 
-/// Page frame shared by the inventory screens: app bar, safe area and a width cap so a tablet is not a stretched phone.
+/// Page frame of the inventory screens — the design system's [AppPage] (G6.3).
 class InvScaffold extends StatelessWidget {
   const InvScaffold({super.key, required this.title, required this.body, this.maxWidth = 720, this.actions});
   final String title;
@@ -18,30 +18,17 @@ class InvScaffold extends StatelessWidget {
   final List<Widget>? actions;
 
   @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    return Scaffold(
-      backgroundColor: p.background,
-      appBar: AppBar(title: Text(title), backgroundColor: p.background, foregroundColor: p.textPrimary, elevation: 0, actions: actions),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: body,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AppPage(title: title, body: body, maxWidth: maxWidth, actions: actions);
 }
 
+/// The design system's [AppErrorState].
 class InvErrorState extends StatelessWidget {
   const InvErrorState({super.key, required this.message, required this.onRetry});
   final String message;
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => EmptyState(icon: Icons.cloud_off_rounded, title: 'Could not load', message: message, actionLabel: 'Try again', onAction: onRetry, tone: context.palette.danger);
+  Widget build(BuildContext context) => AppErrorState(message: message, onRetry: onRetry);
 }
 
 /// Stock status pill: nothing for a healthy item.

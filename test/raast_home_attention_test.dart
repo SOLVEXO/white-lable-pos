@@ -51,7 +51,7 @@ void main() {
   tearDown(Get.reset);
 
   Future<void> mountHome(WidgetTester t, PosAccess access) async {
-    t.view.physicalSize = const Size(390, 1200);
+    t.view.physicalSize = const Size(390, 3000); // G6.3: Home is longer
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     final c = PosHomeTabController(posRepository: pos, inventoryRepository: inv, paymentsRepository: pay, accessOverride: access);

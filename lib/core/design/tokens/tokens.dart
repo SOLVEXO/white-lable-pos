@@ -27,6 +27,17 @@ abstract final class Space {
 }
 
 /// Corner radii: 8 / 14 / 20 / 28.
+/// Icon sizes (G6.3). Inline with caption text → [xxs]/[xs]; buttons and chips → [sm]; list-row tiles → [md]; empty / error
+/// states → [xl].
+abstract final class IconSizes {
+  static const double xxs = 14;
+  static const double xs = 16;
+  static const double sm = 20;
+  static const double md = 22;
+  static const double lg = 28;
+  static const double xl = 40;
+}
+
 abstract final class Radii {
   // Solvexo POS blueprint radii: small 10 / medium 14 / card 18 / sheet 24.
   static const double sm = 10;

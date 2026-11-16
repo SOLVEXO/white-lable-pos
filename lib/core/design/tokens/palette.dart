@@ -38,6 +38,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.infoSoft,
     required this.infoFg,
     required this.scrim,
+    required this.heroStart,
+    required this.heroEnd,
+    required this.onHero,
+    required this.onHeroMuted,
   });
 
   final Brightness brightness;
@@ -91,6 +95,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   final Color scrim;
 
+  /// The brand-ink hero card (the dashboard's headline figure, the blueprint's `.hero`): a two-stop gradient that stays dark in
+  /// both modes, with [onHero] for its figure and [onHeroMuted] for its captions (≥ 4.5:1 on both stops).
+  final Color heroStart;
+  final Color heroEnd;
+  final Color onHero;
+  final Color onHeroMuted;
+
   bool get isDark => brightness == Brightness.dark;
 
   // Brand coral from the Solvexo POS blueprint (design-tokens.json). Used for icons, highlights, selected states, focus
@@ -132,6 +143,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     infoSoft: Color(0x334D72DB),
     infoFg: Color(0xFF8FAEFF),
     scrim: Color(0xB3080A0D),
+    heroStart: Color(0xFF2A2F37),
+    heroEnd: Color(0xFF1D2127),
+    onHero: Color(0xFFFFFFFF),
+    onHeroMuted: Color(0xFFB9BEC6),
   );
 
   static const AppPalette light = AppPalette(
@@ -165,6 +180,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     infoSoft: Color(0xFFEDF2FF),
     infoFg: Color(0xFF3A5BC0),
     scrim: Color(0x66101215),
+    heroStart: Color(0xFF252A31),
+    heroEnd: _ink,
+    onHero: Color(0xFFFFFFFF),
+    onHeroMuted: Color(0xFFB9BEC6),
   );
 
   @override

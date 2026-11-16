@@ -1,3 +1,4 @@
+import 'package:solvexo_pos/app/modules/pos/controllers/dashboard_alerts_controller.dart';
 import 'package:solvexo_pos/app/modules/pos/controllers/pos_bottom_nav_controller.dart';
 import 'package:solvexo_pos/app/modules/pos/controllers/pos_home_tab_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
@@ -11,6 +12,7 @@ class PosBinding extends Bindings {
   void dependencies() {
     // registered before the nav controller: its screens list builds PosHomeTabView, which finds this controller
     Get.lazyPut<PosHomeTabController>(() => PosHomeTabController(), fenix: true);
+    Get.lazyPut<DashboardAlertsController>(() => DashboardAlertsController(), fenix: true); // G6.3: Home's fiscal / expense alerts
     Get.put<PosBottomNavController>(PosBottomNavController());
     Get.lazyPut<PosHomeController>(() => PosHomeController());
     Get.lazyPut<PosOrdersController>(() => PosOrdersController());
