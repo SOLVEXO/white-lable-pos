@@ -5,7 +5,7 @@ import 'package:solvexo_pos/app/modules/pos/views/pos_hub_widgets.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 
 /// The Stock tab (was "Products"): the two existing stock screens plus stock activity, grouped. Counts, transfers and
-/// batches need endpoints the POS token cannot call yet — they appear as "Soon" rows for managers / owners only.
+/// counts, transfers and batches are managers / owners only.
 class PosStockHubView extends StatelessWidget {
   const PosStockHubView({super.key, this.access});
 
@@ -36,11 +36,12 @@ class PosStockHubView extends StatelessWidget {
               ),
               if (a.canManage) HubRow(icon: Icons.history_rounded, title: 'Stock activity', subtitle: 'Every change to stock, with who and why', onTap: () => Get.toNamed(Routes.posStockActivity), locked: true),
             ]),
+            // G6.3: these were "Soon" placeholders; the screens exist since G3.1 / G3.2 / G4.6
             if (a.canManage)
-              const HubSection('Coming soon', [
-                HubRow(icon: Icons.checklist_rounded, title: 'Stock count', subtitle: 'Count by scan and review variances', soon: true),
-                HubRow(icon: Icons.swap_horiz_rounded, title: 'Transfers', subtitle: 'Move stock between locations', soon: true),
-                HubRow(icon: Icons.event_busy_outlined, title: 'Batches & expiry', subtitle: 'Track lots and expiry dates', soon: true),
+              HubSection('Counts & movements', [
+                HubRow(icon: Icons.checklist_rounded, title: 'Stock count', subtitle: 'Count by scan and review variances', onTap: () => Get.toNamed(Routes.posStockCount)),
+                HubRow(icon: Icons.swap_horiz_rounded, title: 'Transfers', subtitle: 'Move stock between locations', onTap: () => Get.toNamed(Routes.posTransfers)),
+                HubRow(icon: Icons.event_busy_outlined, title: 'Batches & expiry', subtitle: 'Lots, expiry dates and write-offs', onTap: () => Get.toNamed(Routes.posExpiry)),
               ]),
           ],
         );

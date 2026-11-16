@@ -84,7 +84,7 @@ void main() {
       initialRoute: '/hub',
       getPages: [
         GetPage(name: '/hub', page: () => hub),
-        for (final r in [Routes.posHeldSales, Routes.posProducts, Routes.posInventory, Routes.posSettings, Routes.posCustomers, Routes.posNeedsAttention, Routes.posSessionReport])
+        for (final r in [Routes.posHeldSales, Routes.posProducts, Routes.posInventory, Routes.posSettings, Routes.posCustomers, Routes.posNeedsAttention, Routes.posSessionReport, Routes.posStockCount, Routes.posTransfers, Routes.posExpiry])
           GetPage(name: r, page: () => Scaffold(body: Text('ROUTE:$r'))),
       ],
     ));
@@ -224,15 +224,20 @@ void main() {
       expect(find.text('Coming soon'), findsNothing);
       expect(find.text('Stock count'), findsNothing);
     });
-    testWidgets('manager: + stock activity (locked) and the coming-soon rows', (t) async {
+    testWidgets('manager: + stock activity (locked), and count / transfers / batches open their screens — no placeholders (G6.3)', (t) async {
       await mountHub(t, const PosStockHubView(access: PosAccess.manager));
       expect(find.text('Stock activity'), findsOneWidget);
       expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
-      expect(find.text('Coming soon'), findsOneWidget);
-      for (final s in ['Stock count', 'Transfers', 'Batches & expiry']) {
-        expect(find.text(s), findsOneWidget, reason: s);
+      expect(find.text('Coming soon'), findsNothing);
+      expect(find.text('Soon'), findsNothing);
+      for (final (s, route) in [('Stock count', Routes.posStockCount), ('Transfers', Routes.posTransfers), ('Batches & expiry', Routes.posExpiry)]) {
+        await t.scrollUntilVisible(find.text(s), 200, scrollable: find.byType(Scrollable).first);
+        await t.tap(find.text(s));
+        await t.pumpAndSettle();
+        expect(find.text('ROUTE:$route'), findsOneWidget, reason: s);
+        Get.back();
+        await t.pumpAndSettle();
       }
-      expect(find.text('Soon'), findsNWidgets(3));
     });
     testWidgets('rows open the existing screens', (t) async {
       await mountHub(t, const PosStockHubView(access: PosAccess.cashier));

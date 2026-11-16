@@ -244,8 +244,6 @@ class _PaneState extends State<_Pane> {
           AppListRow(icon: Icons.inventory_2_outlined, tone: StatusTone.warning, title: '8 low-stock items', subtitle: 'Alert row (warning) with a badge', badge: 8, onTap: () {}),
           const SizedBox(height: Space.s2),
           AppListRow(icon: Icons.shield_outlined, title: 'Audit log', subtitle: 'Behind the owner gate', locked: true, onTap: () {}),
-          const SizedBox(height: Space.s2),
-          const AppListRow(icon: Icons.swap_horiz_rounded, title: 'Placeholder row', subtitle: 'Managers only, never cashiers', soon: true),
           const SizedBox(height: Space.s3),
           const AppBanner.offline(),
           const SizedBox(height: Space.s2),

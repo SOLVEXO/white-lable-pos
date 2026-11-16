@@ -72,7 +72,7 @@ Manrope and DM Sans are variable fonts: each style sets the `wght` axis explicit
 | The app shell | `AppShell` + `AppDestination` | Bottom bar on phones, collapsible rail on tablets. The 5 tabs: Home, Sell, Orders, Stock, More. |
 | Buttons | `AppButton(label:, onPressed:, variant:, size:, icon:, loading:, expand:)` | Variants: `primary` (one per view), `secondary`, `ghost` (the text button), `danger` (destructive). At least 48 tall (56 with `lg`). Keeps its width while loading and ignores repeat taps. |
 | Cards | `AppCard(child:, onTap:, padding:, radius:, color:, semanticLabel:)` | The only card. Gives one semantic label when tappable. |
-| List rows | `AppListRow(icon:, title:, subtitle:, tone:, trailing:, badge:, locked:, soon:, onTap:)` | **New in G6.3**, promoted from `HubRow`. The `tone` tints the icon tile: accent for navigation, warning or danger for an alert. A `lock` icon marks an owner-gated row. A `soon` row goes to managers only. |
+| List rows | `AppListRow(icon:, title:, subtitle:, tone:, trailing:, badge:, locked:, onTap:)` | **New in G6.3**, promoted from `HubRow`. The `tone` tints the icon tile: accent for navigation, warning or danger for an alert. A `lock` icon marks an owner-gated row. There is no "coming soon" row: an entry whose screen does not exist is hidden (guarded by `test/no_placeholder_guard_test.dart`). |
 | Inputs | `AppTextField(label:, …)` | Floating label, error text, prefix and suffix. Tests find fields by `labelText`. |
 | Search | `AppSearchBar` | Search icon, clear button, optional scan button. |
 | Chips / filters | `CategoryChips` | For single-select filters. The Material `ChoiceChip`/`FilterChip` are themed by `AppTheme`. |
