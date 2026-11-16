@@ -4,7 +4,7 @@ import 'package:solvexo_pos/app/data/repositories/pos_subscription_repository.da
 import 'package:solvexo_pos/app/data/services/owner_gate.dart';
 import 'package:solvexo_pos/app/data/services/pos_device_service.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 import 'package:solvexo_pos/utils/unsynced_guard.dart';
 
@@ -57,27 +57,31 @@ class _PosPlanInactiveViewState extends State<PosPlanInactiveView> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     return Scaffold(
+      backgroundColor: p.background,
       body: SafeArea(
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(Space.s6),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.pause_circle_outline_rounded, size: 56, color: AppColors.iosGrey),
-                const SizedBox(height: 16),
-                const Text("POS plan isn't active for this store", textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                const Text('Selling is unavailable until the plan is active again.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.iosGrey)),
-                if (_note != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_note!, key: const Key('planInactiveNote'), style: const TextStyle(color: AppColors.orange))),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(key: const Key('planInactiveRefresh'), onPressed: _busy ? null : _refresh, child: _busy ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Refresh')),
-                ),
-                const SizedBox(height: 8),
-                TextButton(key: const Key('planInactiveSignOut'), onPressed: _busy ? null : _signOut, child: const Text('Sign out')),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Icon(Icons.pause_circle_outline_rounded, size: 56, color: p.textMuted),
+                const SizedBox(height: Space.s4),
+                Text("POS plan isn't active for this store", textAlign: TextAlign.center, style: t.headline.copyWith(color: p.textPrimary)),
+                const SizedBox(height: Space.s2),
+                Text('Selling is unavailable until the plan is active again.', textAlign: TextAlign.center, style: t.body.copyWith(color: p.textSecondary)),
+                if (_note != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: Space.s3),
+                    child: Text(_note!, key: const Key('planInactiveNote'), textAlign: TextAlign.center, style: t.bodySmall.copyWith(color: p.warningFg)),
+                  ),
+                const SizedBox(height: Space.s6),
+                AppButton(key: const Key('planInactiveRefresh'), label: 'Refresh', expand: true, loading: _busy, onPressed: _busy ? null : _refresh),
+                const SizedBox(height: Space.s2),
+                AppButton(key: const Key('planInactiveSignOut'), label: 'Sign out', variant: AppButtonVariant.ghost, expand: true, onPressed: _busy ? null : _signOut),
               ]),
             ),
           ),

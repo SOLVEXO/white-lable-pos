@@ -80,15 +80,21 @@ class AppButton extends StatelessWidget {
 
     // An empty label with an icon is an icon-only button: just the centred icon, no gap, no side padding.
     final iconOnly = label.isEmpty && icon != null;
-    final content = Row(
+    // The label shrinks (ellipsis) when the width is bounded; a hugging button inside an unbounded Row gets a plain label, because a
+    // Flexible there throws (G6.3).
+    Widget row(bool bounded) => Row(
       mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (icon != null) Icon(icon, size: 20, color: fg),
         if (icon != null && !iconOnly) const SizedBox(width: Space.s2),
-        if (!iconOnly) Flexible(child: Text(label, style: textStyle, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        if (!iconOnly)
+          bounded
+              ? Flexible(child: Text(label, style: textStyle, maxLines: 1, overflow: TextOverflow.ellipsis))
+              : Text(label, style: textStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
+    final content = expand ? row(true) : LayoutBuilder(builder: (context, box) => row(box.hasBoundedWidth));
 
     return Semantics(
       button: true,

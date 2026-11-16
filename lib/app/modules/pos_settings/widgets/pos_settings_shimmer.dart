@@ -1,126 +1,68 @@
-import 'package:solvexo_pos/app/components/skeleton.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 
+/// Loading placeholder for the Settings tab: the profile card, three groups of rows and the close-shift button.
 class PosSettingsShimmer extends StatelessWidget {
   const PosSettingsShimmer({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: AppColors.shimmerBase,
-      highlightColor: AppColors.shimmerHighlight,
-      child: SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: AppDimen.allPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _profileShimmer(),
-            const SizedBox(height: 24),
-            _sectionShimmer(tileCount: 4), // REGISTER
-            const SizedBox(height: 24),
-            _sectionShimmer(tileCount: 3), // SHIFT
-            const SizedBox(height: 24),
-            _sectionShimmer(tileCount: 3), // PREFERENCES
-            const SizedBox(height: 32),
-            _closeButtonShimmer(),
-          ],
+    return SkeletonShimmer(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(Space.s4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _profile(),
+                const SizedBox(height: Space.s6),
+                _section(4), // REGISTER
+                _section(3), // SHIFT
+                _section(3), // PREFERENCES
+                const SizedBox(height: Space.s2),
+                const SkeletonBox(height: Space.minTouch, radius: Radii.md),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _profileShimmer() {
-    return Container(
-      margin: const EdgeInsets.all(AppDimen.allPadding),
-      padding: const EdgeInsets.all(AppDimen.allPadding),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppDimen.serviceCountTileRadius),
-      ),
-      child: Row(
+  Widget _profile() => const Row(
         children: [
-          const Skeleton(width: 60, height: 60, cornerRadius: 30),
-          const SizedBox(width: 14),
+          SkeletonBox(width: 56, height: 56, radius: Radii.full),
+          SizedBox(width: Space.s4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Skeleton(height: 15, width: 110),
-                SizedBox(height: 7),
-                Skeleton(height: 12, width: 150),
-                SizedBox(height: 8),
-                Skeleton(height: 12, width: 160),
+              children: [
+                SkeletonBox(height: 16, width: 120),
+                SizedBox(height: Space.s2),
+                SkeletonBox(height: 12, width: 160),
+                SizedBox(height: Space.s2),
+                SkeletonBox(height: 20, width: 170, radius: Radii.full),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
+      );
 
-  Widget _sectionShimmer({required int tileCount}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimen.allPadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
-            child: Skeleton(height: 11, width: 80),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(AppDimen.serviceCountTileRadius),
-            ),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              itemCount: tileCount,
-              separatorBuilder: (_, __) => const Divider(
-                height: 1,
-                indent: 54,
-                color: AppColors.lightGrey2,
-              ),
-              itemBuilder: (_, __) => Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimen.allPadding,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: const [
-                    Skeleton(width: 36, height: 36, cornerRadius: 8),
-                    SizedBox(width: 14),
-                    Expanded(
-                      child: Skeleton(height: 13, width: double.infinity),
-                    ),
-                    SizedBox(width: 40),
-                    Skeleton(height: 13, width: 40),
-                    SizedBox(width: 6),
-                    Skeleton(height: 13, width: 13, cornerRadius: 4),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _closeButtonShimmer() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimen.allPadding),
-      child: Skeleton(
-        height: 52,
-        width: double.infinity,
-        cornerRadius: AppDimen.serviceCountTileRadius,
-      ),
-    );
-  }
+  Widget _section(int rows) => Padding(
+        padding: const EdgeInsets.only(bottom: Space.s5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Align(alignment: Alignment.centerLeft, child: SkeletonBox(height: 16, width: 90)),
+            const SizedBox(height: Space.s3),
+            for (var i = 0; i < rows; i++) ...[
+              if (i > 0) const SizedBox(height: Space.s2),
+              const SkeletonBox(height: 64, radius: Radii.lg),
+            ],
+          ],
+        ),
+      );
 }

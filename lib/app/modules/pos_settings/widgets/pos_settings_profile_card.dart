@@ -1,11 +1,9 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/modules/pos_settings/controllers/pos_settings_controller.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+/// Who is on the till: the employee, their role and register, and since when the shift is open.
 class PosSettingsProfileCard extends StatelessWidget {
   final PosSettingsController controller;
 
@@ -13,43 +11,25 @@ class PosSettingsProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(AppDimen.allPadding),
-      padding: const EdgeInsets.all(AppDimen.allPadding),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppDimen.serviceCountTileRadius),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    final p = context.palette;
+    return AppCard(
       child: Obx(
         () => Row(
           children: [
             _Avatar(initials: controller.initials),
-            const SizedBox(width: 14),
+            const SizedBox(width: Space.s4),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CustomText(
-                    text: controller.name.value,
-                    fontSize: AppFontSize.small,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
+                  Text(controller.name.value, style: context.type.title.copyWith(color: p.textPrimary)),
+                  const SizedBox(height: Space.s1),
+                  Text(
+                    '${controller.role.value} · ${controller.registerName.value}',
+                    style: context.type.bodySmall.copyWith(color: p.textSecondary),
                   ),
-                  const SizedBox(height: 3),
-                  CustomText(
-                    text: '${controller.role.value} · ${controller.registerName.value}',
-                    fontSize: AppFontSize.verySmall,
-                    color: AppColors.grey,
-                  ),
-                  const SizedBox(height: 8),
-                  _ShiftStatus(since: controller.shiftSince.value),
+                  const SizedBox(height: Space.s2),
+                  StatusBadge('Shift open since ${controller.shiftSince.value}', tone: StatusTone.success, dot: true),
                 ],
               ),
             ),
@@ -67,50 +47,13 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: AppColors.primaryColor.withOpacity(0.15),
-        shape: BoxShape.circle,
-      ),
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(color: p.accentSoft, shape: BoxShape.circle),
       alignment: Alignment.center,
-      child: CustomText(
-        text: initials,
-        fontSize: AppFontSize.medium,
-        fontWeight: FontWeight.bold,
-        color: AppColors.primaryColor,
-      ),
-    );
-  }
-}
-
-class _ShiftStatus extends StatelessWidget {
-  final String since;
-
-  const _ShiftStatus({required this.since});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: AppColors.primaryColor,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 6),
-        CustomText(
-          text: 'Shift open since $since',
-          fontSize: AppFontSize.tiny,
-          fontWeight: FontWeight.w500,
-          color: AppColors.primaryColor,
-        ),
-      ],
+      child: Text(initials, style: context.type.title.copyWith(color: p.accentFg)),
     );
   }
 }

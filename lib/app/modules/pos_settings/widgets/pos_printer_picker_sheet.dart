@@ -1,8 +1,6 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/services/network_printer_transport.dart';
 import 'package:solvexo_pos/app/data/services/thermal_printer_service.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -85,44 +83,73 @@ class _PosPrinterPickerSheetState extends State<PosPrinterPickerSheet> {
     });
   }
 
-  Widget _networkPane() {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const CustomText(text: 'Wi-Fi / Ethernet printer (ESC/POS, port 9100). The printer and this device must be on the same network.', fontSize: AppFontSize.tiny, color: AppColors.grey),
-      const SizedBox(height: 10),
-      TextField(key: const Key('netName'), controller: _name, decoration: const InputDecoration(labelText: 'Name (optional)', border: OutlineInputBorder(), isDense: true)),
-      const SizedBox(height: 8),
-      Row(children: [
-        Expanded(flex: 3, child: TextField(key: const Key('netHost'), controller: _host, keyboardType: TextInputType.number, onChanged: (_) => setState(() => _netError = null), decoration: InputDecoration(labelText: 'IP address', hintText: '192.168.1.50', border: const OutlineInputBorder(), isDense: true, errorText: _netError, errorMaxLines: 3))),
-        const SizedBox(width: 8),
-        Expanded(flex: 1, child: TextField(key: const Key('netPort'), controller: _port, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Port', border: OutlineInputBorder(), isDense: true))),
+  Widget _note(BuildContext context, String text, {Key? key}) =>
+      Text(text, key: key, style: context.type.caption.copyWith(color: context.palette.textSecondary));
+
+  Widget _networkPane(BuildContext context) {
+    final p = context.palette;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _note(context, 'Wi-Fi / Ethernet printer (ESC/POS, port 9100). The printer and this device must be on the same network.'),
+      const SizedBox(height: Space.s2),
+      AppTextField(key: const Key('netName'), controller: _name, label: 'Name (optional)'),
+      const SizedBox(height: Space.s2),
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(flex: 3, child: AppTextField(key: const Key('netHost'), controller: _host, keyboardType: TextInputType.number, onChanged: (_) => setState(() => _netError = null), label: 'IP address', hint: '192.168.1.50')),
+        const SizedBox(width: Space.s2),
+        Expanded(flex: 1, child: AppTextField(key: const Key('netPort'), controller: _port, keyboardType: TextInputType.number, label: 'Port')),
       ]),
-      const SizedBox(height: 10),
-      FilledButton(key: const Key('netSave'), onPressed: _saveNetwork, child: const Text('Save printer')),
-      const SizedBox(height: 4),
-      const CustomText(text: 'Then use "Print test page" in Printer settings to check it.', fontSize: AppFontSize.tiny, color: AppColors.grey),
-      const Divider(height: 24),
-      Row(children: [
-        Expanded(child: OutlinedButton(key: const Key('netScan'), onPressed: _scanning ? () => _discovery.cancel() : _scan, child: Text(_scanning ? 'Stop searching' : 'Find printers on this network'))),
-      ]),
-      const SizedBox(height: 4),
-      const CustomText(text: 'Best effort: checks this device\'s own network for printers listening on port 9100. It cannot see other subnets/VLANs or networks with device isolation — add those by IP above.', fontSize: AppFontSize.tiny, color: AppColors.grey),
-      if (_scanning) Padding(padding: const EdgeInsets.only(top: 8), child: LinearProgressIndicator(value: _scanProgress)),
-      if (_noNetwork) const Padding(padding: EdgeInsets.only(top: 8), child: CustomText(text: 'This device is not connected to a Wi-Fi/Ethernet network.')),
+      if (_netError != null)
+        Padding(
+          padding: const EdgeInsets.only(top: Space.s1),
+          child: Text(_netError!, style: context.type.caption.copyWith(color: p.dangerFg)),
+        ),
+      const SizedBox(height: Space.s2),
+      AppButton(key: const Key('netSave'), label: 'Save printer', onPressed: _saveNetwork, expand: true),
+      const SizedBox(height: Space.s1),
+      _note(context, 'Then use "Print test page" in Printer settings to check it.'),
+      Divider(height: Space.s5, color: p.border),
+      AppButton(
+        key: const Key('netScan'),
+        label: _scanning ? 'Stop searching' : 'Find printers on this network',
+        variant: AppButtonVariant.secondary,
+        icon: _scanning ? Icons.stop_rounded : Icons.wifi_find_rounded,
+        expand: true,
+        onPressed: _scanning ? () => _discovery.cancel() : _scan,
+      ),
+      const SizedBox(height: Space.s1),
+      _note(context, 'Best effort: checks this device\'s own network for printers listening on port 9100. It cannot see other subnets/VLANs or networks with device isolation — add those by IP above.'),
+      if (_scanning)
+        Padding(
+          padding: const EdgeInsets.only(top: Space.s2),
+          child: LinearProgressIndicator(value: _scanProgress, color: p.accent, backgroundColor: p.fill),
+        ),
+      if (_noNetwork)
+        Padding(
+          padding: const EdgeInsets.only(top: Space.s2),
+          child: Text('This device is not connected to a Wi-Fi/Ethernet network.', style: context.type.body.copyWith(color: p.textPrimary)),
+        ),
       if (_found != null && !_noNetwork && !_scanning)
         _found!.isEmpty
-            ? const Padding(padding: EdgeInsets.only(top: 8), child: CustomText(text: 'No printers found. Check the printer is on and add it by IP address instead.', key: Key('netNoneFound')))
-            : Column(children: [
+            ? Padding(
+                padding: const EdgeInsets.only(top: Space.s2),
+                child: Text('No printers found. Check the printer is on and add it by IP address instead.', key: const Key('netNoneFound'), style: context.type.body.copyWith(color: p.textPrimary)),
+              )
+            : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 for (final h in _found!)
-                  ListTile(
-                    key: Key('found-$h'),
-                    contentPadding: EdgeInsets.zero,
-                    title: CustomText(text: h),
-                    subtitle: const CustomText(text: 'Responds on port 9100', fontSize: AppFontSize.tiny, color: AppColors.grey),
-                    onTap: () => setState(() {
-                      _host.text = h;
-                      _port.text = '${NetworkPrinterAddress.defaultPort}';
-                      _netError = null;
-                    }),
+                  Padding(
+                    padding: const EdgeInsets.only(top: Space.s2),
+                    child: AppListRow(
+                      key: Key('found-$h'),
+                      icon: Icons.print_rounded,
+                      title: h,
+                      subtitle: 'Responds on port 9100',
+                      chevron: false,
+                      onTap: () => setState(() {
+                        _host.text = h;
+                        _port.text = '${NetworkPrinterAddress.defaultPort}';
+                        _netError = null;
+                      }),
+                    ),
                   ),
               ]),
     ]);
@@ -146,35 +173,19 @@ class _PosPrinterPickerSheetState extends State<PosPrinterPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, 32 + MediaQuery.of(context).viewInsets.bottom),
+    final p = context.palette;
+    Widget message(String text) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: Space.s3),
+          child: Text(text, style: context.type.body.copyWith(color: p.textPrimary)),
+        );
+    return AppSheetFrame(
+      title: 'Select receipt printer',
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.lightGrey2,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const CustomText(
-            text: 'Select receipt printer',
-            fontSize: AppFontSize.medium,
-            fontWeight: FontWeight.w600,
-          ),
-          const SizedBox(height: 4),
-          CustomText(
-            text: ThermalPrinterService.platformNote,
-            fontSize: AppFontSize.tiny,
-            color: AppColors.grey,
-          ),
-          const SizedBox(height: 12),
+          _note(context, ThermalPrinterService.platformNote),
+          const SizedBox(height: Space.s3),
           SegmentedButton<String>(
             key: const Key('printerKind'),
             segments: const [
@@ -184,47 +195,47 @@ class _PosPrinterPickerSheetState extends State<PosPrinterPickerSheet> {
             selected: {_kind},
             onSelectionChanged: (s) => setState(() => _kind = s.first),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Space.s4),
           if (_kind == ThermalPrinterService.kindNetwork)
-            _networkPane()
+            _networkPane(context)
           else if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator()),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Space.s6),
+              child: Center(child: CircularProgressIndicator(color: p.accent)),
             )
           else if (_bluetoothOff)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: CustomText(text: 'Bluetooth is off. Turn it on and try again.'),
-            )
+            message('Bluetooth is off. Turn it on and try again.')
           else if (_options.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: CustomText(text: 'No paired Bluetooth devices found.'),
-            )
+            message('No paired Bluetooth devices found.')
           else
-            ..._options.map(
-              (o) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: CustomText(text: o.name.isEmpty ? o.address : o.name),
-                subtitle: CustomText(text: o.address, fontSize: AppFontSize.tiny, color: AppColors.grey),
-                trailing: !widget.service.isNetworkPrinter && widget.service.savedPrinterAddress.value == o.address
-                    ? const Icon(Icons.check_circle, color: AppColors.green)
-                    : null,
-                onTap: () async {
-                  await widget.service.selectPrinter(o);
-                  if (context.mounted) Get.back();
-                },
+            for (final o in _options)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Space.s2),
+                child: AppListRow(
+                  icon: Icons.bluetooth_rounded,
+                  title: o.name.isEmpty ? o.address : o.name,
+                  subtitle: o.address,
+                  chevron: false,
+                  trailing: !widget.service.isNetworkPrinter && widget.service.savedPrinterAddress.value == o.address
+                      ? Icon(Icons.check_circle, color: p.successFg)
+                      : null,
+                  onTap: () async {
+                    await widget.service.selectPrinter(o);
+                    if (context.mounted) Get.back();
+                  },
+                ),
               ),
-            ),
           if (widget.service.hasSavedPrinter) ...[
-            const SizedBox(height: 8),
-            TextButton(
+            const SizedBox(height: Space.s2),
+            AppButton(
+              label: 'Forget saved printer',
+              variant: AppButtonVariant.danger,
+              icon: Icons.link_off_rounded,
+              expand: true,
               onPressed: () async {
                 await widget.service.forgetPrinter();
                 if (context.mounted) Get.back();
               },
-              child: const CustomText(text: 'Forget saved printer', color: AppColors.red),
             ),
           ],
         ],

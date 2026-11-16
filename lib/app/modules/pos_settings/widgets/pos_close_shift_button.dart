@@ -8,14 +8,12 @@ class PosCloseShiftButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Space.s4),
-      child: AppButton(
-        label: 'Close Shift & Log Out',
-        variant: AppButtonVariant.danger,
-        icon: Icons.logout_rounded,
-        onPressed: onTap,
-      ),
+    return AppButton(
+      label: 'Close Shift & Log Out',
+      variant: AppButtonVariant.danger,
+      icon: Icons.logout_rounded,
+      expand: true,
+      onPressed: onTap,
     );
   }
 }

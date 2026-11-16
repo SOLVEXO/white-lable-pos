@@ -200,7 +200,10 @@ class ReceiptDesignerView extends StatelessWidget {
       actions: [
         Obx(
           () => c.canEdit && c.receiptDirty
-              ? TextButton(key: const Key('receiptSave'), onPressed: c.saving.value ? null : c.saveReceipt, child: const Text('Save'))
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 120),
+                  child: AppButton(key: const Key('receiptSave'), label: 'Save', variant: AppButtonVariant.ghost, onPressed: c.saving.value ? null : c.saveReceipt),
+                )
               : const SizedBox.shrink(),
         ),
       ],
@@ -247,11 +250,11 @@ class ReceiptDesignerView extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(key: const Key('receiptDiscard'), onPressed: c.discardReceipt, child: const Text('Discard')),
+                      child: AppButton(key: const Key('receiptDiscard'), label: 'Discard', variant: AppButtonVariant.secondary, expand: true, onPressed: c.discardReceipt),
                     ),
                     const SizedBox(width: Space.s2),
                     Expanded(
-                      child: FilledButton(key: const Key('receiptSaveBottom'), onPressed: c.saving.value ? null : c.saveReceipt, child: const Text('Save receipt')),
+                      child: AppButton(key: const Key('receiptSaveBottom'), label: 'Save receipt', expand: true, loading: c.saving.value, onPressed: c.saving.value ? null : c.saveReceipt),
                     ),
                   ],
                 ),
@@ -330,9 +333,10 @@ class ReceiptPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = options;
-    const ink = Color(0xFF1C1B1A);
-    const paper = Color(0xFFFFFDF8);
-    final mono = context.type.caption.copyWith(fontFamily: 'Courier', color: ink, height: 1.35);
+    // a receipt is dark ink on white paper in both themes (the QR tokens are exactly that pair)
+    final ink = context.palette.qrDark;
+    final paper = context.palette.qrLight;
+    final mono = context.type.mono.copyWith(color: ink, height: 1.35);
     Widget line(String a, [String? b]) => Row(
       children: [
         Expanded(child: Text(a, style: mono)),
@@ -349,12 +353,12 @@ class ReceiptPreview extends StatelessWidget {
         decoration: BoxDecoration(
           color: paper,
           borderRadius: BorderRadius.circular(4),
-          boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 8, offset: Offset(0, 2))],
+          boxShadow: context.softShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (o.showLogo) logo != null ? Center(child: LogoBitmapImage(key: const Key('previewLogoBitmap'), bitmap: logo!, width: (o.defaultPaperWidth == 58 ? 220 : 300) * 0.66)) : const Icon(Icons.storefront_rounded, key: Key('previewLogo'), color: ink, size: 28),
+            if (o.showLogo) logo != null ? Center(child: LogoBitmapImage(key: const Key('previewLogoBitmap'), bitmap: logo!, width: (o.defaultPaperWidth == 58 ? 220 : 300) * 0.66)) : Icon(Icons.storefront_rounded, key: const Key('previewLogo'), color: ink, size: 28),
             center(storeName, bold: true),
             if (o.showStoreAddress && (address ?? '').isNotEmpty) center(address!),
             if (o.showTaxId) center('NTN ${taxId ?? '1234567-8'}'),
@@ -374,7 +378,7 @@ class ReceiptPreview extends StatelessWidget {
             line('Change', '2.54'),
             if (o.showLoyaltyBalance) ...[rule(), line('Points balance', '140')], // G4.9: the balance after the sale (earned / redeemed when the server has no balance)
             if (o.promoText != null) ...[rule(), center(o.promoText!)],
-            if (o.showQr) const Padding(padding: EdgeInsets.only(top: 6), child: Icon(Icons.qr_code_2_rounded, key: Key('previewQr'), color: ink, size: 56)),
+            if (o.showQr) Padding(padding: const EdgeInsets.only(top: 6), child: Icon(Icons.qr_code_2_rounded, key: const Key('previewQr'), color: ink, size: 56)),
             if (o.showBarcode) Padding(padding: const EdgeInsets.only(top: 4), child: center('||| |||| | ||| || ||||', bold: true)),
             if (o.footer != null) ...[const SizedBox(height: 4), center(o.footer!)],
           ],

@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_subscription_status_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_subscription_repository.dart';
 import 'package:solvexo_pos/app/modules/pos_plan/views/plan_expiry_banner.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 
 /// Owner-only, READ-ONLY plan status: plan name, state and expiry date. No prices, no actions, no links.
@@ -49,25 +49,43 @@ class _PosPlanStatusViewState extends State<PosPlanStatusView> {
             PosSubscriptionStatusValue.expired => 'Expired',
             PosSubscriptionStatusValue.none => 'No plan',
           };
-    return Scaffold(
-      appBar: AppBar(title: const Text('POS plan'), actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded))]),
+    final p = context.palette;
+    final entitled = s?.status.isEntitled == true;
+    return AppPage(
+      title: 'POS plan',
+      actions: [IconButton(tooltip: 'Refresh', onPressed: _load, icon: const Icon(Icons.refresh_rounded))],
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(padding: const EdgeInsets.all(20), children: [
+          ? Center(child: CircularProgressIndicator(color: p.accent))
+          : ListView(padding: const EdgeInsets.all(Space.s4), children: [
               PlanExpiryBanner(status: s),
-              _row('Status', label, color: s?.status.isEntitled == true ? AppColors.green2 : AppColors.red),
-              _row('Plan', s?.planName ?? '—'),
-              _row('Started', _date(s?.purchasedAt)),
-              _row('Expires', _date(s?.expiresAt)),
-              if (s?.status.isEntitled == true) _row('Days remaining', '${s?.daysRemaining ?? '—'}'),
-              const SizedBox(height: 16),
-              TextButton(key: const Key('planStatusRefresh'), onPressed: _load, child: const Text('Refresh')),
+              AppCard(
+                padding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s2),
+                child: Column(children: [
+                  _row(context, 'Status', label, color: entitled ? p.successFg : p.dangerFg),
+                  _row(context, 'Plan', s?.planName ?? '—'),
+                  _row(context, 'Started', _date(s?.purchasedAt)),
+                  _row(context, 'Expires', _date(s?.expiresAt)),
+                  if (entitled) _row(context, 'Days remaining', '${s?.daysRemaining ?? '—'}'),
+                ]),
+              ),
+              const SizedBox(height: Space.s4),
+              AppButton(key: const Key('planStatusRefresh'), label: 'Refresh', variant: AppButtonVariant.ghost, icon: Icons.refresh_rounded, expand: true, onPressed: _load),
             ]),
     );
   }
 
-  Widget _row(String k, String v, {Color? color}) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(children: [Text(k, style: const TextStyle(color: AppColors.iosGrey)), const Spacer(), Text(v, style: TextStyle(fontWeight: FontWeight.w600, color: color))]),
-      );
+  Widget _row(BuildContext context, String k, String v, {Color? color}) {
+    final p = context.palette;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: Space.minTouch),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.s2),
+        child: Row(children: [
+          Expanded(child: Text(k, style: context.type.body.copyWith(color: p.textSecondary))),
+          const SizedBox(width: Space.s3),
+          Flexible(child: Text(v, textAlign: TextAlign.end, style: context.type.subtitle.copyWith(color: color ?? p.textPrimary))),
+        ]),
+      ),
+    );
+  }
 }

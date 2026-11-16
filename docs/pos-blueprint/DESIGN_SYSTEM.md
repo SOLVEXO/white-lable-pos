@@ -51,6 +51,7 @@ Styles carry no colour; the widget adds one from the palette (`context.type.body
 | `caption` | 12/16 | 12/16 | DM Sans 500 |
 | `amountXl` / `amountLg` / `amountMd` | 36 / 24 / 16 | 44 / 28 / 17 | Manrope with tabular figures — **every amount** |
 | `amountSm` | 12/16 | 13/18 | Manrope 600, tabular: small figures under a line ("Rs120.00 each") (G6.3) |
+| `mono` | 12/16 | 13/18 | The platform's own monospace face (Menlo / Courier / system monospace; no font asset): the thermal-receipt preview's character columns, CSV text, API keys (G6.3) |
 | `amountDisplay` | 56/60 | 64/68 | Manrope 700, tabular: the one figure read from a distance (customer-facing QR amount, lock-screen clock) (G6.3) |
 
 Manrope and DM Sans are variable fonts: each style sets the `wght` axis explicitly, because Flutter does not move it from `FontWeight`.

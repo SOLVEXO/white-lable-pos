@@ -145,6 +145,7 @@ class _AppTextFieldState extends State<AppTextField>
         hintText: widget.hint,
         helperText: widget.helperText,
         errorText: widget.errorText,
+        errorMaxLines: 3,
         prefixText: widget.prefixText,
         prefixStyle: widget.prefixText == null ? null : context.type.body.copyWith(color: p.textSecondary),
         prefixIcon: widget.prefixIcon == null

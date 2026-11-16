@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_device_model.dart';
 import 'package:solvexo_pos/app/data/repositories/pos_device_repository.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
 
 /// Owner-only list of this store's terminals with a Revoke action. Reached through [OwnerAccessMiddleware], so the owner has
@@ -43,18 +43,14 @@ class _PosDevicesViewState extends State<PosDevicesView> {
 
   Future<void> _revoke(PosDeviceModel d) async {
     final isThis = d.id == _thisDeviceId;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text('Revoke "${d.name}"?'),
-        content: Text(isThis
-            ? 'This is the device you are holding. It will be signed out immediately. Unsynced sales stay on it until it is set up again for this store.'
-            : 'It stops working immediately and has to be set up again by the owner. Sales it has not synced yet stay on it and upload after it is set up again for this store.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Revoke', style: TextStyle(color: AppColors.red))),
-        ],
-      ),
+    final ok = await AppDialog.confirm(
+      context,
+      title: 'Revoke "${d.name}"?',
+      message: isThis
+          ? 'This is the device you are holding. It will be signed out immediately. Unsynced sales stay on it until it is set up again for this store.'
+          : 'It stops working immediately and has to be set up again by the owner. Sales it has not synced yet stay on it and upload after it is set up again for this store.',
+      confirmLabel: 'Revoke',
+      destructive: true,
     );
     if (ok != true) return;
     if (await _repo.revoke(_storeId, d.id)) {
@@ -67,36 +63,50 @@ class _PosDevicesViewState extends State<PosDevicesView> {
   @override
   Widget build(BuildContext context) {
     final fmt = DateFormat('MMM d, h:mm a');
-    return Scaffold(
-      appBar: AppBar(title: const Text('Devices')),
+    final p = context.palette;
+    return AppPage(
+      title: 'Devices',
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: p.accent))
           : _devices == null
-              ? Center(child: TextButton(onPressed: _load, child: const Text("Couldn't load devices — tap to retry")))
+              ? AppErrorState(message: "Couldn't load devices — tap to retry", onRetry: _load)
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(Space.s4),
                     itemCount: _devices!.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, __) => const SizedBox(height: Space.s2),
                     itemBuilder: (_, i) {
                       final d = _devices![i];
-                      return Container(
+                      return AppCard(
                         key: Key('device-${d.id}'),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.black.withOpacity(0.06))),
+                        padding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s3),
                         child: Row(children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(color: d.revoked ? p.fill : p.accentSoft, borderRadius: Radii.rMd),
+                            child: Icon(Icons.point_of_sale_rounded, size: IconSizes.md, color: d.revoked ? p.textMuted : p.accentFg),
+                          ),
+                          const SizedBox(width: Space.s3),
                           Expanded(
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('${d.name}${d.id == _thisDeviceId ? '  (this device)' : ''}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              Text('${d.name}${d.id == _thisDeviceId ? '  (this device)' : ''}', style: context.type.subtitle.copyWith(color: p.textPrimary)),
                               const SizedBox(height: 2),
                               Text(
                                 d.revoked ? 'Revoked${d.revokedAt != null ? ' ${fmt.format(d.revokedAt!.toLocal())}' : ''}' : 'Last seen ${d.lastSeenAt != null ? fmt.format(d.lastSeenAt!.toLocal()) : '—'}${d.platform != null ? ' · ${d.platform}' : ''}',
-                                style: TextStyle(fontSize: 12, color: d.revoked ? AppColors.red : AppColors.iosGrey),
+                                style: context.type.bodySmall.copyWith(color: d.revoked ? p.dangerFg : p.textSecondary),
                               ),
                             ]),
                           ),
-                          if (!d.revoked) TextButton(key: Key('revoke-${d.id}'), onPressed: () => _revoke(d), child: const Text('Revoke', style: TextStyle(color: AppColors.red))),
+                          if (!d.revoked) ...[
+                            const SizedBox(width: Space.s2),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 160),
+                              child: AppButton(key: Key('revoke-${d.id}'), label: 'Revoke', variant: AppButtonVariant.secondary, onPressed: () => _revoke(d)),
+                            ),
+                          ],
                         ]),
                       );
                     },

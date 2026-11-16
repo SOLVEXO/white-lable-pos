@@ -321,7 +321,7 @@ void main() {
       expect(find.byKey(const Key('found-192.168.1.77')), findsOneWidget);
       await tester.tap(find.byKey(const Key('found-192.168.1.77')));
       await tester.pump();
-      expect(tester.widget<TextField>(find.byKey(const Key('netHost'))).controller!.text, '192.168.1.77');
+      expect(tester.widget<TextField>(find.descendant(of: find.byKey(const Key('netHost')), matching: find.byType(TextField))).controller!.text, '192.168.1.77');
     });
   });
 }

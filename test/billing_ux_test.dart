@@ -16,6 +16,7 @@ import 'package:solvexo_pos/app/modules/pos_plan/views/pos_plan_status_view.dart
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/config/app_brand.dart';
 import 'package:solvexo_pos/config/resources/app_colors.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
 class MockSubRepo extends Mock implements PosSubscriptionRepository {}
 
@@ -95,8 +96,8 @@ void main() {
       expect(find.byKey(const Key('planInactiveRefresh')), findsOneWidget);
       expect(find.byKey(const Key('planInactiveSignOut')), findsOneWidget);
       expect(find.textContaining(RegExp(r'[\$€£]|buy|renew|upgrade|purchase|http|www', caseSensitive: false)), findsNothing);
-      expect(find.byType(FilledButton), findsOneWidget);
-      expect(find.byType(TextButton), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is AppButton && w.variant == AppButtonVariant.primary), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is AppButton && w.variant == AppButtonVariant.ghost), findsOneWidget);
     });
 
     testWidgets('Refresh: still inactive → stays with a note; backend unreachable → says so', (tester) async {

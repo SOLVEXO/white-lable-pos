@@ -17,6 +17,7 @@ import 'package:solvexo_pos/app/modules/pos_device/views/delete_account_view.dar
 import 'package:solvexo_pos/app/network/api_constaints.dart';
 import 'package:solvexo_pos/config/app_env.dart';
 import 'package:solvexo_pos/config/telemetry.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
 class MockAccountRepo extends Mock implements AccountRepository {}
 
@@ -95,11 +96,12 @@ void main() {
       expect(find.textContaining('permanently removes'), findsOneWidget);
       expect(find.textContaining('30 days'), findsOneWidget);
       expect(find.textContaining('kept as the law requires'), findsOneWidget);
-      FilledButton btn() => tester.widget<FilledButton>(find.byKey(const Key('deleteSubmit'), skipOffstage: false));
+      AppButton btn() => tester.widget<AppButton>(find.byKey(const Key('deleteSubmit'), skipOffstage: false));
       expect(btn().onPressed, isNull);
       await tester.enterText(find.byKey(const Key('deletePassword')), 'pw');
       await tester.pump();
       expect(btn().onPressed, isNull); // still needs the checkbox
+      await tester.ensureVisible(find.byKey(const Key('deleteConfirm'))); // the design-system form scrolls at 800x600
       await tester.tap(find.byKey(const Key('deleteConfirm')));
       await tester.pump();
       expect(btn().onPressed, isNotNull);
@@ -139,7 +141,7 @@ void main() {
         await tester.pumpWidget(app(social: social));
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('deletePassword')), findsNothing);
-        FilledButton btn() => tester.widget<FilledButton>(find.byKey(const Key('deleteWithProvider')));
+        AppButton btn() => tester.widget<AppButton>(find.byKey(const Key('deleteWithProvider')));
         expect(btn().onPressed, isNull); // confirmation first
         await tester.ensureVisible(find.byKey(const Key('deleteConfirm')));
         await tester.tap(find.byKey(const Key('deleteConfirm')));

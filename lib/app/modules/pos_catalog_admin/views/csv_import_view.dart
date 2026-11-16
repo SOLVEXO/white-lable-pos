@@ -65,7 +65,7 @@ class _CsvImportViewState extends State<CsvImportView> with CatOwnedController<C
             controller: _text,
             minLines: 6,
             maxLines: 12,
-            style: t.bodySmall,
+            style: t.mono.copyWith(color: context.palette.textPrimary),
             decoration: catField('CSV text', hint: 'Paste the CSV here, header row first'),
             onChanged: c.setText,
           ),

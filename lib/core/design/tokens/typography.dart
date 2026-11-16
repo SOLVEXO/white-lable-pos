@@ -29,6 +29,7 @@ class AppTypeScale {
     required this.amountMd,
     required this.amountSm,
     required this.amountDisplay,
+    required this.mono,
   });
 
   static const String displayFamily = 'Manrope';
@@ -53,6 +54,18 @@ class AppTypeScale {
 
   /// The largest figure on a screen, read from a distance: the amount on the customer-facing Raast QR, the lock-screen clock (G6.3).
   final TextStyle amountDisplay;
+
+  /// Fixed-width text for things laid out in columns of characters: the thermal-receipt preview (48 / 32 columns), CSV text, API keys.
+  /// The platform's own monospace face (Menlo / Courier on iOS, the system monospace on Android) — no extra font asset (G6.3).
+  final TextStyle mono;
+
+  static TextStyle _mono(double size, double line) => TextStyle(
+    fontFamily: 'Menlo',
+    fontFamilyFallback: const ['Courier', 'monospace'],
+    fontSize: size,
+    height: line / size,
+    fontWeight: FontWeight.w400,
+  );
 
   static TextStyle _s(
     double size,
@@ -86,6 +99,7 @@ class AppTypeScale {
     amountMd: _s(16, 22, FontWeight.w600, family: displayFamily),
     amountSm: _s(12, 16, FontWeight.w600, family: displayFamily),
     amountDisplay: _s(56, 60, FontWeight.w700, family: displayFamily, ls: -1),
+    mono: _mono(12, 16),
   );
 
   static final AppTypeScale tablet = AppTypeScale._(
@@ -102,6 +116,7 @@ class AppTypeScale {
     amountMd: _s(17, 24, FontWeight.w600, family: displayFamily),
     amountSm: _s(13, 18, FontWeight.w600, family: displayFamily),
     amountDisplay: _s(64, 68, FontWeight.w700, family: displayFamily, ls: -1.2),
+    mono: _mono(13, 18),
   );
 
   /// Material [TextTheme] so stock widgets (dialogs, pickers, etc.) match.

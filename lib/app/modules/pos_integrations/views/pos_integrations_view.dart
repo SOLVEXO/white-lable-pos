@@ -192,34 +192,40 @@ class _ApiKeys extends StatelessWidget {
     if (req == null) return;
     final key = await c.createKey(name: req.name, scopes: req.scopes, days: req.days);
     if (key == null || !context.mounted) return;
-    await showDialog<void>(
-      context: context,
+    await AppDialog.show<void>(
+      context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Copy your key now'),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('This is the only time the full key is shown. Store it somewhere safe. If you lose it, revoke it and make a new one.'),
-          const SizedBox(height: Space.s3),
-          SelectableText(key, key: const Key('apiKeyValue'), style: const TextStyle(fontFamily: 'Courier', fontSize: 13)),
-        ]),
-        actions: [
-          TextButton(key: const Key('apiKeyCopy'), onPressed: () => Clipboard.setData(ClipboardData(text: key)), child: const Text('Copy')),
-          FilledButton(key: const Key('apiKeyDone'), onPressed: () => Navigator.of(ctx).pop(), child: const Text('I have saved it')),
-        ],
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(Space.s6),
+        child: AppDialogCard(
+          title: 'Copy your key now',
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('This is the only time the full key is shown. Store it somewhere safe. If you lose it, revoke it and make a new one.', style: ctx.type.body.copyWith(color: ctx.palette.textSecondary)),
+            const SizedBox(height: Space.s3),
+            SelectableText(key, key: const Key('apiKeyValue'), style: ctx.type.mono.copyWith(color: ctx.palette.textPrimary)),
+          ]),
+          actions: [
+            AppButton(key: const Key('apiKeyCopy'), label: 'Copy', variant: AppButtonVariant.secondary, onPressed: () => Clipboard.setData(ClipboardData(text: key))),
+            AppButton(key: const Key('apiKeyDone'), label: 'I have saved it', onPressed: () => Navigator.of(ctx).pop()),
+          ],
+        ),
       ),
     );
   }
 
   Future<void> _revoke(BuildContext context, StoreApiKey k) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Revoke "${k.name}"?'),
-        content: const Text('Anything using this key stops working at once. This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(key: const Key('apiKeyRevokeConfirm'), onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Revoke')),
-        ],
+    final ok = await AppDialog.show<bool>(
+      context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(Space.s6),
+        child: AppDialogCard(
+          title: 'Revoke "${k.name}"?',
+          message: 'Anything using this key stops working at once. This cannot be undone.',
+          actions: [
+            AppButton(label: 'Cancel', variant: AppButtonVariant.secondary, onPressed: () => Navigator.of(ctx).pop(false)),
+            AppButton(key: const Key('apiKeyRevokeConfirm'), label: 'Revoke', variant: AppButtonVariant.danger, onPressed: () => Navigator.of(ctx).pop(true)),
+          ],
+        ),
       ),
     );
     if (ok == true) await c.revokeKey(k);
