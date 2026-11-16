@@ -24,6 +24,17 @@ import 'package:solvexo_pos/utils/sound_util.dart';
 
 class MockPosRepository extends Mock implements PosRepository {}
 
+/// A mocked repository for tests that build a PosHomeController directly: the reads the sale screen makes in the background (customer
+/// balances and rules, lot advice, the receipt link) answer "nothing known", so no test ever falls through to the real API (G6.4 guard).
+MockPosRepository quietPosRepository() {
+  final r = MockPosRepository();
+  when(() => r.getCustomerProfile(any(), any())).thenAnswer((_) async => null);
+  when(() => r.getCustomerConfig(any())).thenAnswer((_) async => null);
+  when(() => r.getLotPreview(any(), any(), any())).thenAnswer((_) async => null);
+  when(() => r.getReceiptLink(any())).thenAnswer((_) async => null);
+  return r;
+}
+
 class MockCategoryRepository extends Mock implements CategoryRepository {}
 
 typedef SaleResult = ({

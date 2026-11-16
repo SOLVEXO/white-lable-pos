@@ -9,12 +9,14 @@ import 'package:solvexo_pos/app/data/models/pos/pos_sale_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/sale_harness.dart' show quietPosRepository;
+
 void main() {
   late PosHomeController c;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({}); // the cart is persisted to SharedPreferences
-    c = PosHomeController();
+    c = PosHomeController(posRepository: quietPosRepository()); // never the real API (G6.4 no-network guard)
   });
 
   tearDown(() {

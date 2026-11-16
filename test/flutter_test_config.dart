@@ -26,6 +26,13 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
     blockedNetworkAttempts.clear();
     fail('This test tried to reach the network (blocked): ${tried.toSet().join(', ')}. Inject a fake repository / HttpClient instead.');
   });
+  // A late background call (started by a test, finished after it) is still refused, but would land after that test's tearDown: fail the file.
+  tearDownAll(() {
+    if (blockedNetworkAttempts.isEmpty) return;
+    final tried = List.of(blockedNetworkAttempts);
+    blockedNetworkAttempts.clear();
+    fail('A test in this file started a network call that finished after it ended (blocked): ${tried.toSet().join(', ')}. Inject a fake.');
+  });
   final mem = <String, String>{};
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'), (call) async {
     final a = (call.arguments as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};

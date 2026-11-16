@@ -10,6 +10,8 @@ import 'package:solvexo_pos/app/data/models/pos/pos_product_model.dart';
 import 'package:solvexo_pos/app/modules/pos_home/controllers/pos_home_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/sale_harness.dart' show quietPosRepository;
+
 PosProductModel _product({required String id, required double price, int stock = 10}) {
   return PosProductModel(
     productId: id,
@@ -35,7 +37,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({}); // the cart is persisted to SharedPreferences
-    c = PosHomeController();
+    c = PosHomeController(posRepository: quietPosRepository()); // never the real API (G6.4 no-network guard)
   });
 
   tearDown(() {
