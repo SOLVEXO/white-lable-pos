@@ -131,8 +131,8 @@ API keys created in the meantime simply stop working while the routes are gone.
 ### b.1 Version
 | | Now | Next |
 |---|---|---|
-| `pubspec.yaml` | **`1.0.2+103`** (G6.3: every screen on the design system. G6.2 built `1.0.1+102` and G6.1 built `+101`, neither uploaded; the closed-testing build was `1.0.0+100`) | `+104` and up for each later upload |
-| `lib/config/app_version.dart` | `1.0.2` / `103` (a test fails if it differs from the pubspec) | bumped together |
+| `pubspec.yaml` | **`1.0.2+104`** (G6.4: device appearance setting, dark spot-check fixes. G6.3 built `+103`, G6.2 `1.0.1+102` and G6.1 `+101`, none uploaded; the closed-testing build was `1.0.0+100`) | `+105` and up for each later upload |
+| `lib/config/app_version.dart` | `1.0.2` / `104` (a test fails if it differs from the pubspec) | bumped together |
 | Android | `versionName` / `versionCode` come from the pubspec | — |
 | iOS | `CFBundleShortVersionString` / `CFBundleVersion` come from the pubspec | — |
 
@@ -153,7 +153,14 @@ Bump the build number (`+N`) on every upload. Bump the name for a user-visible r
   - No local API URL in the bundle.
   - The certificate's owner fields are all "Unknown": the keystore was created with default names. That's valid for Play, but confirm it is the intended upload key.
   - Only warnings were Java "source/target value 8 is obsolete" from plugins.
-- **Release build G6.3 (2026-11-16), the one to upload next:** same command, 71.2 MB AAB (Gradle 146 s), **not uploaded**. It replaces the G6.2 build below.
+- **Release build G6.4 (2026-11-16), the one to upload next:** same command, 71.2 MB AAB, **not uploaded**. It replaces the G6.3 build below.
+  - **versionName `1.0.2`, versionCode `104`** (read from the bundle's manifest).
+  - **Signed with the same release key:**
+    - SHA-1 `4F:78:DA:13:86:82:CC:0D:B6:B2:CE:A8:42:C5:BC:D1:4F:98:D1:58`
+    - SHA-256 `2C:1F:C1:BE:3E:22:EB:E7:0F:D3:27:B7:6D:EF:06:CC:D1:58:58:07:EF:ED:8F:A8:8C:93:7E:4E:71:25:76:E1`
+  - **Inside:** `https://api.solvexo.store` (36 references). No local or dev URL and no `dev-upload.invalid`.
+  - No signing material was created or changed.
+- **Release build G6.3 (2026-11-16), superseded by G6.4:** same command, 71.2 MB AAB (Gradle 146 s), **not uploaded**. It replaces the G6.2 build below.
   - **versionName `1.0.2`, versionCode `103`** (read from the bundle's manifest).
   - **Signed with the same release key:**
     - SHA-1 `4F:78:DA:13:86:82:CC:0D:B6:B2:CE:A8:42:C5:BC:D1:4F:98:D1:58`
@@ -397,7 +404,7 @@ Owner: **Done** means verified in this repo, CI or the release build. **Mine** =
 | 3 | Production backfill (G1b §2–4) done and burn-in started; the app does not need the read flip to ship | Mine |
 | 4 | Insert-only grants on all append-only collections; one seal per store per night | Mine |
 | 5 | `API_PUBLIC_URL` set and boot-checked; `DEV_UPLOAD_STUB` not set | Done (2026-11-12) / Mine (confirm the stub variable) |
-| 6 | Release build: Android AAB with `prod.json`, signed with the release key, R8 on | Done (G6.3: 1.0.2 / 103, fingerprints in b.2) |
+| 6 | Release build: Android AAB with `prod.json`, signed with the release key, R8 on | Done (G6.4: 1.0.2 / 104, fingerprints in b.2) |
 | 7 | A release build cannot run against a dev or local API | Done (`AppEnv.validate`, `store_release_test.dart`) |
 | 8 | The release APK installed and used on a real Android phone (R8 never run on a device yet) | Mine |
 | 9 | The upload key confirmed (compare the b.2 fingerprints with Play Console) and Play App Signing enrolled; an offline backup of the keystore | Mine |

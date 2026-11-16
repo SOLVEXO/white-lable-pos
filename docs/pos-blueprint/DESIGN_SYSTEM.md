@@ -130,4 +130,11 @@ The guard's baseline is empty, and `test/design_guard_test.dart` fails if it eve
 
 **Text scale:** the app honours OS text scaling up to `kMaxTextScale = 1.3` (`main.dart`). Every screen was checked at 1.3 against the real backend (`integration_test/g63_screens_shots_test.dart`, `G63_SCALE=1.3`).
 
-**Theme:** every screen draws from palette tokens and was checked in dark. The shipped app still opens in light; following the system setting is a one-line change to `themeMode` in `main.dart`, and it is the owner's decision. Debug builds preview dark with the launch parameter `THEME=dark`.
+**Theme (G6.4):**
+- **Default:** the app follows the device's light/dark setting.
+- **Per-device choice:** Settings → Appearance (System / Light / Dark). Every role sees it. It is saved locally, kept across restarts and sign-out, and is not a store setting.
+- **Applied at once:** `ThemePreference` (`lib/app/data/services/theme_preference.dart`) is loaded before the first frame, and the app root observes it, so a change re-themes every open screen without a restart.
+- **Debug builds** can still force a theme with the launch parameter `THEME=light|dark` (screenshots).
+- **Unaffected by the theme:** the splash and the native launch screen (always the brand ink), printed receipts and documents, PDFs and QR codes (fixed colours).
+- **Screens** need nothing per mode: palette tokens resolve light and dark.
+- **Tests:** `test/g64_theme_test.dart`.
