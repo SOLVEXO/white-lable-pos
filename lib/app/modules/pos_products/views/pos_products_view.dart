@@ -17,7 +17,9 @@ class PosProductsView extends StatelessWidget {
     final p = context.palette;
     return Scaffold(
       backgroundColor: p.background,
-      body: Column(
+      body: Center(
+        // tablet: a centred column, not a stretched phone (G6.3)
+        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 720), child: Column(
         children: [
           const PosAppBar(title: 'Products'),
           Padding(
@@ -68,6 +70,7 @@ class PosProductsView extends StatelessWidget {
             }),
           ),
         ],
+      )),
       ),
     );
   }

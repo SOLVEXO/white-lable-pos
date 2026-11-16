@@ -18,7 +18,9 @@ class PosOrdersView extends StatelessWidget {
     final p = context.palette;
     return Scaffold(
       backgroundColor: p.background,
-      body: Column(
+      body: Center(
+        // tablet: a centred column, not a stretched phone (G6.3)
+        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 900), child: Column(
         children: [
           const PosAppBar(title: 'Transactions'),
           Padding(
@@ -98,6 +100,7 @@ class PosOrdersView extends StatelessWidget {
             }),
           ),
         ],
+      )),
       ),
     );
   }

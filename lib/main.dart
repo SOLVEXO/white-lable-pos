@@ -31,6 +31,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/core/design/design.dart';
 
+/// The largest OS text scale the app honours (G6.3: 1.3; every screen is checked at it).
+const double kMaxTextScale = 1.3;
+
 void main() {
   // Release builds: no print()/debugPrint output (it can carry request data) and every uncaught error goes to Crashlytics, scrubbed.
   runZonedGuarded(
@@ -131,23 +134,21 @@ class MyApp extends StatelessWidget {
         return GetMaterialApp(
           debugShowCheckedModeBanner: false,
           title: AppBrand.posName,
-          // "Ink & Ember" theme. Locked to light for now: un-migrated screens
-          // hard-code light colours and would be unreadable under a dark theme.
-          // Dark switches on per migrated screen / at the Phase 5 parity pass.
+          // "Ink & Ember" theme. Since G6.3 every screen draws from palette tokens and was checked in dark, but the shipped app still opens
+          // in light (following the system setting is an owner decision); debug builds preview dark with THEME=dark.
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: DebugLaunchParams.themeMode, // light unless a debug THEME=dark launch parameter says otherwise
           initialRoute: AppPages.initialRoute,
           getPages: AppPages.routes,
-          // Clamp OS accessibility text scaling so extreme settings can't
-          // compound with CustomText's device-pixel-ratio-driven `.sp` and
-          // blow out hand-fit layouts — same clamp as the buyer app.
+          // Clamp OS accessibility text scaling to 0.9–1.3 (G6.3: raised from 1.2 once every screen was on the design system and checked
+          // at 1.3; the cap stays so extreme settings cannot break the till's dense layouts).
           builder: (context, child) {
             final mq = MediaQuery.of(context);
             return MediaQuery(
               data: mq.copyWith(
                 textScaler: TextScaler.linear(
-                  mq.textScaler.scale(1).clamp(0.9, 1.2),
+                  mq.textScaler.scale(1).clamp(0.9, kMaxTextScale),
                 ),
               ),
               // Status-bar icons and clock follow the theme on EVERY screen (dark icons on the light surfaces, light icons on dark) —

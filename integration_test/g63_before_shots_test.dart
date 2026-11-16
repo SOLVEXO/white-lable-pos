@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart' hide Response, FormData, MultipartFile;
 import 'package:integration_test/integration_test.dart';
 import 'package:solvexo_pos/app/data/services/owner_session.dart';
+import 'package:solvexo_pos/app/data/services/idle_lock_service.dart';
 import 'package:solvexo_pos/app/modules/pos/controllers/pos_bottom_nav_controller.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
 import 'package:solvexo_pos/main.dart' as app;
@@ -110,6 +111,8 @@ void main() {
     for (final (name, route, args) in screens) {
       i++;
       if (i < from) continue;
+      // the store's own auto-lock (security settings) would lock the till during a long pass: count each screen as activity, like a tap
+      if (Get.isRegistered<IdleLockService>()) Get.find<IdleLockService>().onActivity();
       Get.toNamed(route, arguments: args);
       await settle(t, 3500);
       await shot(t, 'g63b_${i.toString().padLeft(2, '0')}_$name');
