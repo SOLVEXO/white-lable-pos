@@ -1,1 +1,1 @@
-{ "APP_ENV": "staging", "API_BASE_URL": "https://api.solvexo.store" }
+{ "APP_ENV": "staging", "API_BASE_URL": "" }

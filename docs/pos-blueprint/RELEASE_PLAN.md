@@ -224,7 +224,7 @@ Bump the build number (`+N`) on every upload. Bump the name for a user-visible r
 | File | `APP_ENV` | `API_BASE_URL` |
 |---|---|---|
 | `prod.json` | prod | `https://api.solvexo.store` |
-| `staging.json` | staging | `https://api.solvexo.store`, **the production URL** (go_no_go B6) |
+| `staging.json` | staging | **None yet (empty).** A staging build or run refuses to start with "No staging API configured" (since 2026-11-16; it used to point at production — go_no_go B6) |
 | `dev.json` | dev | `http://localhost:3000` |
 | `local.json` | dev | `http://localhost:3102` |
 
@@ -241,7 +241,10 @@ A release built with `dev.json` or `local.json` therefore cannot talk to a dev A
 
 **What to do:**
 - **Always build store uploads with `--dart-define-from-file=config/env/prod.json`.** Without it the API is still production (the fallback), but the About screen and Crashlytics say `dev`.
-- **The staging build talks to production** until the web or ops team provides a real staging API URL. Until then, do the device tests (section d) with a **test store on production**, or get a staging URL first. That item is on the go/no-go list.
+- **Staging needs its own API URL from the web team / ops.** Until then `staging.json` has no URL, and a staging build or run stops on the configuration screen with "No staging API configured" instead of talking to production.
+  - `AppEnv.validate` enforces this.
+  - `test/env_configs_test.dart` fails if any config other than `prod.json` contains the production address.
+  - Device tests (section d) therefore use the **prod build with a test store on production**, or wait for the staging URL. That item is on the go/no-go list.
 
 ### b.6 Store listing: still needed
 | Item | State | Who |
@@ -303,7 +306,7 @@ Steps 7–9 do not depend on each other or on the burn-in. Run them one at a tim
 
 ## d. Real-device test plan
 
-All items from G3_CLOSEOUT §5, G4_CLOSEOUT §5 and §7, and G5_CLOSEOUT (G5.1 and G5.2–G5.7), merged and grouped by device. Install a release-mode build (section b.5). **The staging build currently talks to production**, so use a test store, or get a staging URL first.
+All items from G3_CLOSEOUT §5, G4_CLOSEOUT §5 and §7, and G5_CLOSEOUT (G5.1 and G5.2–G5.7), merged and grouped by device. Install a release-mode build (section b.5). **There is no staging API yet** (a staging build refuses to start), so use the prod build with a test store, or get a staging URL first.
 
 - **Session 1** (about 2 h): the Android phone, the 58 mm printer and the cash drawer.
 - **Session 2** (about 2 h): the iPhone, the Android tablet, the 80 mm printer and the scanner.
@@ -410,7 +413,7 @@ Owner: **Done** means verified in this repo, CI or the release build. **Mine** =
 | 9 | The upload key confirmed (compare the b.2 fingerprints with Play Console) and Play App Signing enrolled; an offline backup of the keystore | Mine |
 | 10 | iOS distribution certificate and profile, archive exported, TestFlight build symbolicates; Sign in with Apple configured | Mine |
 | 11 | Real-device test plan (section d) run, all P or accepted | Mine |
-| 12 | A real staging API URL (today `staging.json` = production) **or** a decision to test on a production test store | Web team / Sir Atiq |
+| 12 | A real staging API URL (today `staging.json` is empty and a staging build refuses to start) **or** a decision to test on a production test store | Web team / ops / Sir Atiq |
 | 13 | Final app icon and splash masters | Sir Atiq (designer) |
 | 14 | Store screenshots and the feature graphic | Mine |
 | 15 | Privacy policy published and legally reviewed; deletion URL domain confirmed | Sir Atiq / Web team |
