@@ -37,12 +37,6 @@ lib/app/modules/seller_onboarding/widgets/onboarding_step_bar.dart 19
 lib/app/modules/seller_onboarding/widgets/step2_store_info_form.dart 45
 lib/app/modules/seller_onboarding/widgets/step3_seller_type_grid.dart 26
 lib/app/modules/seller_onboarding/widgets/step5_go_live.dart 37
-lib/app/modules/seller_pos_locations/views/seller_pos_locations_view.dart 16
-lib/app/modules/seller_pos_locations/widgets/location_card.dart 30
-lib/app/modules/seller_pos_locations/widgets/location_form_sheet.dart 15
-lib/app/modules/seller_pos_locations/widgets/locations_overview_header.dart 15
-lib/app/modules/seller_pos_management/views/seller_pos_management_view.dart 210
-lib/app/modules/seller_pos_management/widgets/seller_pos_management_shimmer.dart 4
 lib/app/modules/splash_screen/views/splash_screen_view.dart 1
 lib/config/app_brand.dart 3
 lib/config/resources/app_colors.dart 119

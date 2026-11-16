@@ -1,14 +1,8 @@
-import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
+import 'package:flutter/material.dart';
 import 'package:solvexo_pos/app/data/models/pos/store_location_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/store_locations_overview_model.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/core/theme/base_animations.dart';
-import 'package:solvexo_pos/core/theme/base_shadows.dart';
-import 'package:solvexo_pos/core/theme/base_spacing.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:flutter/material.dart';
+import 'package:solvexo_pos/core/design/design.dart';
+import 'package:solvexo_pos/utils/money.dart';
 
 class LocationCard extends StatelessWidget {
   final StoreLocationModel location;
@@ -26,135 +20,123 @@ class LocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
     final isActive = location.isActive;
-    return PressableScale(
+    final hasPhone = location.phone != null && location.phone!.trim().isNotEmpty;
+    return AppCard(
       onTap: onEdit,
-      child: Container(
-        padding: EdgeInsets.all(BaseSpacing.sm + 2),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(BaseRadius.lg),
-          boxShadow: BaseShadows.forLevel(BaseElevation.level1),
-          border: Border.all(
-            color: isActive ? AppColors.primaryColor.withOpacity(0.15) : AppColors.transparent,
+      semanticLabel: '${location.name}, ${isActive ? 'Active' : 'Archived'}',
+      padding: const EdgeInsets.fromLTRB(Space.s4, Space.s3, Space.s2, Space.s3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: isActive ? p.accentSoft : p.fill, borderRadius: Radii.rMd),
+                child: Icon(
+                  Icons.store_mall_directory_outlined,
+                  color: isActive ? p.accentFg : p.textSecondary,
+                  size: IconSizes.md,
+                ),
+              ),
+              const SizedBox(width: Space.s3),
+              Expanded(
+                child: Text(
+                  location.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.subtitle.copyWith(color: p.textPrimary),
+                ),
+              ),
+              const SizedBox(width: Space.s2),
+              StatusBadge(
+                isActive ? 'Active' : 'Archived',
+                tone: isActive ? StatusTone.success : StatusTone.neutral,
+              ),
+              if (isActive)
+                IconButton(
+                  tooltip: 'Archive',
+                  icon: Icon(Icons.archive_outlined, size: IconSizes.sm, color: p.textSecondary),
+                  onPressed: onArchive,
+                )
+              else
+                const SizedBox(width: Space.s2),
+            ],
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+          if (location.addressLabel.isNotEmpty) ...[
+            const SizedBox(height: Space.s2),
+            _InfoLine(icon: Icons.location_on_outlined, text: location.addressLabel),
+          ],
+          if (hasPhone) ...[
+            const SizedBox(height: Space.s1),
+            _InfoLine(icon: Icons.phone_outlined, text: location.phone!),
+          ],
+          if (stat != null) ...[
+            const SizedBox(height: Space.s2),
+            Wrap(
+              spacing: Space.s4,
+              runSpacing: Space.s1,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Container(
-                  padding: EdgeInsets.all(BaseSpacing.xs),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(BaseRadius.sm),
-                  ),
-                  child: Icon(Icons.store_mall_directory_outlined,
-                      color: AppColors.primaryColor, size: 18),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.payments_outlined, size: IconSizes.xxs, color: p.successFg),
+                    const SizedBox(width: Space.s1),
+                    AmountText(
+                      Money.format(stat!.totalSales),
+                      style: t.amountSm,
+                      color: p.textPrimary,
+                      animate: false,
+                    ),
+                    const SizedBox(width: Space.s1),
+                    Text('sales', style: t.caption.copyWith(color: p.textSecondary)),
+                  ],
                 ),
-                SizedBox(width: BaseSpacing.xs),
-                Expanded(
-                  child: CustomText(
-                    text: location.name,
-                    color: AppColors.black2,
-                    fontSize: AppFontSize.extraSmall,
-                    fontWeight: FontWeight.w700,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.receipt_long_outlined, size: IconSizes.xxs, color: p.textSecondary),
+                    const SizedBox(width: Space.s1),
+                    Text(
+                      '${stat!.transactionCount} transactions',
+                      style: t.caption.copyWith(color: p.textSecondary),
+                    ),
+                  ],
                 ),
-                _StatusChip(isActive: isActive),
-                if (isActive)
-                  IconButton(
-                    icon: Icon(Icons.archive_outlined, size: 18, color: AppColors.gray600),
-                    onPressed: onArchive,
-                  ),
               ],
             ),
-            if (location.addressLabel.isNotEmpty) ...[
-              SizedBox(height: BaseSpacing.xxs),
-              Row(
-                children: [
-                  Icon(Icons.location_on_outlined, size: 13, color: AppColors.gray600),
-                  SizedBox(width: BaseSpacing.xxs),
-                  Expanded(
-                    child: CustomText(
-                      text: location.addressLabel,
-                      color: AppColors.gray600,
-                      fontSize: AppFontSize.tiny,
-                      fontWeight: FontWeight.w600,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (location.phone != null && location.phone!.trim().isNotEmpty) ...[
-              SizedBox(height: BaseSpacing.xxs / 2),
-              Row(
-                children: [
-                  Icon(Icons.phone_outlined, size: 13, color: AppColors.gray600),
-                  SizedBox(width: BaseSpacing.xxs),
-                  CustomText(
-                    text: location.phone!,
-                    color: AppColors.gray600,
-                    fontSize: AppFontSize.tiny,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ],
-              ),
-            ],
-            if (stat != null) ...[
-              SizedBox(height: BaseSpacing.xs),
-              Row(
-                children: [
-                  Icon(Icons.attach_money_rounded, size: 13, color: AppColors.green2),
-                  SizedBox(width: BaseSpacing.xxs / 2),
-                  CustomText(
-                    text: '${Money.format(stat!.totalSales)} sales',
-                    color: AppColors.gray600,
-                    fontSize: AppFontSize.tiny,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  SizedBox(width: BaseSpacing.sm),
-                  Icon(Icons.receipt_long_outlined, size: 13, color: AppColors.gray600),
-                  SizedBox(width: BaseSpacing.xxs / 2),
-                  CustomText(
-                    text: '${stat!.transactionCount} transactions',
-                    color: AppColors.gray600,
-                    fontSize: AppFontSize.tiny,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ],
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  final bool isActive;
-  const _StatusChip({required this.isActive});
+class _InfoLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _InfoLine({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? AppColors.green2 : AppColors.gray600;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: BaseSpacing.xs, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(BaseRadius.pill),
-      ),
-      child: CustomText(
-        text: isActive ? 'Active' : 'Archived',
-        color: color,
-        fontSize: 10.5,
-        fontWeight: FontWeight.w700,
-        fontFamily: AppTextStyles.monoFontFamily,
-      ),
+    final p = context.palette;
+    return Row(
+      children: [
+        Icon(icon, size: IconSizes.xxs, color: p.textSecondary),
+        const SizedBox(width: Space.s1),
+        Expanded(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: context.type.bodySmall.copyWith(color: p.textSecondary),
+          ),
+        ),
+      ],
     );
   }
 }

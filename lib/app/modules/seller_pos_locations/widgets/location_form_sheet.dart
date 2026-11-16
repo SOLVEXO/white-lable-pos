@@ -1,10 +1,6 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/data/models/pos/store_location_model.dart';
 import 'package:solvexo_pos/app/modules/seller_pos_locations/controllers/seller_pos_locations_controller.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/core/theme/base_spacing.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -17,10 +13,9 @@ class LocationFormSheet extends StatefulWidget {
 
   static void show(BuildContext context, SellerPosLocationsController controller,
       {StoreLocationModel? existing}) {
-    Get.bottomSheet(
+    AppBottomSheet.showGet(
       LocationFormSheet(controller: controller, existing: existing),
-      isScrollControlled: true,
-      backgroundColor: AppColors.transparent,
+      title: existing != null ? 'Edit Location' : 'Add Location',
     );
   }
 
@@ -88,119 +83,54 @@ class _LocationFormSheetState extends State<LocationFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    final p = context.palette;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppTextField(
+          label: 'Branch Name',
+          hint: 'e.g. Downtown Branch',
+          controller: _nameCtrl,
+          textInputAction: TextInputAction.next,
         ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(BaseSpacing.lg, BaseSpacing.sm, BaseSpacing.lg, BaseSpacing.lg),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: EdgeInsets.only(bottom: BaseSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.lightGrey2,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  CustomText(
-                    text: _isEdit ? 'Edit Location' : 'Add Location',
-                    color: AppColors.black2,
-                    fontSize: AppFontSize.small2,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  SizedBox(height: BaseSpacing.md),
-                  CustomTextField(
-                    label: 'Branch Name',
-                    hintText: 'e.g. Downtown Branch',
-                    controller: _nameCtrl,
-                    isborder: true,
-                  ),
-                  SizedBox(height: BaseSpacing.sm),
-                  CustomTextField(
-                    label: 'Address (optional)',
-                    hintText: 'Street address',
-                    controller: _addressCtrl,
-                    isborder: true,
-                  ),
-                  SizedBox(height: BaseSpacing.sm),
-                  CustomTextField(
-                    label: 'City (optional)',
-                    controller: _cityCtrl,
-                    isborder: true,
-                  ),
-                  SizedBox(height: BaseSpacing.sm),
-                  CustomTextField(
-                    label: 'Phone (optional)',
-                    controller: _phoneCtrl,
-                    isborder: true,
-                    keyboardType: TextInputType.phone,
-                  ),
-                  if (_isEdit) ...[
-                    SizedBox(height: BaseSpacing.sm),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: CustomText(
-                            text: 'Active',
-                            color: AppColors.black2,
-                            fontSize: AppFontSize.verySmall,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Switch(
-                          value: _active,
-                          activeColor: AppColors.primaryColor,
-                          onChanged: (v) => setState(() => _active = v),
-                        ),
-                      ],
-                    ),
-                  ],
-                  SizedBox(height: BaseSpacing.lg),
-                  Obx(
-                    () => GestureDetector(
-                      onTap: widget.controller.isSaving.value ? null : _submit,
-                      child: Container(
-                        width: double.infinity,
-                        constraints: const BoxConstraints(minHeight: 50),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryColor,
-                          borderRadius: BorderRadius.circular(BaseRadius.md),
-                        ),
-                        child: widget.controller.isSaving.value
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
-                              )
-                            : CustomText(
-                                text: _isEdit ? 'Save Changes' : 'Add Location',
-                                color: AppColors.white,
-                                fontSize: AppFontSize.small,
-                                fontWeight: FontWeight.w700,
-                              ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        const SizedBox(height: Space.s3),
+        AppTextField(
+          label: 'Address (optional)',
+          hint: 'Street address',
+          controller: _addressCtrl,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: Space.s3),
+        AppTextField(
+          label: 'City (optional)',
+          controller: _cityCtrl,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: Space.s3),
+        AppTextField(
+          label: 'Phone (optional)',
+          controller: _phoneCtrl,
+          keyboardType: TextInputType.phone,
+        ),
+        if (_isEdit) ...[
+          const SizedBox(height: Space.s2),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Active', style: context.type.subtitle.copyWith(color: p.textPrimary)),
+            value: _active,
+            onChanged: (v) => setState(() => _active = v),
+          ),
+        ],
+        const SizedBox(height: Space.s5),
+        Obx(
+          () => AppButton(
+            label: _isEdit ? 'Save Changes' : 'Add Location',
+            loading: widget.controller.isSaving.value,
+            onPressed: widget.controller.isSaving.value ? null : _submit,
           ),
         ),
-      ),
+      ],
     );
   }
 }

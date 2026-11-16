@@ -1,11 +1,7 @@
-import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/data/models/pos/store_locations_overview_model.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/core/theme/base_shadows.dart';
-import 'package:solvexo_pos/core/theme/base_spacing.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/app/data/models/pos/store_locations_overview_model.dart';
+import 'package:solvexo_pos/core/design/design.dart';
+import 'package:solvexo_pos/utils/money.dart';
 
 /// Combined "all branches" stats card from the locations overview endpoint
 /// (defaults to the last 30 days on the backend).
@@ -15,56 +11,54 @@ class LocationsOverviewHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(BaseSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(BaseRadius.lg),
-        boxShadow: BaseShadows.forLevel(BaseElevation.level1),
+    final p = context.palette;
+    final t = context.type;
+    final large = MediaQuery.textScalerOf(context).scale(16) > 19;
+    final sales = _OverviewStat(
+      label: 'Total Sales',
+      value: AmountText(
+        Money.format(overview.combinedTotalSales),
+        style: t.amountLg,
+        color: p.textPrimary,
+        animate: false,
       ),
+    );
+    final txns = _OverviewStat(
+      label: 'Transactions',
+      value: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text('${overview.combinedTransactionCount}', style: t.amountLg.copyWith(color: p.textPrimary)),
+      ),
+    );
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.storefront_outlined, size: 16, color: AppColors.primaryColor),
-              SizedBox(width: BaseSpacing.xxs),
-              const CustomText(
-                text: 'All Branches',
-                color: AppColors.black2,
-                fontSize: AppFontSize.extraSmall,
-                fontWeight: FontWeight.w700,
+              Icon(Icons.storefront_outlined, size: IconSizes.xs, color: p.accentFg),
+              const SizedBox(width: Space.s2),
+              Expanded(
+                child: Text('All Branches', style: t.subtitle.copyWith(color: p.textPrimary)),
               ),
-              const Spacer(),
-              const CustomText(
-                text: 'Last 30 days',
-                color: AppColors.gray600,
-                fontSize: AppFontSize.tiny,
-                fontWeight: FontWeight.w600,
-              ),
+              Text('Last 30 days', style: t.caption.copyWith(color: p.textSecondary)),
             ],
           ),
-          SizedBox(height: BaseSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: _OverviewStat(
-                  label: 'Total Sales',
-                  value: Money.format(overview.combinedTotalSales),
-                  color: AppColors.green2,
-                ),
-              ),
-              SizedBox(width: BaseSpacing.sm),
-              Expanded(
-                child: _OverviewStat(
-                  label: 'Transactions',
-                  value: '${overview.combinedTransactionCount}',
-                  color: AppColors.primaryColor,
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: Space.s3),
+          if (large)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [sales, const SizedBox(height: Space.s2), txns],
+            )
+          else
+            Row(
+              children: [
+                Expanded(child: sales),
+                const SizedBox(width: Space.s2),
+                Expanded(child: txns),
+              ],
+            ),
         ],
       ),
     );
@@ -73,34 +67,21 @@ class LocationsOverviewHeader extends StatelessWidget {
 
 class _OverviewStat extends StatelessWidget {
   final String label;
-  final String value;
-  final Color color;
-  const _OverviewStat({required this.label, required this.value, required this.color});
+  final Widget value;
+  const _OverviewStat({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
-      padding: EdgeInsets.symmetric(vertical: BaseSpacing.sm, horizontal: BaseSpacing.sm),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(BaseRadius.md),
-      ),
+      padding: const EdgeInsets.all(Space.s3),
+      decoration: BoxDecoration(color: p.fill, borderRadius: Radii.rMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomText(
-            text: value,
-            color: color,
-            fontSize: AppFontSize.small,
-            fontWeight: FontWeight.bold,
-          ),
-          SizedBox(height: BaseSpacing.xxs / 2),
-          CustomText(
-            text: label,
-            color: AppColors.gray600,
-            fontSize: AppFontSize.tiny,
-            fontWeight: FontWeight.w600,
-          ),
+          value,
+          const SizedBox(height: Space.s1),
+          Text(label, style: context.type.caption.copyWith(color: p.textSecondary)),
         ],
       ),
     );

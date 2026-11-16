@@ -1,25 +1,18 @@
-import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
-import 'package:solvexo_pos/app/components/custom_button.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
-import 'package:solvexo_pos/app/components/custom_refresh_wrapper.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/data/models/common_models/store_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_employee_model.dart';
 import 'package:solvexo_pos/app/data/models/pos/pos_session_model.dart';
+import 'package:solvexo_pos/app/modules/pos_plan/views/plan_expiry_banner.dart';
 import 'package:solvexo_pos/app/modules/seller_pos_management/controllers/seller_pos_management_controller.dart';
 import 'package:solvexo_pos/app/modules/seller_pos_management/widgets/seller_pos_management_shimmer.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
-import 'package:flutter/material.dart';
-import 'package:solvexo_pos/app/modules/pos_plan/views/plan_expiry_banner.dart';
 import 'package:solvexo_pos/app/routes/app_pages.dart';
-import 'package:get/get.dart';
-import 'package:intl/intl.dart';
+import 'package:solvexo_pos/core/design/design.dart';
+import 'package:solvexo_pos/utils/money.dart';
 
 // ── Responsive breakpoints ────────────────────────────────────────────────────
 // This screen is used on phones as well as larger tablet / foldable / desktop
@@ -31,6 +24,11 @@ class _Bp {
   static const double maxContent = 1180;
 }
 
+/// True when the OS text scale is large enough that side-by-side figures or
+/// buttons should stack (the design system's 1.3 rule).
+bool _largeText(BuildContext context) =>
+    MediaQuery.textScalerOf(context).scale(16) > 19;
+
 class SellerPosManagementView extends StatelessWidget {
   SellerPosManagementView({super.key});
 
@@ -38,79 +36,59 @@ class SellerPosManagementView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
-        child: Obx(
-          () => CustomAppBarTwo(
-            title: c.storeName.value.isEmpty
-                ? 'POS Management'
-                : c.storeName.value,
-            color: AppColors.black2,
-            // This screen is always reached via Get.offAllNamed (from the
-            // store picker or right after onboarding creates a store), so
-            // the nav stack is empty here — a leading button would show but
-            // Get.back() would silently do nothing. Same convention as
-            // seller_stores/pos_home, the app's other stack-root screens:
-            // no leading button at all.
-            showLeading: true,
-            // actions: [
-            //   _RefreshButton(c: c),
-            //   const SizedBox(width: 6),
-            // ],
-          ),
-        ),
-      ),
-      body: Obx(() {
-        if (c.isLoading.value) {
-          return const SellerPosManagementShimmer();
-        }
-        return CustomRefreshWrapper(
-          onRefresh: c.refreshData,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final isTablet = width >= _Bp.tablet;
-              final isDesktop = width >= _Bp.desktop;
-              final hPad = isTablet ? 24.0 : AppDimen.allPadding;
+    // This screen is always reached via Get.offAllNamed (from the store
+    // picker or right after onboarding creates a store); the app bar keeps
+    // the platform's default leading behaviour, as before.
+    return Obx(
+      () => AppPage(
+        title: c.storeName.value.isEmpty ? 'POS Management' : c.storeName.value,
+        maxWidth: _Bp.maxContent,
+        body: Obx(() {
+          if (c.isLoading.value) {
+            return const SellerPosManagementShimmer();
+          }
+          return RefreshIndicator(
+            onRefresh: c.refreshData,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final isTablet = width >= _Bp.tablet;
+                final isDesktop = width >= _Bp.desktop;
+                final hPad = isTablet ? Space.s6 : Space.s4;
 
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: _Bp.maxContent),
-                  child: ListView(
-                    padding: EdgeInsets.fromLTRB(hPad, 18, hPad, 28),
-                    children: [
-                      PlanExpiryBanner(status: c.planStatus.value, onTap: () => Get.toNamed(Routes.posPlanStatus)),
-                      _OpenPosHeroCard(c: c, isWide: isTablet),
-                      const SizedBox(height: 18),
-                      _StatsRow(c: c, isWide: isTablet),
-                      const SizedBox(height: 14),
-                      const _ReportsLinksRow(),
-                      const SizedBox(height: 26),
-                      _ResponsiveSectionGrid(
-                        isDesktop: isDesktop,
-                        children: [
-                          _EmployeesSection(c: c),
-                          _RegistersSection(c: c),
-                        ],
-                      ),
-                      const SizedBox(height: 22),
-                      _ResponsiveSectionGrid(
-                        isDesktop: isDesktop,
-                        children: [
-                          _ShiftsSection(c: c),
-                          _SessionsSection(c: c),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      }),
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(hPad, Space.s4, hPad, Space.s8),
+                  children: [
+                    PlanExpiryBanner(status: c.planStatus.value, onTap: () => Get.toNamed(Routes.posPlanStatus)),
+                    _OpenPosHeroCard(c: c, isWide: isTablet),
+                    const SizedBox(height: Space.s4),
+                    _StatsRow(c: c, isWide: isTablet),
+                    const SizedBox(height: Space.s3),
+                    const _ReportsLinksRow(),
+                    const SizedBox(height: Space.s6),
+                    _ResponsiveSectionGrid(
+                      isDesktop: isDesktop,
+                      children: [
+                        _EmployeesSection(c: c),
+                        _RegistersSection(c: c),
+                      ],
+                    ),
+                    const SizedBox(height: Space.s5),
+                    _ResponsiveSectionGrid(
+                      isDesktop: isDesktop,
+                      children: [
+                        _ShiftsSection(c: c),
+                        _SessionsSection(c: c),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          );
+        }),
+      ),
     );
   }
 }
@@ -129,35 +107,21 @@ class _ResponsiveSectionGrid extends StatelessWidget {
     if (!isDesktop) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [children[0], const SizedBox(height: 22), children[1]],
+        children: [children[0], const SizedBox(height: Space.s5), children[1]],
       );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: children[0]),
-        const SizedBox(width: 20),
+        const SizedBox(width: Space.s5),
         Expanded(child: children[1]),
       ],
     );
   }
 }
 
-// ── Open POS hero card ────────────────────────────────────────────────────────
-// Wraps [child] in Expanded only in a horizontal Flex — the same child is
-// used inside a vertical Flex on phones, where Expanded would demand an
-// unbounded height and crash inside the scroll view.
-class _MaybeExpanded extends StatelessWidget {
-  final bool expand;
-  final Widget child;
-  const _MaybeExpanded({required this.expand, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return expand ? Expanded(child: child) : child;
-  }
-}
-
+// ── Open POS launch card ──────────────────────────────────────────────────────
 class _OpenPosHeroCard extends StatelessWidget {
   final SellerPosManagementController c;
   final bool isWide;
@@ -165,113 +129,58 @@ class _OpenPosHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.type;
+    final horizontal = isWide && !_largeText(context);
     return Obx(() {
       final isChecking = c.isCheckingPosAccess.value;
-      return Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(isWide ? 26 : 20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppColors.primaryColor, AppColors.primaryColorLight2],
+      final icon = Container(
+        padding: const EdgeInsets.all(Space.s3),
+        decoration: BoxDecoration(color: p.accentSoft, borderRadius: Radii.rMd),
+        child: Icon(Icons.point_of_sale_rounded, color: p.accentFg, size: IconSizes.lg),
+      );
+      final texts = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Open POS Terminal', style: t.title.copyWith(color: p.textPrimary)),
+          const SizedBox(height: Space.s1),
+          Text(
+            'Start a new sales session on this device',
+            style: t.bodySmall.copyWith(color: p.textSecondary),
           ),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryColor.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Flex(
-          direction: isWide ? Axis.horizontal : Axis.vertical,
-          crossAxisAlignment: isWide
-              ? CrossAxisAlignment.center
-              : CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.point_of_sale_rounded,
-                color: AppColors.white,
-                size: 26,
-              ),
-            ),
-            SizedBox(width: isWide ? 20 : 0, height: isWide ? 0 : 14),
-            _MaybeExpanded(
-              expand: isWide,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+        ],
+      );
+      final button = AppButton(
+        label: 'Launch',
+        icon: Icons.arrow_forward_rounded,
+        loading: isChecking,
+        expand: !horizontal,
+        onPressed: isChecking ? null : c.openPosTerminal,
+      );
+      return AppCard(
+        raised: true,
+        padding: EdgeInsets.all(isWide ? Space.s6 : Space.s5),
+        child: horizontal
+            ? Row(
                 children: [
-                  const CustomText(
-                    text: 'Open POS Terminal',
-                    fontSize: AppFontSize.medium,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.white,
-                  ),
-                  const SizedBox(height: 4),
-                  CustomText(
-                    text: 'Start a new sales session on this device',
-                    fontSize: AppFontSize.tiny,
-                    color: AppColors.white.withOpacity(0.85),
-                  ),
+                  icon,
+                  const SizedBox(width: Space.s5),
+                  Expanded(child: texts),
+                  const SizedBox(width: Space.s5),
+                  button,
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  icon,
+                  const SizedBox(height: Space.s3),
+                  texts,
+                  const SizedBox(height: Space.s4),
+                  button,
                 ],
               ),
-            ),
-            SizedBox(width: isWide ? 20 : 0, height: isWide ? 0 : 16),
-            SizedBox(
-              width: isWide ? null : double.infinity,
-              child: Material(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: isChecking ? null : c.openPosTerminal,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                      horizontal: 22,
-                    ),
-                    child: isChecking
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              color: AppColors.primaryColor,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CustomText(
-                                text: 'Launch',
-                                fontSize: AppFontSize.verySmall,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryColor,
-                              ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                color: AppColors.primaryColor,
-                                size: 17,
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       );
     });
   }
@@ -283,103 +192,64 @@ class _StatsRow extends StatelessWidget {
   final bool isWide;
   const _StatsRow({required this.c, required this.isWide});
 
-  @override
-  Widget build(BuildContext context) {
-    return Obx(
-      () => Row(
-        children: [
-          Expanded(
-            child: _StatCard(
-              icon: Icons.people_alt_rounded,
-              label: 'Employees',
-              value: '${c.employees.length}',
-              color: AppColors.primaryColor,
-              isWide: isWide,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              icon: Icons.point_of_sale_rounded,
-              label: 'Registers',
-              value: '${c.registers.length}',
-              color: AppColors.orange,
-              isWide: isWide,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              icon: Icons.trending_up_rounded,
-              label: "Today's Sales",
-              value:
-                  Money.format((c.dailyReport.value?.totalRevenue ?? 0)),
-              color: AppColors.green2,
-              isWide: isWide,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-  final bool isWide;
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.isWide,
-  });
+  static String _count(double v) => '${v.round()}';
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: isWide ? 20 : 14, horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
+    final large = _largeText(context);
+    return Obx(() {
+      final employees = StatTile(
+        icon: Icons.people_alt_rounded,
+        label: 'Employees',
+        value: c.employees.length.toDouble(),
+        formatter: _count,
+      );
+      final registers = StatTile(
+        icon: Icons.point_of_sale_rounded,
+        label: 'Registers',
+        value: c.registers.length.toDouble(),
+        formatter: _count,
+      );
+      final sales = StatTile(
+        icon: Icons.trending_up_rounded,
+        label: "Today's Sales",
+        value: (c.dailyReport.value?.totalRevenue ?? 0).toDouble(),
+        formatter: (v) => Money.format(v),
+      );
+      if (large) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [employees, const SizedBox(height: Space.s2), registers, const SizedBox(height: Space.s2), sales],
+        );
+      }
+      if (isWide) {
+        return Row(
+          children: [
+            Expanded(child: employees),
+            const SizedBox(width: Space.s2),
+            Expanded(child: registers),
+            const SizedBox(width: Space.s2),
+            Expanded(child: sales),
+          ],
+        );
+      }
+      // Phones: two counts side by side, the money figure full width so it
+      // never has to shrink.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: isWide ? 20 : 18),
+          Row(
+            children: [
+              Expanded(child: employees),
+              const SizedBox(width: Space.s2),
+              Expanded(child: registers),
+            ],
           ),
-          SizedBox(height: isWide ? 12 : 8),
-          CustomText(
-            text: value,
-            fontSize: isWide ? AppFontSize.small : AppFontSize.medium,
-            fontWeight: FontWeight.bold,
-            color: AppColors.black2,
-          ),
-          const SizedBox(height: 2),
-          CustomText(
-            text: label,
-            fontSize: AppFontSize.tiny,
-            color: AppColors.iosGrey,
-            textAlign: TextAlign.center,
-          ),
+          const SizedBox(height: Space.s2),
+          sales,
         ],
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -390,36 +260,41 @@ class _ReportsLinksRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const showAuditLog = true;
+    final links = <_LinkChip>[
+      _LinkChip(
+        icon: Icons.bar_chart_rounded,
+        label: 'Reports',
+        onTap: () => Get.toNamed(Routes.posRangeReport),
+      ),
+      if (showAuditLog)
+        _LinkChip(
+          icon: Icons.history_rounded,
+          label: 'Activity Log',
+          onTap: () => Get.toNamed(Routes.posAuditLog),
+        ),
+      _LinkChip(
+        icon: Icons.store_mall_directory_rounded,
+        label: 'Locations',
+        onTap: () => Get.toNamed(Routes.sellerPosLocations),
+      ),
+    ];
+    if (_largeText(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < links.length; i++) ...[
+            if (i > 0) const SizedBox(height: Space.s2),
+            AppListRow(icon: links[i].icon, title: links[i].label, onTap: links[i].onTap),
+          ],
+        ],
+      );
+    }
     return Row(
       children: [
-        Expanded(
-          child: _LinkChip(
-            icon: Icons.bar_chart_rounded,
-            label: 'Reports',
-            color: AppColors.primaryColor,
-            onTap: () => Get.toNamed(Routes.posRangeReport),
-          ),
-        ),
-        if (showAuditLog) ...[
-          const SizedBox(width: 10),
-          Expanded(
-            child: _LinkChip(
-              icon: Icons.history_rounded,
-              label: 'Activity Log',
-              color: AppColors.orange,
-              onTap: () => Get.toNamed(Routes.posAuditLog),
-            ),
-          ),
+        for (var i = 0; i < links.length; i++) ...[
+          if (i > 0) const SizedBox(width: Space.s2),
+          Expanded(child: links[i]),
         ],
-        const SizedBox(width: 10),
-        Expanded(
-          child: _LinkChip(
-            icon: Icons.store_mall_directory_rounded,
-            label: 'Locations',
-            color: AppColors.green2,
-            onTap: () => Get.toNamed(Routes.sellerPosLocations),
-          ),
-        ),
       ],
     );
   }
@@ -428,114 +303,161 @@ class _ReportsLinksRow extends StatelessWidget {
 class _LinkChip extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
   final VoidCallback onTap;
   const _LinkChip({
     required this.icon,
     required this.label,
-    required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.lightGrey2),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(height: 6),
-              CustomText(
-                text: label,
-                fontSize: AppFontSize.tiny,
-                fontWeight: FontWeight.w600,
-                color: AppColors.black2,
-              ),
-            ],
-          ),
+    final p = context.palette;
+    return AppCard(
+      onTap: onTap,
+      semanticLabel: label,
+      radius: Radii.rMd,
+      padding: const EdgeInsets.symmetric(vertical: Space.s3, horizontal: Space.s2),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: Space.minTouch - Space.s3),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: IconSizes.sm, color: p.accentFg),
+            const SizedBox(height: Space.s1),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: context.type.label.copyWith(color: p.textPrimary),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
-class _SectionHeader extends StatelessWidget {
+// ── Shared row pieces ─────────────────────────────────────────────────────────
+
+/// One entry in a section list: a leading tile, title (+ optional badge),
+/// subtitle and a trailing widget (menu, spinner or figures), on an AppCard.
+class _ManageRow extends StatelessWidget {
+  final Widget leading;
   final String title;
-  final IconData icon;
-  final Color color;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-  const _SectionHeader({
+  final Widget? titleBadge;
+  final String? subtitle;
+  final Widget? trailing;
+  const _ManageRow({
+    required this.leading,
     required this.title,
-    required this.icon,
-    required this.color,
-    this.actionLabel,
-    this.onAction,
+    this.titleBadge,
+    this.subtitle,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Icon(icon, color: color, size: 16),
-        ),
-        const SizedBox(width: 10),
-        CustomText(
-          text: title,
-          fontFamily: AppTextStyles.headingFontFamily,
-          fontSize: AppFontSize.small2,
-          fontWeight: FontWeight.bold,
-          color: AppColors.black2,
-        ),
-        const Spacer(),
-        if (actionLabel != null && onAction != null)
-          Material(
-            color: AppColors.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: onAction,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 7,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.add_rounded,
-                      color: AppColors.primaryColor,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    CustomText(
-                      text: actionLabel!,
-                      fontSize: AppFontSize.tiny,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryColor,
-                    ),
-                  ],
-                ),
+    final p = context.palette;
+    final t = context.type;
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s2, Space.s2),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: Space.minTouch),
+        child: Row(
+          children: [
+            leading,
+            const SizedBox(width: Space.s3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Wrap(
+                    spacing: Space.s2,
+                    runSpacing: Space.s1,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(title, style: t.subtitle.copyWith(color: p.textPrimary)),
+                      ?titleBadge,
+                    ],
+                  ),
+                  if (subtitle != null)
+                    Text(subtitle!, style: t.bodySmall.copyWith(color: p.textSecondary)),
+                ],
               ),
+            ),
+            if (trailing != null) ...[const SizedBox(width: Space.s2), trailing!],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The 40 dp icon tile used at the start of a row.
+class _IconTile extends StatelessWidget {
+  final IconData icon;
+  final bool muted;
+  const _IconTile(this.icon, {this.muted = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(color: muted ? p.fill : p.accentSoft, borderRadius: Radii.rMd),
+      child: Icon(icon, size: IconSizes.md, color: muted ? p.textSecondary : p.accentFg),
+    );
+  }
+}
+
+/// A small spinner in a 48 dp slot, shown while a row's action runs.
+class _RowSpinner extends StatelessWidget {
+  final Color color;
+  const _RowSpinner({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: Space.minTouch,
+      height: Space.minTouch,
+      child: Center(
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+/// A menu entry: (value, label, destructive).
+typedef _MenuEntry = (String value, String label, bool danger);
+
+/// The "more" menu at the end of a row.
+class _RowMenu extends StatelessWidget {
+  final List<_MenuEntry> entries;
+  final ValueChanged<String> onSelected;
+  const _RowMenu({required this.entries, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.more_vert_rounded, color: p.textSecondary, size: IconSizes.sm),
+      color: p.surface,
+      shape: RoundedRectangleBorder(borderRadius: Radii.rMd),
+      onSelected: onSelected,
+      itemBuilder: (_) => [
+        for (final (value, label, danger) in entries)
+          PopupMenuItem(
+            value: value,
+            child: Text(
+              label,
+              style: context.type.body.copyWith(color: danger ? p.dangerFg : p.textPrimary),
             ),
           ),
       ],
@@ -543,40 +465,21 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// Shared white rounded card wrapper used by every section list.
-class _SectionCard extends StatelessWidget {
+/// A list of rows with the standard gap between them.
+class _RowList extends StatelessWidget {
   final List<Widget> children;
-  const _SectionCard({required this.children});
+  const _RowList({required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(height: Space.s2),
+          children[i],
         ],
-      ),
-      child: Column(
-        children: children.asMap().entries.expand((entry) {
-          final i = entry.key;
-          return [
-            if (i > 0)
-              const Divider(
-                height: 1,
-                color: AppColors.lightGrey2,
-                indent: 16,
-                endIndent: 16,
-              ),
-            entry.value,
-          ];
-        }).toList(),
-      ),
+      ],
     );
   }
 }
@@ -591,22 +494,19 @@ class _EmployeesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
-          title: 'Employees',
-          icon: Icons.people_alt_rounded,
-          color: AppColors.primaryColor,
+        SectionHeader(
+          'Employees',
           actionLabel: 'Add',
           onAction: () => _showAddEmployeeSheet(context),
         ),
-        const SizedBox(height: 10),
         Obx(() {
           if (c.employees.isEmpty) {
-            return _EmptyCard(
+            return const _EmptyCard(
               icon: Icons.person_add_outlined,
               message: 'No employees yet. Add one to get started.',
             );
           }
-          return _SectionCard(
+          return _RowList(
             children: c.employees
                 .map((emp) => _EmployeeTile(emp: emp, c: c))
                 .toList(),
@@ -617,14 +517,7 @@ class _EmployeesSection extends StatelessWidget {
   }
 
   void _showAddEmployeeSheet(BuildContext context) {
-    Get.bottomSheet(
-      _AddEmployeeSheet(c: c),
-      backgroundColor: AppColors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-    );
+    AppBottomSheet.showGet(_AddEmployeeSheet(c: c), title: 'Add Employee');
   }
 }
 
@@ -635,54 +528,25 @@ class _EmployeeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Obx(() {
       final isDeleting = c.deletingEmployeeId.value == emp.id;
-      return ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.primaryColor.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: CustomText(
-            text: emp.initials,
-            fontSize: AppFontSize.verySmall,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryColor,
-          ),
+      return _ManageRow(
+        leading: CircleAvatar(
+          radius: 20,
+          backgroundColor: p.accentSoft,
+          child: Text(emp.initials, style: context.type.label.copyWith(color: p.accentFg)),
         ),
-        title: CustomText(
-          text: emp.name,
-          fontSize: AppFontSize.verySmall,
-          fontWeight: FontWeight.w600,
-          color: AppColors.black2,
-        ),
-        subtitle: CustomText(
-          text: '${emp.role.capitalizeFirst ?? emp.role}  ·  ${emp.email}',
-          fontSize: AppFontSize.tiny,
-          color: AppColors.iosGrey,
-        ),
+        title: emp.name,
+        subtitle: '${emp.role.capitalizeFirst ?? emp.role}  ·  ${emp.email}',
         trailing: isDeleting
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.red,
-                ),
-              )
-            : PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert_rounded,
-                  color: AppColors.iosGrey,
-                  size: 20,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            ? _RowSpinner(color: p.dangerFg)
+            : _RowMenu(
+                entries: const [
+                  ('edit', 'Edit', false),
+                  ('reset_pin', 'Reset PIN', false),
+                  ('remove', 'Remove', true),
+                ],
                 onSelected: (action) {
                   switch (action) {
                     case 'edit':
@@ -696,46 +560,13 @@ class _EmployeeTile extends StatelessWidget {
                       break;
                   }
                 },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: CustomText(
-                      text: 'Edit',
-                      fontSize: AppFontSize.verySmall,
-                      color: AppColors.black2,
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'reset_pin',
-                    child: CustomText(
-                      text: 'Reset PIN',
-                      fontSize: AppFontSize.verySmall,
-                      color: AppColors.black2,
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'remove',
-                    child: CustomText(
-                      text: 'Remove',
-                      fontSize: AppFontSize.verySmall,
-                      color: AppColors.red,
-                    ),
-                  ),
-                ],
               ),
       );
     });
   }
 
   void _showEditEmployeeSheet(BuildContext context, PosEmployeeModel emp) {
-    Get.bottomSheet(
-      _EditEmployeeSheet(c: c, emp: emp),
-      backgroundColor: AppColors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-    );
+    AppBottomSheet.showGet(_EditEmployeeSheet(c: c, emp: emp), title: 'Edit Employee');
   }
 
   void _showResetPinDialog(BuildContext context, PosEmployeeModel emp) {
@@ -744,14 +575,12 @@ class _EmployeeTile extends StatelessWidget {
       context,
       title: 'Reset PIN',
       confirmLabel: 'Reset',
-      contentBuilder: (_) => CustomTextField(
+      contentBuilder: (_) => AppTextField(
+        label: 'New 4-digit PIN',
         controller: ctrl,
         keyboardType: TextInputType.number,
-        maxLength: 4,
+        inputFormatters: [LengthLimitingTextInputFormatter(4)],
         obscureText: true,
-        hintText: 'New 4-digit PIN',
-        isborder: true,
-        fillColor: AppColors.background,
       ),
       onConfirm: () {
         final pin = ctrl.text.trim();
@@ -770,44 +599,10 @@ class _EmployeeTile extends StatelessWidget {
       title: 'Remove Employee',
       message: 'Remove ${emp.name}? They will no longer be able to log in.',
       confirmLabel: 'Remove',
-      confirmColor: AppColors.red,
+      destructive: true,
       onConfirm: () => c.deleteEmployee(emp),
     );
   }
-}
-
-// ── Bottom sheet chrome shared by Add/Edit sheets ─────────────────────────────
-Widget _sheetHandle() {
-  return Container(
-    width: 36,
-    height: 4,
-    decoration: BoxDecoration(
-      color: AppColors.lightGrey2,
-      borderRadius: BorderRadius.circular(2),
-    ),
-  );
-}
-
-Widget _sheetTitle(String text, IconData icon, Color color) {
-  return Row(
-    children: [
-      Container(
-        padding: const EdgeInsets.all(9),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: color, size: 18),
-      ),
-      const SizedBox(width: 10),
-      CustomText(
-        text: text,
-        fontSize: AppFontSize.medium,
-        fontWeight: FontWeight.bold,
-        color: AppColors.black2,
-      ),
-    ],
-  );
 }
 
 // ── Add Employee bottom sheet ─────────────────────────────────────────────────
@@ -819,167 +614,92 @@ class _AddEmployeeSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(child: _sheetHandle()),
-            const SizedBox(height: 16),
-            _sheetTitle(
-              'Add Employee',
-              Icons.person_add_alt_1_rounded,
-              AppColors.primaryColor,
-            ),
-            const SizedBox(height: 18),
-            CustomTextField(
-              controller: c.empNameCtrl,
-              hintText: 'Full Name',
-              fillColor: AppColors.background,
-              prefixIcon: const Icon(
-                Icons.person_outline_rounded,
-                color: AppColors.iosGrey,
-                size: 18,
-              ),
-            ),
-            const SizedBox(height: 10),
-            CustomTextField(
-              controller: c.empEmailCtrl,
-              hintText: 'Email Address',
-              keyboardType: TextInputType.emailAddress,
-              fillColor: AppColors.background,
-              prefixIcon: const Icon(
-                Icons.email_outlined,
-                color: AppColors.iosGrey,
-                size: 18,
-              ),
-            ),
-            const SizedBox(height: 10),
-            CustomTextField(
-              controller: c.empPinCtrl,
-              hintText: '4-Digit PIN',
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              obscureText: true,
-              fillColor: AppColors.background,
-              prefixIcon: const Icon(
-                Icons.pin_outlined,
-                color: AppColors.iosGrey,
-                size: 18,
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Role picker
-            Obx(
-              () => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: c.empRole.value,
+    final p = context.palette;
+    final t = context.type;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppTextField(
+          label: 'Full Name',
+          controller: c.empNameCtrl,
+          prefixIcon: Icons.person_outline_rounded,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: Space.s3),
+        AppTextField(
+          label: 'Email Address',
+          controller: c.empEmailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          prefixIcon: Icons.email_outlined,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: Space.s3),
+        AppTextField(
+          label: '4-Digit PIN',
+          controller: c.empPinCtrl,
+          keyboardType: TextInputType.number,
+          inputFormatters: [LengthLimitingTextInputFormatter(4)],
+          obscureText: true,
+          prefixIcon: Icons.pin_outlined,
+        ),
+        const SizedBox(height: Space.s3),
+        // Role picker
+        Obx(
+          () => DropdownButtonFormField<String>(
+            initialValue: c.empRole.value,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Role'),
+            icon: Icon(Icons.keyboard_arrow_down_rounded, color: p.textSecondary),
+            dropdownColor: p.surface,
+            onChanged: (v) {
+              if (v != null) c.empRole.value = v;
+            },
+            items: _roles
+                .map(
+                  (r) => DropdownMenuItem(
+                    value: r,
+                    child: Text(r.capitalizeFirst ?? r, style: t.body.copyWith(color: p.textPrimary)),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        // Shift picker
+        Obx(
+          () => c.shifts.isEmpty
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(top: Space.s3),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: c.empShiftId.value.isNotEmpty ? c.empShiftId.value : null,
+                    hint: Text('Assign Shift (optional)', style: t.body.copyWith(color: p.textMuted)),
                     isExpanded: true,
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: AppColors.iosGrey,
-                    ),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: p.textSecondary),
+                    dropdownColor: p.surface,
                     onChanged: (v) {
-                      if (v != null) c.empRole.value = v;
+                      if (v != null) c.empShiftId.value = v;
                     },
-                    items: _roles
+                    items: c.shifts
                         .map(
-                          (r) => DropdownMenuItem(
-                            value: r,
-                            child: CustomText(
-                              text: r.capitalizeFirst ?? r,
-                              fontSize: AppFontSize.verySmall,
-                              color: AppColors.black2,
-                            ),
+                          (s) => DropdownMenuItem(
+                            value: s.id,
+                            child: Text(s.name, style: t.body.copyWith(color: p.textPrimary)),
                           ),
                         )
                         .toList(),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Shift picker
-            Obx(
-              () => c.shifts.isEmpty
-                  ? const SizedBox.shrink()
-                  : Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: c.empShiftId.value.isNotEmpty
-                              ? c.empShiftId.value
-                              : null,
-                          hint: const CustomText(
-                            text: 'Assign Shift (optional)',
-                            fontSize: AppFontSize.verySmall,
-                            color: AppColors.iosGrey,
-                          ),
-                          isExpanded: true,
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: AppColors.iosGrey,
-                          ),
-                          onChanged: (v) {
-                            if (v != null) c.empShiftId.value = v;
-                          },
-                          items: c.shifts
-                              .map(
-                                (s) => DropdownMenuItem(
-                                  value: s.id,
-                                  child: CustomText(
-                                    text: s.name,
-                                    fontSize: AppFontSize.verySmall,
-                                    color: AppColors.black2,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                    ),
-            ),
-            const SizedBox(height: 18),
-            Obx(
-              () => CustomButton(
-                label: c.isSavingEmployee.value ? '' : 'Add Employee',
-                width: double.infinity,
-                height: 50,
-                borderRadius: 12,
-                enabled: !c.isSavingEmployee.value,
-                onPressed: c.addEmployee,
-                prefix: c.isSavingEmployee.value
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.white,
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-          ],
         ),
-      ),
+        const SizedBox(height: Space.s5),
+        Obx(
+          () => AppButton(
+            label: 'Add Employee',
+            loading: c.isSavingEmployee.value,
+            onPressed: c.isSavingEmployee.value ? null : c.addEmployee,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1011,97 +731,53 @@ class _EditEmployeeSheetState extends State<_EditEmployeeSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(child: _sheetHandle()),
-          const SizedBox(height: 16),
-          _sheetTitle(
-            'Edit Employee',
-            Icons.edit_rounded,
-            AppColors.primaryColor,
-          ),
-          const SizedBox(height: 18),
-          CustomTextField(
-            controller: _nameCtrl,
-            hintText: 'Full Name',
-            fillColor: AppColors.background,
-            prefixIcon: const Icon(
-              Icons.person_outline_rounded,
-              color: AppColors.iosGrey,
-              size: 18,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _role,
-                isExpanded: true,
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.iosGrey,
+    final p = context.palette;
+    final t = context.type;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppTextField(
+          label: 'Full Name',
+          controller: _nameCtrl,
+          prefixIcon: Icons.person_outline_rounded,
+        ),
+        const SizedBox(height: Space.s3),
+        DropdownButtonFormField<String>(
+          initialValue: _role,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Role'),
+          icon: Icon(Icons.keyboard_arrow_down_rounded, color: p.textSecondary),
+          dropdownColor: p.surface,
+          onChanged: (v) {
+            if (v != null) setState(() => _role = v);
+          },
+          items: _roles
+              .map(
+                (r) => DropdownMenuItem(
+                  value: r,
+                  child: Text(r.capitalizeFirst ?? r, style: t.body.copyWith(color: p.textPrimary)),
                 ),
-                onChanged: (v) {
-                  if (v != null) setState(() => _role = v);
+              )
+              .toList(),
+        ),
+        const SizedBox(height: Space.s5),
+        AppButton(
+          label: 'Save Changes',
+          loading: _saving,
+          onPressed: _saving
+              ? null
+              : () async {
+                  setState(() => _saving = true);
+                  await widget.c.updateEmployee(
+                    widget.emp,
+                    name: _nameCtrl.text.trim(),
+                    role: _role,
+                  );
+                  if (context.mounted) Navigator.pop(context);
                 },
-                items: _roles
-                    .map(
-                      (r) => DropdownMenuItem(
-                        value: r,
-                        child: CustomText(
-                          text: r.capitalizeFirst ?? r,
-                          fontSize: AppFontSize.verySmall,
-                          color: AppColors.black2,
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          CustomButton(
-            label: _saving ? '' : 'Save Changes',
-            width: double.infinity,
-            height: 50,
-            borderRadius: 12,
-            enabled: !_saving,
-            prefix: _saving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.white,
-                    ),
-                  )
-                : null,
-            onPressed: () async {
-              setState(() => _saving = true);
-              await widget.c.updateEmployee(
-                widget.emp,
-                name: _nameCtrl.text.trim(),
-                role: _role,
-              );
-              if (context.mounted) Navigator.pop(context);
-            },
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1116,22 +792,19 @@ class _RegistersSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
-          title: 'Registers',
-          icon: Icons.point_of_sale_rounded,
-          color: AppColors.orange,
+        SectionHeader(
+          'Registers',
           actionLabel: 'Add',
           onAction: () => _showAddRegisterSheet(context),
         ),
-        const SizedBox(height: 10),
         Obx(() {
           if (c.registers.isEmpty) {
-            return _EmptyCard(
+            return const _EmptyCard(
               icon: Icons.point_of_sale_outlined,
               message: 'No registers. Add one to start processing sales.',
             );
           }
-          return _SectionCard(
+          return _RowList(
             children: c.registers
                 .map((reg) => _RegisterTile(reg: reg, c: c))
                 .toList(),
@@ -1142,14 +815,7 @@ class _RegistersSection extends StatelessWidget {
   }
 
   void _showAddRegisterSheet(BuildContext context) {
-    Get.bottomSheet(
-      _AddRegisterSheet(c: c),
-      backgroundColor: AppColors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-    );
+    AppBottomSheet.showGet(_AddRegisterSheet(c: c), title: 'Add Register');
   }
 }
 
@@ -1160,69 +826,26 @@ class _RegisterTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Obx(() {
       final isProcessing = c.processingRegisterId.value == reg.id;
-      return ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.orange.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(
-            Icons.point_of_sale_rounded,
-            color: AppColors.orange,
-            size: 18,
-          ),
-        ),
-        title: CustomText(
-          text: reg.name,
-          fontSize: AppFontSize.verySmall,
-          fontWeight: FontWeight.w600,
-          color: AppColors.black2,
-        ),
-        subtitle: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.only(right: 6),
-              decoration: BoxDecoration(
-                color: reg.status == 'active'
-                    ? AppColors.green2
-                    : AppColors.iosGrey,
-                shape: BoxShape.circle,
-              ),
-            ),
-            CustomText(
-              text: reg.status == 'active' ? 'Active' : 'Inactive',
-              fontSize: AppFontSize.tiny,
-              color: reg.status == 'active'
-                  ? AppColors.green2
-                  : AppColors.iosGrey,
-            ),
-          ],
+      final active = reg.status == 'active';
+      return _ManageRow(
+        leading: _IconTile(Icons.point_of_sale_rounded, muted: !active),
+        title: reg.name,
+        titleBadge: StatusBadge(
+          active ? 'Active' : 'Inactive',
+          tone: active ? StatusTone.success : StatusTone.neutral,
+          dot: true,
         ),
         trailing: isProcessing
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.orange,
-                ),
-              )
-            : PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert_rounded,
-                  color: AppColors.iosGrey,
-                  size: 20,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            ? _RowSpinner(color: p.accentFg)
+            : _RowMenu(
+                entries: [
+                  ('rename', 'Rename', false),
+                  ('toggle', active ? 'Deactivate' : 'Activate', false),
+                  ('delete', 'Delete', true),
+                ],
                 onSelected: (action) {
                   switch (action) {
                     case 'rename':
@@ -1239,32 +862,6 @@ class _RegisterTile extends StatelessWidget {
                       break;
                   }
                 },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'rename',
-                    child: CustomText(
-                      text: 'Rename',
-                      fontSize: AppFontSize.verySmall,
-                      color: AppColors.black2,
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'toggle',
-                    child: CustomText(
-                      text: reg.status == 'active' ? 'Deactivate' : 'Activate',
-                      fontSize: AppFontSize.verySmall,
-                      color: AppColors.black2,
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: CustomText(
-                      text: 'Delete',
-                      fontSize: AppFontSize.verySmall,
-                      color: AppColors.red,
-                    ),
-                  ),
-                ],
               ),
       );
     });
@@ -1276,10 +873,9 @@ class _RegisterTile extends StatelessWidget {
       context,
       title: 'Rename Register',
       confirmLabel: 'Save',
-      contentBuilder: (_) => CustomTextField(
+      contentBuilder: (_) => AppTextField(
+        label: 'Register Name',
         controller: ctrl,
-        isborder: true,
-        fillColor: AppColors.background,
       ),
       onConfirm: () {
         final name = ctrl.text.trim();
@@ -1294,7 +890,7 @@ class _RegisterTile extends StatelessWidget {
       title: 'Delete Register',
       message: 'Delete "${reg.name}"? This fails if it has an open session.',
       confirmLabel: 'Delete',
-      confirmColor: AppColors.red,
+      destructive: true,
       onConfirm: () => c.deleteRegister(reg),
     );
   }
@@ -1306,58 +902,25 @@ class _AddRegisterSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(child: _sheetHandle()),
-          const SizedBox(height: 16),
-          _sheetTitle(
-            'Add Register',
-            Icons.point_of_sale_rounded,
-            AppColors.orange,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppTextField(
+          label: 'Register Name',
+          hint: 'e.g. Counter 1',
+          controller: c.regNameCtrl,
+          prefixIcon: Icons.point_of_sale_outlined,
+        ),
+        const SizedBox(height: Space.s5),
+        Obx(
+          () => AppButton(
+            label: 'Add Register',
+            loading: c.isSavingRegister.value,
+            onPressed: c.isSavingRegister.value ? null : c.addRegister,
           ),
-          const SizedBox(height: 18),
-          CustomTextField(
-            controller: c.regNameCtrl,
-            hintText: 'Register Name (e.g. Counter 1)',
-            fillColor: AppColors.background,
-            prefixIcon: const Icon(
-              Icons.point_of_sale_outlined,
-              color: AppColors.iosGrey,
-              size: 18,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Obx(
-            () => CustomButton(
-              label: c.isSavingRegister.value ? '' : 'Add Register',
-              width: double.infinity,
-              height: 50,
-              borderRadius: 12,
-              enabled: !c.isSavingRegister.value,
-              onPressed: c.addRegister,
-              prefix: c.isSavingRegister.value
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.white,
-                      ),
-                    )
-                  : null,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1372,22 +935,19 @@ class _ShiftsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
-          title: 'Shifts',
-          icon: Icons.schedule_rounded,
-          color: AppColors.accentColor,
+        SectionHeader(
+          'Shifts',
           actionLabel: 'Add',
           onAction: () => _showAddShiftSheet(context),
         ),
-        const SizedBox(height: 10),
         Obx(() {
           if (c.shifts.isEmpty) {
-            return _EmptyCard(
+            return const _EmptyCard(
               icon: Icons.schedule_outlined,
               message: 'No shifts defined. Add shifts to assign to employees.',
             );
           }
-          return _SectionCard(
+          return _RowList(
             children: c.shifts
                 .map((shift) => _ShiftTile(shift: shift, c: c))
                 .toList(),
@@ -1398,14 +958,7 @@ class _ShiftsSection extends StatelessWidget {
   }
 
   void _showAddShiftSheet(BuildContext context) {
-    Get.bottomSheet(
-      _AddShiftSheet(c: c),
-      backgroundColor: AppColors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-    );
+    AppBottomSheet.showGet(_AddShiftSheet(c: c), title: 'Add Shift');
   }
 }
 
@@ -1416,51 +969,20 @@ class _ShiftTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Obx(() {
       final isProcessing = c.processingShiftId.value == shift.id;
-      return ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.accentColor.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            Icons.schedule_rounded,
-            color: AppColors.accentColor,
-            size: 18,
-          ),
-        ),
-        title: CustomText(
-          text: shift.name,
-          fontSize: AppFontSize.verySmall,
-          fontWeight: FontWeight.w600,
-          color: AppColors.black2,
-        ),
-        subtitle: CustomText(
-          text: '${shift.startTime} – ${shift.endTime}',
-          fontSize: AppFontSize.tiny,
-          color: AppColors.iosGrey,
-        ),
+      return _ManageRow(
+        leading: const _IconTile(Icons.schedule_rounded),
+        title: shift.name,
+        subtitle: '${shift.startTime} – ${shift.endTime}',
         trailing: isProcessing
-            ? SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.accentColor,
-                ),
-              )
-            : PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert_rounded,
-                  color: AppColors.iosGrey,
-                  size: 20,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            ? _RowSpinner(color: p.accentFg)
+            : _RowMenu(
+                entries: const [
+                  ('rename', 'Edit', false),
+                  ('delete', 'Delete', true),
+                ],
                 onSelected: (action) {
                   switch (action) {
                     case 'rename':
@@ -1471,24 +993,6 @@ class _ShiftTile extends StatelessWidget {
                       break;
                   }
                 },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: 'rename',
-                    child: CustomText(
-                      text: 'Edit',
-                      fontSize: AppFontSize.verySmall,
-                      color: AppColors.black2,
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: CustomText(
-                      text: 'Delete',
-                      fontSize: AppFontSize.verySmall,
-                      color: AppColors.red,
-                    ),
-                  ),
-                ],
               ),
       );
     });
@@ -1502,39 +1006,30 @@ class _ShiftTile extends StatelessWidget {
       context,
       title: 'Edit Shift',
       confirmLabel: 'Save',
-      contentBuilder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CustomTextField(
-            controller: nameCtrl,
-            hintText: 'Name',
-            isborder: true,
-            fillColor: AppColors.background,
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: CustomTextField(
-                  controller: startCtrl,
-                  hintText: 'Start',
-                  isborder: true,
-                  fillColor: AppColors.background,
-                ),
+      contentBuilder: (ctx) {
+        final start = AppTextField(label: 'Start', controller: startCtrl);
+        final end = AppTextField(label: 'End', controller: endCtrl);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField(label: 'Name', controller: nameCtrl),
+            const SizedBox(height: Space.s3),
+            if (_largeText(ctx)) ...[
+              start,
+              const SizedBox(height: Space.s3),
+              end,
+            ] else
+              Row(
+                children: [
+                  Expanded(child: start),
+                  const SizedBox(width: Space.s2),
+                  Expanded(child: end),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: CustomTextField(
-                  controller: endCtrl,
-                  hintText: 'End',
-                  isborder: true,
-                  fillColor: AppColors.background,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+          ],
+        );
+      },
       onConfirm: () => c.updateShift(
         shift,
         name: nameCtrl.text.trim(),
@@ -1550,7 +1045,7 @@ class _ShiftTile extends StatelessWidget {
       title: 'Delete Shift',
       message: 'Delete "${shift.name}"?',
       confirmLabel: 'Delete',
-      confirmColor: AppColors.red,
+      destructive: true,
       onConfirm: () async {
         final ok = await c.deleteShift(shift);
         if (!ok && context.mounted) _confirmForceDeleteShift(context, shift);
@@ -1565,7 +1060,7 @@ class _ShiftTile extends StatelessWidget {
       message:
           'This shift still has employees assigned. Unassign them and delete anyway?',
       confirmLabel: 'Force Delete',
-      confirmColor: AppColors.red,
+      destructive: true,
       onConfirm: () => c.deleteShift(shift, force: true),
     );
   }
@@ -1577,88 +1072,50 @@ class _AddShiftSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(child: _sheetHandle()),
-          const SizedBox(height: 16),
-          _sheetTitle(
-            'Add Shift',
-            Icons.schedule_rounded,
-            AppColors.accentColor,
-          ),
-          const SizedBox(height: 18),
-          CustomTextField(
-            controller: c.shiftNameCtrl,
-            hintText: 'Shift Name (e.g. Morning)',
-            fillColor: AppColors.background,
-            prefixIcon: const Icon(
-              Icons.label_outline_rounded,
-              color: AppColors.iosGrey,
-              size: 18,
-            ),
-          ),
-          const SizedBox(height: 10),
+    final start = AppTextField(
+      label: 'Start',
+      hint: 'e.g. 08:00',
+      controller: c.shiftStartCtrl,
+      prefixIcon: Icons.login_rounded,
+    );
+    final end = AppTextField(
+      label: 'End',
+      hint: 'e.g. 16:00',
+      controller: c.shiftEndCtrl,
+      prefixIcon: Icons.logout_rounded,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppTextField(
+          label: 'Shift Name',
+          hint: 'e.g. Morning',
+          controller: c.shiftNameCtrl,
+          prefixIcon: Icons.label_outline_rounded,
+        ),
+        const SizedBox(height: Space.s3),
+        if (_largeText(context)) ...[
+          start,
+          const SizedBox(height: Space.s3),
+          end,
+        ] else
           Row(
             children: [
-              Expanded(
-                child: CustomTextField(
-                  controller: c.shiftStartCtrl,
-                  hintText: 'Start (e.g. 08:00)',
-                  fillColor: AppColors.background,
-                  prefixIcon: const Icon(
-                    Icons.login_rounded,
-                    color: AppColors.iosGrey,
-                    size: 18,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: CustomTextField(
-                  controller: c.shiftEndCtrl,
-                  hintText: 'End (e.g. 16:00)',
-                  fillColor: AppColors.background,
-                  prefixIcon: const Icon(
-                    Icons.logout_rounded,
-                    color: AppColors.iosGrey,
-                    size: 18,
-                  ),
-                ),
-              ),
+              Expanded(child: start),
+              const SizedBox(width: Space.s3),
+              Expanded(child: end),
             ],
           ),
-          const SizedBox(height: 18),
-          Obx(
-            () => CustomButton(
-              label: c.isSavingShift.value ? '' : 'Add Shift',
-              width: double.infinity,
-              height: 50,
-              borderRadius: 12,
-              enabled: !c.isSavingShift.value,
-              onPressed: c.addShift,
-              prefix: c.isSavingShift.value
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.white,
-                      ),
-                    )
-                  : null,
-            ),
+        const SizedBox(height: Space.s5),
+        Obx(
+          () => AppButton(
+            label: 'Add Shift',
+            loading: c.isSavingShift.value,
+            onPressed: c.isSavingShift.value ? null : c.addShift,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1673,58 +1130,31 @@ class _SessionsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: AppColors.green2.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: const Icon(
-                Icons.history_rounded,
-                color: AppColors.green2,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const CustomText(
-              text: 'Recent Sessions',
-              fontFamily: AppTextStyles.headingFontFamily,
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black2,
-            ),
-            const SizedBox(width: 8),
-            Obx(() {
-              final active = c.activeSessionCount;
-              if (active == 0) return const SizedBox.shrink();
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.green2.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: CustomText(
-                  text: '$active active',
-                  fontSize: AppFontSize.tiny,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.green2,
-                ),
-              );
-            }),
-          ],
+        Padding(
+          padding: const EdgeInsets.only(bottom: Space.s3),
+          child: Row(
+            children: [
+              const Flexible(child: SectionHeader('Recent Sessions', padding: EdgeInsets.zero)),
+              Obx(() {
+                final active = c.activeSessionCount;
+                if (active == 0) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(left: Space.s2),
+                  child: StatusBadge('$active active', tone: StatusTone.success),
+                );
+              }),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
         Obx(() {
           if (c.recentSessions.isEmpty) {
-            return _EmptyCard(
+            return const _EmptyCard(
               icon: Icons.history_rounded,
               message: 'No sessions yet.',
             );
           }
           final sessions = c.recentSessions.take(5).toList();
-          return _SectionCard(
+          return _RowList(
             children: sessions.map((s) => _SessionTile(session: s)).toList(),
           );
         }),
@@ -1739,74 +1169,38 @@ class _SessionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final isOpen = session.isOpen;
     final dateStr = DateFormat(
       'MMM d, h:mm a',
     ).format(session.openedAt.toLocal());
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: (isOpen ? AppColors.green2 : AppColors.iosGrey).withOpacity(
-            0.1,
-          ),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          isOpen ? Icons.lock_open_rounded : Icons.lock_rounded,
-          color: isOpen ? AppColors.green2 : AppColors.iosGrey,
-          size: 18,
-        ),
+    return _ManageRow(
+      leading: _IconTile(isOpen ? Icons.lock_open_rounded : Icons.lock_rounded, muted: !isOpen),
+      title: 'Session',
+      titleBadge: StatusBadge(
+        isOpen ? 'Open' : 'Closed',
+        tone: isOpen ? StatusTone.success : StatusTone.neutral,
       ),
-      title: Row(
-        children: [
-          CustomText(
-            text: 'Session',
-            fontSize: AppFontSize.verySmall,
-            fontWeight: FontWeight.w600,
-            color: AppColors.black2,
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: isOpen
-                  ? AppColors.green2.withOpacity(0.1)
-                  : AppColors.lightGrey2,
-              borderRadius: BorderRadius.circular(6),
+      subtitle: dateStr,
+      trailing: Padding(
+        padding: const EdgeInsets.only(right: Space.s2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            AmountText(
+              Money.format(session.totalSales),
+              style: context.type.amountMd,
+              color: p.textPrimary,
+              animate: false,
             ),
-            child: CustomText(
-              text: isOpen ? 'Open' : 'Closed',
-              fontSize: AppFontSize.tiny,
-              fontWeight: FontWeight.w600,
-              color: isOpen ? AppColors.green2 : AppColors.iosGrey,
+            Text(
+              '${session.totalTransactions} txns',
+              style: context.type.caption.copyWith(color: p.textSecondary),
             ),
-          ),
-        ],
-      ),
-      subtitle: CustomText(
-        text: dateStr,
-        fontSize: AppFontSize.tiny,
-        color: AppColors.iosGrey,
-      ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          CustomText(
-            text: Money.format(session.totalSales),
-            fontSize: AppFontSize.small2,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryColor,
-          ),
-          CustomText(
-            text: '${session.totalTransactions} txns',
-            fontSize: AppFontSize.tiny,
-            color: AppColors.iosGrey,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1820,31 +1214,14 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightGrey2),
-      ),
+    final p = context.palette;
+    return AppCard(
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: AppColors.iosGrey, size: 20),
-          ),
-          const SizedBox(width: 12),
+          _IconTile(icon, muted: true),
+          const SizedBox(width: Space.s3),
           Expanded(
-            child: CustomText(
-              text: message,
-              fontSize: AppFontSize.tiny,
-              color: AppColors.iosGrey,
-            ),
+            child: Text(message, style: context.type.bodySmall.copyWith(color: p.textSecondary)),
           ),
         ],
       ),
