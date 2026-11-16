@@ -1,16 +1,11 @@
-import 'package:solvexo_pos/app/components/app_search_field.dart';
-import 'package:solvexo_pos/app/components/custom_refresh_wrapper.dart';
-import 'package:solvexo_pos/app/components/svg_icon.dart';
-import 'package:solvexo_pos/config/resources/app_icons.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:solvexo_pos/app/modules/pos/widgets/pos_app_bar.dart';
 import 'package:solvexo_pos/app/modules/pos_products/controllers/pos_products_controller.dart';
 import 'package:solvexo_pos/app/modules/pos_products/widgets/pos_product_tile.dart';
 import 'package:solvexo_pos/app/modules/pos_products/widgets/pos_products_empty.dart';
 import 'package:solvexo_pos/app/modules/pos_products/widgets/pos_products_shimmer.dart';
-import 'package:solvexo_pos/app/modules/pos/widgets/pos_app_bar.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
 class PosProductsView extends StatelessWidget {
   PosProductsView({super.key});
@@ -19,13 +14,20 @@ class PosProductsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: p.background,
       body: Column(
         children: [
           const PosAppBar(title: 'Products'),
-          _SearchBar(controller: controller),
-          const Divider(height: 1, color: AppColors.lightGrey2),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s2),
+            child: AppSearchBar(
+              controller: controller.searchController,
+              onChanged: controller.onSearchChanged,
+              hint: 'Search products or SKU...',
+            ),
+          ),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
@@ -33,18 +35,27 @@ class PosProductsView extends StatelessWidget {
               }
               final products = controller.filteredProducts;
               if (products.isEmpty) return const PosProductsEmpty();
-              return CustomRefreshWrapper(
+              return RefreshIndicator(
+                color: p.accentFg,
+                backgroundColor: p.surface,
                 onRefresh: controller.refreshData,
                 child: ListView.separated(
                   controller: controller.scrollController,
-                  padding: const EdgeInsets.all(AppDimen.allPadding),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s6),
                   itemCount: products.length + (controller.isLoadingMore.value ? 1 : 0),
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, __) => const SizedBox(height: Space.s3),
                   itemBuilder: (_, i) {
                     if (i >= products.length) {
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryColor)),
+                        padding: const EdgeInsets.symmetric(vertical: Space.s3),
+                        child: Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: p.accentFg),
+                          ),
+                        ),
                       );
                     }
                     return PosProductTile(
@@ -57,42 +68,6 @@ class PosProductsView extends StatelessWidget {
             }),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SearchBar extends StatelessWidget {
-  final PosProductsController controller;
-
-  const _SearchBar({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.white,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimen.allPadding,
-        vertical: 10,
-      ),
-      child: Obx(
-        () => AppSearchField(
-          controller: controller.searchController,
-          onChanged: controller.onSearchChanged,
-          staticHint: 'Search products or SKU...',
-          suffixIcon: controller.searchText.value.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
-                    controller.searchController.clear();
-                    controller.onSearchChanged('');
-                  },
-                  child: const SvgIcon(
-                    assetName: AppIcons.cross,
-                    color: AppColors.textPrimary,
-                  ),
-                )
-              : null,
-        ),
       ),
     );
   }

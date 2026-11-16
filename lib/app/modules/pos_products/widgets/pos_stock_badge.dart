@@ -1,9 +1,7 @@
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/config/resources/app_text_styles.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:flutter/material.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
+/// Stock pill for a product row: the count (or ∞ / Out) as a [StatusBadge], with a caption under it.
 class PosStockBadge extends StatelessWidget {
   final int stockCount;
   final bool unlimited;
@@ -14,33 +12,19 @@ class PosStockBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          constraints: const BoxConstraints(minWidth: 44),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: _inStock
-                ? AppColors.greenContainerInnerColor
-                : AppColors.lightRed,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          alignment: Alignment.center,
-          child: CustomText(
-            text: unlimited ? '∞' : (_inStock ? stockCount.toString() : 'Out'),
-            fontSize: AppFontSize.verySmall,
-            fontWeight: FontWeight.bold,
-            color: _inStock ? AppColors.darkGreen : AppColors.red,
-            fontFamily: AppTextStyles.monoFontFamily,
-          ),
+        StatusBadge(
+          unlimited ? '∞' : (_inStock ? stockCount.toString() : 'Out'),
+          tone: _inStock ? StatusTone.success : StatusTone.danger,
         ),
-        const SizedBox(height: 4),
-        CustomText(
-          text: unlimited ? 'unlimited' : (_inStock ? 'in stock' : 'out of stock'),
-          fontSize: AppFontSize.tiny,
-          color: AppColors.lightGrey5,
+        const SizedBox(height: Space.s1),
+        Text(
+          unlimited ? 'unlimited' : (_inStock ? 'in stock' : 'out of stock'),
+          style: context.type.caption.copyWith(color: p.textMuted),
         ),
       ],
     );

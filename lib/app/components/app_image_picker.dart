@@ -1,11 +1,10 @@
 import 'dart:io';
 
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 
 /// Production-level reusable image picker.
 ///
@@ -35,9 +34,8 @@ class AppImagePicker {
     VoidCallback? onRemove,
     String title = 'Choose Photo',
   }) {
-    Get.bottomSheet(
+    AppBottomSheet.showGet<void>(
       _PickerSheet(
-        title: title,
         canRemove: canRemove,
         onCamera: () async {
           Get.back();
@@ -56,8 +54,7 @@ class AppImagePicker {
               }
             : null,
       ),
-      backgroundColor: AppColors.transparent,
-      isScrollControlled: true,
+      title: title,
     );
   }
 
@@ -129,34 +126,22 @@ class AppImagePicker {
   /// Rationale dialog — explains WHY before Android's system dialog appears.
   static Future<bool> _showRationaleDialog(String permissionName) async {
     final result = await Get.dialog<bool>(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: CustomText(
-          text: '$permissionName Access',
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: AppColors.black,
-        ),
-        content: CustomText(
-          text: 'This app needs access to your $permissionName to let you upload photos.',
-          fontSize: 14,
-          color: AppColors.grey,
-          height: 1.5,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const CustomText(text: 'Not Now', color: AppColors.grey),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: CustomText(
-              text: 'Allow',
-              color: AppColors.primaryColor,
-              fontWeight: FontWeight.w600,
+      _DialogFrame(
+        child: AppDialogCard(
+          title: '$permissionName Access',
+          message: 'This app needs access to your $permissionName to let you upload photos.',
+          actions: [
+            AppButton(
+              label: 'Not Now',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Get.back(result: false),
             ),
-          ),
-        ],
+            AppButton(
+              label: 'Allow',
+              onPressed: () => Get.back(result: true),
+            ),
+          ],
+        ),
       ),
     );
     return result ?? false;
@@ -165,37 +150,44 @@ class AppImagePicker {
   /// Settings redirect dialog — shown when permission is permanently denied.
   static void _showSettingsDialog(String permissionName) {
     Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: CustomText(
-          text: '$permissionName Blocked',
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: AppColors.black,
-        ),
-        content: CustomText(
-          text: '$permissionName access was denied. Please enable it in your device settings to upload photos.',
-          fontSize: 14,
-          color: AppColors.grey,
-          height: 1.5,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const CustomText(text: 'Cancel', color: AppColors.grey),
-          ),
-          TextButton(
-            onPressed: () {
-              Get.back();
-              openAppSettings();
-            },
-            child: CustomText(
-              text: 'Open Settings',
-              color: AppColors.primaryColor,
-              fontWeight: FontWeight.w600,
+      _DialogFrame(
+        child: AppDialogCard(
+          title: '$permissionName Blocked',
+          message: '$permissionName access was denied. Please enable it in your device settings to upload photos.',
+          actions: [
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Get.back(),
             ),
-          ),
-        ],
+            AppButton(
+              label: 'Open Settings',
+              onPressed: () {
+                Get.back();
+                openAppSettings();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Centres an [AppDialogCard] inside a `Get.dialog` route (which has no layout of its own) with the standard gutter.
+class _DialogFrame extends StatelessWidget {
+  final Widget child;
+
+  const _DialogFrame({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(Space.s6),
+          child: child,
+        ),
       ),
     );
   }
@@ -204,14 +196,12 @@ class AppImagePicker {
 // ── Bottom sheet ──────────────────────────────────────────────────────────────
 
 class _PickerSheet extends StatelessWidget {
-  final String title;
   final bool canRemove;
   final VoidCallback onCamera;
   final VoidCallback onGallery;
   final VoidCallback? onRemove;
 
   const _PickerSheet({
-    required this.title,
     required this.canRemove,
     required this.onCamera,
     required this.onGallery,
@@ -220,106 +210,34 @@ class _PickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).padding.bottom;
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(0, 12, 0, bottom + 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: AppColors.lightGrey2,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: CustomText(
-                text: title,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
-              ),
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.lightGrey2),
-          _Option(
-            icon: Icons.camera_alt_rounded,
-            label: 'Take Photo',
-            onTap: onCamera,
-          ),
-          const Divider(height: 1, indent: 72, color: AppColors.lightGrey2),
-          _Option(
-            icon: Icons.photo_library_rounded,
-            label: 'Choose from Gallery',
-            onTap: onGallery,
-          ),
-          if (onRemove != null) ...[
-            const Divider(height: 1, indent: 72, color: AppColors.lightGrey2),
-            _Option(
-              icon: Icons.delete_outline_rounded,
-              label: 'Remove Photo',
-              onTap: onRemove!,
-              danger: true,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Option extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool danger;
-
-  const _Option({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = danger ? AppColors.red : AppColors.primaryColor;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Icon(icon, size: 20, color: color),
-            ),
-            const SizedBox(width: 14),
-            CustomText(
-              text: label,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: danger ? AppColors.red : AppColors.black,
-            ),
-          ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppListRow(
+          icon: Icons.camera_alt_rounded,
+          title: 'Take Photo',
+          onTap: onCamera,
+          chevron: false,
         ),
-      ),
+        const SizedBox(height: Space.s2),
+        AppListRow(
+          icon: Icons.photo_library_rounded,
+          title: 'Choose from Gallery',
+          onTap: onGallery,
+          chevron: false,
+        ),
+        if (onRemove != null) ...[
+          const SizedBox(height: Space.s2),
+          AppListRow(
+            icon: Icons.delete_outline_rounded,
+            title: 'Remove Photo',
+            onTap: onRemove,
+            tone: StatusTone.danger,
+            chevron: false,
+          ),
+        ],
+      ],
     );
   }
 }

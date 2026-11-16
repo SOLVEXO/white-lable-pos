@@ -1,5 +1,4 @@
 # G6.3 design guard baseline: <path> <violations>. Only ever shrinks; empty at the end of G6.3.
-lib/app/components/app_image_picker.dart 35
 lib/app/components/app_search_field.dart 5
 lib/app/components/buttons/app_button.dart 13
 lib/app/components/common_image_view.dart 3
@@ -17,10 +16,8 @@ lib/app/components/skeleton.dart 6
 lib/app/data/models/common_models/store_status_style.dart 10
 lib/app/modules/home/widgets/icon_badge.dart 7
 lib/app/modules/onboarding/views/onboarding_view.dart 2
-lib/app/modules/pos/widgets/pos_app_bar.dart 11
 lib/app/modules/pos_admin/views/settings_hub_views.dart 4
 lib/app/modules/pos_audit_log/widgets/pos_audit_log_shimmer.dart 3
-lib/app/modules/pos_catalog_admin/views/csv_import_view.dart 1
 lib/app/modules/pos_customers/views/pos_customers_view.dart 33
 lib/app/modules/pos_daily_report/views/pos_daily_report_view.dart 65
 lib/app/modules/pos_daily_report/widgets/pos_daily_report_shimmer.dart 3
@@ -51,11 +48,6 @@ lib/app/modules/pos_pin_login/widgets/pin_legacy_theme.dart 5
 lib/app/modules/pos_plan/views/plan_expiry_banner.dart 6
 lib/app/modules/pos_plan/views/pos_plan_inactive_view.dart 7
 lib/app/modules/pos_plan/views/pos_plan_status_view.dart 5
-lib/app/modules/pos_products/views/pos_products_view.dart 5
-lib/app/modules/pos_products/widgets/pos_product_tile.dart 15
-lib/app/modules/pos_products/widgets/pos_products_empty.dart 8
-lib/app/modules/pos_products/widgets/pos_products_shimmer.dart 3
-lib/app/modules/pos_products/widgets/pos_stock_badge.dart 10
 lib/app/modules/pos_range_report/views/pos_range_report_view.dart 51
 lib/app/modules/pos_range_report/widgets/pos_range_report_shimmer.dart 4
 lib/app/modules/pos_sale_detail/views/pos_sale_detail_view.dart 86
