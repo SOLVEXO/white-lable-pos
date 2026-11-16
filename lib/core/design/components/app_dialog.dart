@@ -110,21 +110,32 @@ class AppDialogCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  title,
-                  style: context.type.title.copyWith(color: p.textPrimary),
-                ),
-                if (message != null) ...[
-                  const SizedBox(height: Space.s2),
-                  Text(
-                    message!,
-                    style: context.type.body.copyWith(color: p.textSecondary),
+                // title, message and content scroll when they do not fit (keyboard up, large text); the actions stay visible (G6.3)
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          title,
+                          style: context.type.title.copyWith(color: p.textPrimary),
+                        ),
+                        if (message != null) ...[
+                          const SizedBox(height: Space.s2),
+                          Text(
+                            message!,
+                            style: context.type.body.copyWith(color: p.textSecondary),
+                          ),
+                        ],
+                        if (content != null) ...[
+                          const SizedBox(height: Space.s4),
+                          content!,
+                        ],
+                      ],
+                    ),
                   ),
-                ],
-                if (content != null) ...[
-                  const SizedBox(height: Space.s4),
-                  content!,
-                ],
+                ),
                 if (actions.isNotEmpty) ...[
                   const SizedBox(height: Space.s6),
                   context.isPhone && actions.length > 1

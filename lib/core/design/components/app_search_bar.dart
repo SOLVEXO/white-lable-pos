@@ -14,6 +14,8 @@ class AppSearchBar extends StatefulWidget {
     this.onSubmitted,
     this.onScan,
     this.autofocus = false,
+    this.textCapitalization = TextCapitalization.none,
+    this.fieldKey,
   });
   final TextEditingController? controller;
   final FocusNode? focusNode;
@@ -24,6 +26,12 @@ class AppSearchBar extends StatefulWidget {
   /// Shows a scan button when set.
   final VoidCallback? onScan;
   final bool autofocus;
+
+  /// e.g. [TextCapitalization.characters] for receipt numbers (G6.3).
+  final TextCapitalization textCapitalization;
+
+  /// A key on the inner TextField (tests enter text by it).
+  final Key? fieldKey;
 
   @override
   State<AppSearchBar> createState() => _AppSearchBarState();
@@ -46,6 +54,8 @@ class _AppSearchBarState extends State<AppSearchBar> {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: _c,
       builder: (context, value, _) => TextField(
+        key: widget.fieldKey,
+        textCapitalization: widget.textCapitalization,
         controller: _c,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,

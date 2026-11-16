@@ -40,3 +40,4 @@ export 'components/brand_panel.dart';
 export 'components/app_page.dart';
 export 'components/app_list_row.dart';
 export 'components/app_banner.dart';
+export 'components/app_pill.dart';

@@ -624,7 +624,8 @@ class PosSettingsController extends GetxController {
                   Text('Count the drawer and enter the actual cash amount.', style: t.bodySmall.copyWith(color: p.textSecondary)),
                   const SizedBox(height: Space.s3),
                   AppTextField(
-                    label: 'Counted cash (${Money.symbol()})',
+                    label: 'Counted cash',
+                    prefixText: '${Money.symbol()} ',
                     controller: closingCashController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     hint: '0.00',
@@ -653,7 +654,8 @@ class PosSettingsController extends GetxController {
                   const SizedBox(height: Space.s3),
                   AppTextField(
                     key: const Key('cardSlipField'),
-                    label: 'Card total (${Money.symbol()})',
+                    label: 'Card total',
+                    prefixText: '${Money.symbol()} ',
                     controller: cardSlipController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     hint: 'Leave empty to skip',

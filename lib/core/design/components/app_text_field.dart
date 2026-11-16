@@ -17,6 +17,7 @@ class AppTextField extends StatefulWidget {
     this.helperText,
     this.hint,
     this.prefixIcon,
+    this.prefixText,
     this.suffix,
     this.obscureText = false,
     this.showObscureToggle = false,
@@ -41,6 +42,9 @@ class AppTextField extends StatefulWidget {
   final String? helperText;
   final String? hint;
   final IconData? prefixIcon;
+
+  /// Text drawn before the value, e.g. the currency symbol of an amount field (`Money.symbol(...)`) (G6.3).
+  final String? prefixText;
   final Widget? suffix;
   final bool obscureText;
 
@@ -141,6 +145,8 @@ class _AppTextFieldState extends State<AppTextField>
         hintText: widget.hint,
         helperText: widget.helperText,
         errorText: widget.errorText,
+        prefixText: widget.prefixText,
+        prefixStyle: widget.prefixText == null ? null : context.type.body.copyWith(color: p.textSecondary),
         prefixIcon: widget.prefixIcon == null
             ? null
             : Icon(widget.prefixIcon, color: p.textMuted),

@@ -103,54 +103,6 @@ class PosOrdersView extends StatelessWidget {
   }
 }
 
-/// A token-styled filter pill with a full 48 dp tap target.
-class _FilterPill extends StatelessWidget {
-  const _FilterPill({required this.label, required this.onTap, this.active = false, this.icon, this.trailing});
-  final String label;
-  final VoidCallback onTap;
-  final bool active;
-  final IconData? icon;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    final fg = active ? p.accentFg : p.textPrimary;
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: Radii.rFull,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: Space.minTouch),
-          child: Center(
-            widthFactor: 1,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s1 + 2),
-              decoration: BoxDecoration(
-                color: active ? p.accentSoft : p.surface,
-                borderRadius: Radii.rFull,
-                border: Border.all(color: active ? p.accent : p.border),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, size: IconSizes.xs, color: active ? p.accentFg : p.textSecondary),
-                    const SizedBox(width: 6),
-                  ],
-                  Text(label, style: context.type.label.copyWith(color: fg, fontWeight: FontWeight.w600)),
-                  if (trailing != null) ...[const SizedBox(width: Space.s1), trailing!],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _FilterHeader extends StatelessWidget {
   final PosOrdersController controller;
   const _FilterHeader({required this.controller});
@@ -186,29 +138,28 @@ class _FilterHeader extends StatelessWidget {
   }
 
   Widget _buildFilterRow(BuildContext context) {
-    final p = context.palette;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
           Obx(
-            () => _FilterPill(
+            () => AppPill(
               onTap: () => _showFilterSheet(context),
-              active: true,
+              selected: true,
               label: controller.paymentFilter.value == 'All'
                   ? 'All'
                   : controller.paymentFilter.value.capitalizeFirst ??
                         '',
-              trailing: Icon(Icons.keyboard_arrow_down_rounded, size: IconSizes.sm, color: p.accentFg),
+              trailingIcon: Icons.keyboard_arrow_down_rounded,
             ),
           ),
           const SizedBox(width: Space.s2),
           Obx(
-            () => _FilterPill(
+            () => AppPill(
               onTap: () => _showStatusFilterSheet(context),
               label: controller.statusFilter.value == 'All'
                   ? 'Status'
                   : controller.statusFilter.value.capitalizeFirst ?? '',
-              trailing: Icon(Icons.keyboard_arrow_down_rounded, size: IconSizes.sm, color: p.textPrimary),
+              trailingIcon: Icons.keyboard_arrow_down_rounded,
             ),
           ),
       ],
@@ -293,7 +244,7 @@ class _DateFilterChip extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _FilterPill(
+          AppPill(
             onTap: () async {
               final now = DateTime.now();
               final picked = await showDateRangePicker(
@@ -308,7 +259,7 @@ class _DateFilterChip extends StatelessWidget {
                 controller.setDateRange(picked.start, picked.end);
               }
             },
-            active: active,
+            selected: active,
             icon: Icons.calendar_today_outlined,
             label: controller.dateFilter.value,
           ),

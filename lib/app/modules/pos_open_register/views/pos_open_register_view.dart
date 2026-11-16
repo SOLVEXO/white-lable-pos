@@ -87,7 +87,8 @@ class PosOpenRegisterView extends StatelessWidget {
                         // the store's currency (known once the last close is read), not a fixed symbol
                         Obx(
                           () => AppTextField(
-                            label: 'Amount (${Money.symbol(c.currency)})',
+                            label: 'Amount',
+                            prefixText: '${Money.symbol(c.currency)} ',
                             controller: c.openingCashController,
                             hint: '0.00',
                             mono: true,

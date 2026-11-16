@@ -77,14 +77,14 @@ Manrope and DM Sans are variable fonts: each style sets the `wght` axis explicit
 | Buttons | `AppButton(label:, onPressed:, variant:, size:, icon:, loading:, expand:)` | Variants: `primary` (one per view), `secondary`, `ghost` (the text button), `danger` (destructive). At least 48 tall (56 with `lg`). Keeps its width while loading and ignores repeat taps. |
 | Cards | `AppCard(child:, onTap:, padding:, radius:, color:, semanticLabel:)` | The only card. Gives one semantic label when tappable. |
 | List rows | `AppListRow(icon:, title:, subtitle:, tone:, trailing:, badge:, locked:, onTap:)` | **New in G6.3**, promoted from `HubRow`. The `tone` tints the icon tile: accent for navigation, warning or danger for an alert. A `lock` icon marks an owner-gated row. There is no "coming soon" row: an entry whose screen does not exist is hidden (guarded by `test/no_placeholder_guard_test.dart`). |
-| Inputs | `AppTextField(label:, …)` | Floating label, error text, prefix and suffix. Tests find fields by `labelText`. |
-| Search | `AppSearchBar` | Search icon, clear button, optional scan button. |
-| Chips / filters | `CategoryChips` | For single-select filters. The Material `ChoiceChip`/`FilterChip` are themed by `AppTheme`. |
+| Inputs | `AppTextField(label:, prefixText:, prefixIcon:, suffix:, mono:, …)` | Floating label and error text. `prefixText` (G6.3) puts the currency symbol in front of an amount (`Money.symbol(...)`). `mono` is for code-like input. Tests find fields by `labelText`. |
+| Search | `AppSearchBar(hint:, onChanged:, onSubmitted:, onScan:, textCapitalization:, fieldKey:)` | Search icon, clear button, optional scan button. `textCapitalization` and `fieldKey` were added in G6.3, e.g. for receipt numbers. |
+| Chips / filters | `AppPill(label:, selected:, onTap:, icon:, trailingIcon:)`; `CategoryChips` for the sale screen's category row | `AppPill` (G6.3) is the filter / toggle pill: 48 dp, accent tint and check mark when selected. Use a `Wrap` of pills. |
 | Status pills / badges | `StatusBadge(label, tone:, icon:, dot:)` | Tones: `success` / `warning` / `danger` / `info` / `accent` / `neutral`. The label carries the meaning; colour never does it alone. |
 | Figures | `StatTile`, `AppHero(caption:, figure:, footnote:)` | `AppHero` is the dark headline card (**new in G6.3**). |
 | Money | `AmountText(Money.format(v), style: context.type.amountMd, color: …)` | Every amount. Tabular figures, rolls when the value changes, `animate: false` in lists. Text always comes from `Money.format` (the currency guard forbids literal symbols). |
 | Bottom sheets | `AppBottomSheet.show` / `showGet`, `AppSheetFrame` | Grab handle, xl radius, overlay shadow, keyboard-safe. |
-| Dialogs | `AppDialog.show`, `AppDialogCard` | |
+| Dialogs | `AppDialog.show`, `AppDialogCard(title:, message:, content:, actions:)` | Since G6.3 the title, message and content scroll when they don't fit (keyboard up, large text); the actions stay visible. |
 | Confirmation | `AppDialog.confirm(context, title:, message:, confirmLabel:, destructive:)` | Destructive actions use `destructive: true`, which gives a danger button with the cancel button first. Money-moving actions need a second step (manager PIN or typed reason), handled by the existing approval sheets. |
 | Toasts | `AppToast.success / error / warning / info` | Replaces `Get.snackbar` and the legacy `CustomAppSnackbar`. |
 | Empty | `EmptyState(icon:, title:, message:, actionLabel:, onAction:)` | |
