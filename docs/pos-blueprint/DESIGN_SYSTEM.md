@@ -108,6 +108,26 @@ Manrope and DM Sans are variable fonts: each style sets the `wght` axis explicit
 - **Tablet:** cap the width (720), or use two columns for dashboards and master/detail screens.
 - **Dark:** nothing to do per screen when only palette tokens are used.
 
-## 4. Legacy kit (being removed in G6.3)
+## 4. Legacy kit (removed in G6.3)
 
-`AppColors` / `AppBrand` (`lib/config/resources/app_colors.dart`, `lib/core/theme/`), `CustomText`, `CustomAppBarTwo`, `CustomButton`, `LegacyAppButton`, `CustomTextField`, `CustomConfirmDialog`, `CustomBottomSheet`, `CustomAppSnackbar`, `lib/app/components/skeleton.dart`, `NetworkStatusBanner` and `responsive_sizer`'s `.sp`. Each is replaced by the row above that does the same job. Once nothing references them they are deleted, and `UI_CONSISTENCY_AUDIT.md` shows every screen as New.
+The old kit is gone from `lib/`:
+- colours and type: `AppColors`, `app_text_styles`, `app_font_size`, `dimens`, `lib/core/theme/*`;
+- widgets: `CustomText`, `CustomAppBarTwo`, `LegacyAppButton`, `CustomTextField`, `CustomBottomSheet`, `CustomDivider`, `CustomRefreshWrapper`, `CommonImageView`, `AppSearchField`, the legacy skeleton and base buttons, the base controller and state;
+- dialogs: the Cupertino dialog helpers and the unused `util.dart` dialogs.
+
+Two classes keep their names for their callers and now draw design-system components: `CustomConfirmDialog` (draws `AppDialogCard`) and `NetworkStatusBanner` (palette fills, type tokens).
+
+The guard's baseline is empty, and `test/design_guard_test.dart` fails if it ever gains an entry.
+
+**Allowed exceptions (the guard's allowlist):** the five PDF builders (`daybook_pdf`, `receipt_pdf_builder`, `report_export`, `tax_document_pdf`, `team_report_pdf`). They size `pw.TextStyle` in print points for paper. They are documents, not app UI, and have no theme.
+
+**Fixed colours that are tokens, not exceptions:**
+- `AppPalette.nativeSplash`: the splash's first frame must match the native launch screen;
+- `qrLight` / `qrDark`: QR contrast;
+- `media` / `onMedia`: over a camera feed.
+
+**Placeholders:** `test/no_placeholder_guard_test.dart` fails on any "Coming soon" or "Soon" label in `lib/`. An entry links to its screen, or it is hidden.
+
+**Text scale:** the app honours OS text scaling up to `kMaxTextScale = 1.3` (`main.dart`). Every screen was checked at 1.3 against the real backend (`integration_test/g63_screens_shots_test.dart`, `G63_SCALE=1.3`).
+
+**Theme:** every screen draws from palette tokens and was checked in dark. The shipped app still opens in light; following the system setting is a one-line change to `themeMode` in `main.dart`, and it is the owner's decision. Debug builds preview dark with the launch parameter `THEME=dark`.

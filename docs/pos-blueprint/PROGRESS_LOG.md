@@ -65,31 +65,32 @@ Working mode since 2026-11-10: one heavy job at a time (backend gate / full `flu
 | G6.1 | Fiscal contract v1 (FISCAL_CONTRACT.md): server display lines / message / willRetry / logo, failed status, issues + owner retry; app prints and shows only the server's block everywhere (offline "Fiscal pending"); provider wording / fields / rules from `connectors.ui` (server message first); older-backend mode (`ServerCapabilities`, release #2 features hidden on a 404) — 8 core flows / 29 tests pass against a real G5.1 stack; fiscal sweep leased per document + sweep (other POS jobs already leased); fiscal / gateway switches need a usable provider; store checklist corrected; version 1.0.1+101, release AAB built (not uploaded) | api 59bb0cb, 8aec473, 7cfc429 · app 5498330 + close-out | see CI | the e2e control server always drove ../solvexo-api (now `E2E_API_DIR`); main's Redis cron lock has no renewal (noted for main's owner) |
 | G6.2 | Older-backend detection only from the explicit probe `GET /api/pos/capabilities` (route absent / no `features` = older; network, 5xx, auth, proxy or any other 404 = no change); re-checked on every start, after login and on store switch; cached per API for offline; gated per feature; connectors-404 guess and shared `lastHttpStatus` removed; version 1.0.1+102, release AAB rebuilt | api f673775 · app d596ae4 + docs | see CI | — |
 | G6.3 Steps 1–2 | UI consistency. Step 1: UI_CONSISTENCY_AUDIT.md (91 routes + tabs: 50 New / 28 Mixed / 13 Old; 61 sheets & dialogs: 42 / 5 / 14; `tool/ui_audit.py`); DESIGN_SYSTEM.md; the design system consolidated (AppPage, AppTabPage, AppSection, AppListRow, AppBanner, AppErrorState, AppHero, IconSizes, hero palette tokens; InvScaffold / HubRow / HubScaffold delegate); CI guard `test/design_guard_test.dart` with a shrink-only baseline (103 files, 1950 violations). Step 2: the Home dashboard redesigned (register state + one primary action, clock-in, today, needs-attention incl. fiscal documents and expenses to approve via the new read-only `DashboardAlertsController`, role quick actions, phone + two-column tablet, offline, older backend, text 1.3). Screenshots: `g6_3_screenshots/` (dashboard before/after phone+tablet light+dark, gallery, real-backend before of 38 Old/Mixed screens) | app 718ae49 | green | approved 2026-11-16 (Home reads kept; text cap → 1.3 at the end; PIN → open-register test); was: flags: Home's two extra reads, the 0.9–1.2 text-scale clamp in main.dart, Stock hub's stale "Coming soon" rows, `Open register` routes to PIN login |
+| G6.3 Step 3 + close-out | Every screen on the design system: products, orders, checkout & payment, shift & cash, customers & stock, reports, team & registers, settings / integrations / devices / plan, onboarding & auth (tokens only, same layout), then the legacy kit deleted (AppColors, CustomText, old theme, legacy widgets). Design system gained AppPill, amountSm / amountDisplay / mono, qr / media / nativeSplash colours, AppTextField.prefixText, AppSearchBar capitalization, scrollable AppDialogCard. Stock tab links count / transfers / batches; no placeholder labels (guard); Home → PIN → open-register test; text-scale cap 1.3; guard baseline empty (enforced); audit 91 routes + tabs and 53 sheets all New; real-backend after shots phone light / dark / 1.3 and tablet; all flows below pass; versionCode 103 / 1.0.2 AAB | app f71149a · 30f229f · eebf31c · 6046d85 · 537ee03 · 2aef52c · 7530fed · 0202000 · 43680b4 · 2dcb5a6 · 83cbc6f · b4f1f41 · e93ddb2 (+ close-out docs); api 68546d1 (dev seed only) | green | shipped theme stays light (dark verified; owner decision) |
 
 ## Integration flows (simulator) — last pass
 
-Commits are app (pos) commits; the latest pass ran the dev stack at API `ba8f370` (G5.7, with `DEV_UPLOAD_STUB` and `RECEIPT_PUBLIC_URL=http://127.0.0.1:3102`). "Mocked" = real app on the simulator with repositories mocked; the rest are real backend.
+Commits are app (pos) commits; the latest pass (G6.3, 2026-11-16) ran the dev stack at API `68546d1` (`f673775` + the G4.8 dev-seed fix); the pass before ran it at API `ba8f370` (G5.7, with `DEV_UPLOAD_STUB` and `RECEIPT_PUBLIC_URL=http://127.0.0.1:3102`). "Mocked" = real app on the simulator with repositories mocked; the rest are real backend.
 
 | Flow | File | Kind | Scenarios | Last passed on | Date |
 |---|---|---|---|---|---|
-| **G5.2–G5.7** (RECEIPT_PUBLIC_URL QR, product edit + photo, WhatsApp / share, card terminal sale + refund + shift close, fiscal mock online + offline, logo receipt, role preset, accounting export, API key create / use / revoke) | `g52_g57_flow_test.dart` | real | 8 | b36b662 | 2026-11-12 |
-| Core POS flows | `real_backend_pos_flows_test.dart` | real | 11 | b36b662 | 2026-11-12 |
-| App launch (login → store → device → PIN → open register) | `real_backend_ui_test.dart` | real | 1 | b36b662 | 2026-11-12 |
-| G4 (integrity, reports, Draft PO) | `g4_flow_test.dart` | real | 3 | b36b662 | 2026-11-12 |
-| G4.8 + G4.9 | `g48_flow_test.dart` | real | 9 | b36b662 | 2026-11-12 |
-| G5.1 | `g51_flow_test.dart` | real | 3 | b36b662 | 2026-11-12 |
-| G2.4 checkout | `g24_checkout_flow_test.dart` | real | 5 | b36b662 | 2026-11-12 |
-| G2.5 returns | `g25_returns_flow_test.dart` | real | 4 | b36b662 | 2026-11-12 |
-| G2.7 offline return on another till | `g27_offline_return_other_till_test.dart` | real | 1 | b36b662 | 2026-11-12 |
-| G3.1 inventory | `g31_inventory_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
-| G3.2 / G3.3 lots, customers, credit, loyalty | `g32_g33_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
-| G3.4 supply | `g34_supply_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
-| G3.5 cash | `g35_cash_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
-| G3.6 team | `g36_team_flow_test.dart` | real | 1 | b36b662 | 2026-11-12 |
-| Raast QR (stack with `E2E_QR_TTL=10`) | `real_backend_raast_test.dart` | real | 4 | b36b662 | 2026-11-12 |
-| Offline sync | `offline_sync_test.dart` | mocked | 2 | b36b662 | 2026-11-12 |
-| Phase 2 device flow | `phase2_device_flow_test.dart` | mocked | 1 | b36b662 | 2026-11-12 |
-| Phase 2 fresh flow | `phase2_fresh_flow_test.dart` | mocked | 1 | b36b662 | 2026-11-12 |
+| **G5.2–G5.7** (RECEIPT_PUBLIC_URL QR, product edit + photo, WhatsApp / share, card terminal sale + refund + shift close, fiscal mock online + offline, logo receipt, role preset, accounting export, API key create / use / revoke) | `g52_g57_flow_test.dart` | real | 8 | e93ddb2 | 2026-11-16 |
+| Core POS flows | `real_backend_pos_flows_test.dart` | real | 11 | e93ddb2 | 2026-11-16 |
+| App launch (login → store → device → PIN → open register) | `real_backend_ui_test.dart` | real | 1 | e93ddb2 | 2026-11-16 |
+| G4 (integrity, reports, Draft PO) | `g4_flow_test.dart` | real | 3 | e93ddb2 | 2026-11-16 |
+| G4.8 + G4.9 | `g48_flow_test.dart` | real | 9 | e93ddb2 | 2026-11-16 |
+| G5.1 | `g51_flow_test.dart` | real | 3 | e93ddb2 | 2026-11-16 |
+| G2.4 checkout | `g24_checkout_flow_test.dart` | real | 5 | e93ddb2 | 2026-11-16 |
+| G2.5 returns | `g25_returns_flow_test.dart` | real | 4 | e93ddb2 | 2026-11-16 |
+| G2.7 offline return on another till | `g27_offline_return_other_till_test.dart` | real | 1 | e93ddb2 | 2026-11-16 |
+| G3.1 inventory | `g31_inventory_flow_test.dart` | real | 1 | e93ddb2 | 2026-11-16 |
+| G3.2 / G3.3 lots, customers, credit, loyalty | `g32_g33_flow_test.dart` | real | 1 | e93ddb2 | 2026-11-16 |
+| G3.4 supply | `g34_supply_flow_test.dart` | real | 1 | e93ddb2 | 2026-11-16 |
+| G3.5 cash | `g35_cash_flow_test.dart` | real | 1 | e93ddb2 | 2026-11-16 |
+| G3.6 team | `g36_team_flow_test.dart` | real | 1 | e93ddb2 | 2026-11-16 |
+| Raast QR (stack with `E2E_QR_TTL=10`) | `real_backend_raast_test.dart` | real | 4 | e93ddb2 | 2026-11-16 |
+| Offline sync | `offline_sync_test.dart` | mocked | 2 | e93ddb2 | 2026-11-16 |
+| Phase 2 device flow | `phase2_device_flow_test.dart` | mocked | 1 | e93ddb2 | 2026-11-16 |
+| Phase 2 fresh flow | `phase2_fresh_flow_test.dart` | mocked | 1 | e93ddb2 | 2026-11-16 |
 | Checkout flow (mocked) | `pos_checkout_flow_test.dart` | mocked | 1 | **known-failing**: un-mockable `getProfile` 401 forces a logout (documented in the file); covered by the real core flows | — |
 | Phase 3 sale flows (mocked) | `phase3_sale_flows_test.dart` | mocked | 1 | **known-failing**: same cause | — |
 
