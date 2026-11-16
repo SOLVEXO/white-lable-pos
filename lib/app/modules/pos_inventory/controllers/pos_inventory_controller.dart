@@ -1,12 +1,9 @@
 import 'package:solvexo_pos/app/components/custom_app_snack_bar.dart';
 import 'package:solvexo_pos/app/components/custom_confirm_dialog.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
-import 'package:solvexo_pos/app/components/custom_text_field.dart';
 import 'package:solvexo_pos/app/data/models/inventory/inventory_models.dart';
 import 'package:solvexo_pos/app/data/repositories/inventory_repository.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:solvexo_pos/shared_prefrences/app_prefrences.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
 import 'package:flutter/material.dart';
 import 'package:solvexo_pos/app/data/services/owner_gate.dart';
 import 'package:get/get.dart';
@@ -127,52 +124,40 @@ class PosInventoryController extends GetxController {
   }
 
   void _showVariantPicker(String productId, String productName, List<InventoryVariant> variants) {
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        decoration: const BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CustomText(
-              text: 'Select Variant — $productName',
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black2,
-            ),
-            const SizedBox(height: 12),
-            ...variants.map((v) => GestureDetector(
-              onTap: () {
-                Get.back();
-                _showAdjustDialog(productId, productName, v);
-              },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.lightGrey2),
-                ),
-                child: Row(children: [
-                  Expanded(
-                    child: CustomText(text: v.label, fontSize: AppFontSize.verySmall, color: AppColors.black2),
-                  ),
-                  CustomText(
-                    text: '${v.stock} in stock',
-                    fontSize: AppFontSize.tiny,
-                    color: AppColors.iosGrey,
-                  ),
-                ]),
-              ),
-            )),
-          ],
-        ),
+    AppBottomSheet.showGet(
+      Builder(
+        builder: (context) {
+          final p = context.palette;
+          final t = context.type;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ...variants.map((v) => Padding(
+                    padding: const EdgeInsets.only(bottom: Space.s2),
+                    child: AppCard(
+                      radius: Radii.rMd,
+                      onTap: () {
+                        Get.back();
+                        _showAdjustDialog(productId, productName, v);
+                      },
+                      child: Row(children: [
+                        Expanded(
+                          child: Text(v.label, style: t.body.copyWith(color: p.textPrimary)),
+                        ),
+                        const SizedBox(width: Space.s3),
+                        Text(
+                          '${v.stock} in stock',
+                          style: t.caption.copyWith(color: p.textMuted),
+                        ),
+                      ]),
+                    ),
+                  )),
+            ],
+          );
+        },
       ),
+      title: 'Select Variant — $productName',
     );
   }
 
@@ -192,45 +177,45 @@ class PosInventoryController extends GetxController {
       ctx,
       title: 'Adjust Stock',
       confirmLabel: 'Save',
-      contentBuilder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CustomText(
-            text: '$productName${variant.label.isNotEmpty && variant.label != productName ? ' — ${variant.label}' : ''}',
-            fontSize: AppFontSize.verySmall,
-            color: AppColors.iosGrey,
-          ),
-          const SizedBox(height: 4),
-          CustomText(
-            text: 'Current stock: ${variant.stock}',
-            fontSize: AppFontSize.tiny,
-            color: AppColors.iosGrey,
-          ),
-          const SizedBox(height: 12),
-          CustomTextField(
-            controller: stockController,
-            keyboardType: TextInputType.number,
-            hintText: 'New quantity',
-            isborder: true,
-            fillColor: AppColors.background,
-          ),
-          const SizedBox(height: 12),
-          CustomText(text: 'Reason', fontSize: AppFontSize.tiny, color: AppColors.iosGrey),
-          const SizedBox(height: 6),
-          Obx(() => Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: InventoryRepository.adjustmentReasons.entries
-                    .map((e) => ChoiceChip(
-                          label: Text(e.value),
-                          selected: adjustReason.value == e.key,
-                          onSelected: (_) => adjustReason.value = e.key,
-                        ))
-                    .toList(),
-              )),
-        ],
-      ),
+      contentBuilder: (context) {
+        final p = context.palette;
+        final t = context.type;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$productName${variant.label.isNotEmpty && variant.label != productName ? ' — ${variant.label}' : ''}',
+              style: t.body.copyWith(color: p.textSecondary),
+            ),
+            const SizedBox(height: Space.s1),
+            Text(
+              'Current stock: ${variant.stock}',
+              style: t.caption.copyWith(color: p.textMuted),
+            ),
+            const SizedBox(height: Space.s3),
+            AppTextField(
+              label: 'New quantity',
+              controller: stockController,
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: Space.s3),
+            Text('Reason', style: t.label.copyWith(color: p.textSecondary)),
+            const SizedBox(height: Space.s2),
+            Obx(() => Wrap(
+                  spacing: Space.s2,
+                  runSpacing: Space.s2,
+                  children: InventoryRepository.adjustmentReasons.entries
+                      .map((e) => AppPill(
+                            label: e.value,
+                            selected: adjustReason.value == e.key,
+                            onTap: () => adjustReason.value = e.key,
+                          ))
+                      .toList(),
+                )),
+          ],
+        );
+      },
       onConfirm: () => _saveStockAdjustment(variant),
     );
   }

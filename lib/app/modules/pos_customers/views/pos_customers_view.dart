@@ -1,11 +1,7 @@
 import 'package:solvexo_pos/utils/money.dart';
-import 'package:solvexo_pos/app/components/custom_app_bar_two.dart';
-import 'package:solvexo_pos/app/components/custom_text.dart';
 import 'package:solvexo_pos/app/data/models/customer/customer_model.dart';
 import 'package:solvexo_pos/app/modules/pos_customers/controllers/pos_customers_controller.dart';
-import 'package:solvexo_pos/config/resources/app_colors.dart';
-import 'package:solvexo_pos/utils/app_font_size.dart';
-import 'package:solvexo_pos/utils/dimens.dart';
+import 'package:solvexo_pos/core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -20,48 +16,36 @@ class PosCustomersView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const CustomAppBarTwo(
-        title: 'Customers',
-        color: AppColors.black2,
-      ),
+    final p = context.palette;
+    return AppPage(
+      title: 'Customers',
       body: Obx(() {
         if (c.isLoading.value) {
-          return Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.primaryColor,
-            ),
-          );
+          return const SkeletonList(padding: EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s6));
         }
         if (c.customers.isEmpty) {
-          return const Center(
-            child: CustomText(
-              text:
-                  'No customers yet — they show up here after their first order.',
-              fontSize: AppFontSize.small2,
-              color: AppColors.iosGrey,
-              textAlign: TextAlign.center,
-            ),
+          return const EmptyState(
+            icon: Icons.groups_2_outlined,
+            title: 'No customers yet',
+            message: 'They show up here after their first order.',
           );
         }
         return RefreshIndicator(
           onRefresh: c.refreshData,
-          color: AppColors.primaryColor,
-          child: ListView.separated(
+          color: p.accentFg,
+          child: ListView.builder(
             controller: c.scrollController,
-            padding: const EdgeInsets.all(AppDimen.allPadding),
+            padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s6),
             itemCount: c.customers.length + (c.isLoadingMore.value ? 1 : 0),
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (_, i) {
               if (i >= c.customers.length) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.all(Space.s4),
                   child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primaryColor,
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: p.accentFg),
                     ),
                   ),
                 );
@@ -83,114 +67,93 @@ class _CustomerTile extends StatelessWidget {
   final String currencySymbol;
   const _CustomerTile({required this.customer, required this.currencySymbol});
 
-  static final _segmentColors = {
-    'vip': AppColors.orange,
-    'returning': AppColors.primaryColor,
-    'at_risk': AppColors.red,
-    'new': AppColors.green2,
+  static const _segmentTones = {
+    'vip': StatusTone.warning,
+    'returning': StatusTone.accent,
+    'at_risk': StatusTone.danger,
+    'new': StatusTone.success,
   };
 
   @override
   Widget build(BuildContext context) {
-    final segColor = _segmentColors[customer.segment] ?? AppColors.iosGrey;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    final p = context.palette;
+    final t = context.type;
+    final contact = customer.phone ?? customer.email ?? '';
+    final name = customer.name.trim();
+    final stack = MediaQuery.textScalerOf(context).scale(16) > 19;
+    final spent = customer.orderCount == null
+        ? null
+        : Column(
+            crossAxisAlignment: stack ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AmountText(
+                Money.format((customer.totalSpent ?? 0)),
+                style: t.amountMd,
+                color: p.textPrimary,
+                animate: false,
+              ),
+              Text(
+                '${customer.orderCount} order${customer.orderCount == 1 ? '' : 's'}',
+                style: t.caption.copyWith(color: p.textMuted),
+              ),
+            ],
+          );
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          customer.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: t.subtitle.copyWith(color: p.textPrimary),
+        ),
+        if (contact.isNotEmpty)
+          Text(
+            contact,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: t.caption.copyWith(color: p.textMuted),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            alignment: Alignment.center,
-            child: CustomText(
-              text: customer.name.trim().isNotEmpty
-                  ? customer.name.trim()[0].toUpperCase()
-                  : '?',
-              fontSize: AppFontSize.small2,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryColor,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: CustomText(
-                        text: customer.name,
-                        fontSize: AppFontSize.verySmall,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.black2,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (customer.segment != null) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: segColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: CustomText(
-                          text: customer.segment!,
-                          fontSize: AppFontSize.tiny,
-                          color: segColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                CustomText(
-                  text: customer.phone ?? customer.email ?? '',
-                  fontSize: AppFontSize.tiny,
-                  color: AppColors.iosGrey,
-                ),
-              ],
+        if (customer.segment != null)
+          Padding(
+            padding: const EdgeInsets.only(top: Space.s1),
+            child: StatusBadge(
+              customer.segment!,
+              tone: _segmentTones[customer.segment] ?? StatusTone.neutral,
             ),
           ),
-          if (customer.orderCount != null)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                CustomText(
-                  text:
-                      Money.format((customer.totalSpent ?? 0)),
-                  fontSize: AppFontSize.verySmall,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.black2,
-                ),
-                CustomText(
-                  text:
-                      '${customer.orderCount} order${customer.orderCount == 1 ? '' : 's'}',
-                  fontSize: AppFontSize.tiny,
-                  color: AppColors.iosGrey,
-                ),
-              ],
+        if (stack && spent != null)
+          Padding(
+            padding: const EdgeInsets.only(top: Space.s2),
+            child: spent,
+          ),
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.s2),
+      child: AppCard(
+        radius: Radii.rMd,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: p.accentSoft,
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: t.subtitle.copyWith(color: p.accentFg),
+              ),
             ),
-        ],
+            const SizedBox(width: Space.s3),
+            Expanded(child: details),
+            if (!stack && spent != null) ...[
+              const SizedBox(width: Space.s3),
+              spent,
+            ],
+          ],
+        ),
       ),
     );
   }
